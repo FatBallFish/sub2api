@@ -281,6 +281,18 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyDefaultBalance] = strconv.FormatFloat(settings.DefaultBalance, 'f', 8, 64)
 	settings.AffiliateRebateRate = clampAffiliateRebateRate(settings.AffiliateRebateRate)
 	updates[SettingKeyAffiliateRebateRate] = strconv.FormatFloat(settings.AffiliateRebateRate, 'f', 8, 64)
+	if settings.AffiliateInviterSignupReward < 0 {
+		settings.AffiliateInviterSignupReward = AffiliateInviterSignupRewardDefault
+	}
+	updates[SettingKeyAffiliateInviterSignupReward] = strconv.FormatFloat(settings.AffiliateInviterSignupReward, 'f', 8, 64)
+	if settings.AffiliateInviterSignupRewardCap < 0 {
+		settings.AffiliateInviterSignupRewardCap = AffiliateInviterSignupRewardCapDefault
+	}
+	updates[SettingKeyAffiliateInviterSignupRewardCap] = strconv.FormatFloat(settings.AffiliateInviterSignupRewardCap, 'f', 8, 64)
+	if settings.AffiliateInviteeSignupReward < 0 {
+		settings.AffiliateInviteeSignupReward = AffiliateInviteeSignupRewardDefault
+	}
+	updates[SettingKeyAffiliateInviteeSignupReward] = strconv.FormatFloat(settings.AffiliateInviteeSignupReward, 'f', 8, 64)
 	if settings.AffiliateRebateFreezeHours < 0 {
 		settings.AffiliateRebateFreezeHours = AffiliateRebateFreezeHoursDefault
 	}
@@ -337,6 +349,13 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
+
+	// Header-based region block feature switch
+	updates[SettingKeyRegionBlockEnabled] = strconv.FormatBool(settings.RegionBlockEnabled)
+	updates[SettingKeyRegionBlockFrontendEnabled] = strconv.FormatBool(settings.RegionBlockFrontendEnabled)
+	updates[SettingKeyRegionBlockAPIEnabled] = strconv.FormatBool(settings.RegionBlockAPIEnabled)
+	updates[SettingKeyRegionBlockCodes] = strings.TrimSpace(settings.RegionBlockCodes)
+	updates[SettingKeyRegionBlockHeaders] = normalizeCSVSetting(settings.RegionBlockHeaders, RegionBlockHeadersDefault)
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)

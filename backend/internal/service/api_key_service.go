@@ -579,6 +579,18 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 	return apiKey, nil
 }
 
+// Reveal returns the full API key value after verifying ownership.
+func (s *APIKeyService) Reveal(ctx context.Context, id int64, userID int64) (string, error) {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("get api key: %w", err)
+	}
+	if apiKey.UserID != userID {
+		return "", ErrInsufficientPerms
+	}
+	return apiKey.Key, nil
+}
+
 // GetByKey 根据Key字符串获取API Key（用于认证）
 func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, error) {
 	cacheKey := s.authCacheKey(key)

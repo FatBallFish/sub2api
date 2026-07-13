@@ -6145,6 +6145,54 @@
                 </p>
               </div>
 
+              <div class="grid gap-4 md:grid-cols-3">
+                <div>
+                  <label class="input-label">
+                    {{ t('admin.settings.features.affiliate.inviterSignupReward') }}
+                  </label>
+                  <input
+                    v-model.number="form.affiliate_inviter_signup_reward"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input"
+                  />
+                  <p class="mt-1 text-xs text-gray-400">
+                    {{ t('admin.settings.features.affiliate.inviterSignupRewardDesc') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="input-label">
+                    {{ t('admin.settings.features.affiliate.inviterSignupRewardCap') }}
+                  </label>
+                  <input
+                    v-model.number="form.affiliate_inviter_signup_reward_cap"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input"
+                  />
+                  <p class="mt-1 text-xs text-gray-400">
+                    {{ t('admin.settings.features.affiliate.inviterSignupRewardCapDesc') }}
+                  </p>
+                </div>
+                <div>
+                  <label class="input-label">
+                    {{ t('admin.settings.features.affiliate.inviteeSignupReward') }}
+                  </label>
+                  <input
+                    v-model.number="form.affiliate_invitee_signup_reward"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="input"
+                  />
+                  <p class="mt-1 text-xs text-gray-400">
+                    {{ t('admin.settings.features.affiliate.inviteeSignupRewardDesc') }}
+                  </p>
+                </div>
+              </div>
+
               <!-- 专属用户管理 -->
               <div class="border-t border-gray-100 pt-6 dark:border-dark-700">
                 <div class="mb-3 flex items-center justify-between">
@@ -6276,6 +6324,83 @@
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Region block feature card -->
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.regionBlock.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.regionBlock.description') }}
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.regionBlock.enabled') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.regionBlock.enabledHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.region_block_enabled" />
+            </div>
+            <div v-if="form.region_block_enabled" class="grid gap-4 md:grid-cols-2">
+              <div class="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.features.regionBlock.frontendEnabled') }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.regionBlock.frontendEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.region_block_frontend_enabled" />
+              </div>
+              <div class="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div>
+                  <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t('admin.settings.features.regionBlock.apiEnabled') }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.settings.features.regionBlock.apiEnabledHint') }}
+                  </p>
+                </div>
+                <Toggle v-model="form.region_block_api_enabled" />
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.regionBlock.codes') }}
+                </label>
+                <input
+                  v-model="form.region_block_codes"
+                  type="text"
+                  class="input"
+                  placeholder="CN,IR"
+                />
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.settings.features.regionBlock.codesHint') }}
+                </p>
+              </div>
+              <div>
+                <label class="input-label">
+                  {{ t('admin.settings.features.regionBlock.headers') }}
+                </label>
+                <input
+                  v-model="form.region_block_headers"
+                  type="text"
+                  class="input"
+                  placeholder="CF-IPCountry,X-Country-Code,X-Geo-Country"
+                />
+                <p class="mt-1 text-xs text-gray-400">
+                  {{ t('admin.settings.features.regionBlock.headersHint') }}
+                </p>
               </div>
             </div>
           </div>
@@ -6713,6 +6838,20 @@
                       }}
                     </p>
                   </div>
+                  <div class="md:col-span-2">
+                    <label class="input-label">{{
+                      t("admin.settings.payment.currencyExchangeRates")
+                    }}</label>
+                    <input
+                      v-model="form.payment_currency_exchange_rates"
+                      type="text"
+                      class="input"
+                      placeholder="USD:CNY=7.20,CNY:USD=0.13888889"
+                    />
+                    <p class="mt-0.5 text-xs text-gray-400">
+                      {{ t("admin.settings.payment.currencyExchangeRatesHint") }}
+                    </p>
+                  </div>
                   <div>
                     <label class="input-label"
                       >{{ t("admin.settings.payment.orderTimeout") }}
@@ -6919,6 +7058,51 @@
                         />
                       </svg>
                     </a>
+                  </p>
+                </div>
+                <div
+                  v-if="
+                    isPaymentTypeEnabled('alipay') ||
+                    isPaymentTypeEnabled('wxpay')
+                  "
+                  class="grid grid-cols-1 gap-3 md:grid-cols-2"
+                >
+                  <div v-if="isPaymentTypeEnabled('alipay')">
+                    <label class="input-label">{{
+                      t("admin.settings.payment.visibleAlipaySource")
+                    }}</label>
+                    <Select
+                      v-model="form.payment_visible_method_alipay_source"
+                      :options="visibleAlipaySourceOptions"
+                    />
+                    <label class="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <input
+                        v-model="form.payment_visible_method_alipay_enabled"
+                        type="checkbox"
+                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      {{ t("admin.settings.payment.visibleMethodEnabled") }}
+                    </label>
+                  </div>
+                  <div v-if="isPaymentTypeEnabled('wxpay')">
+                    <label class="input-label">{{
+                      t("admin.settings.payment.visibleWxpaySource")
+                    }}</label>
+                    <Select
+                      v-model="form.payment_visible_method_wxpay_source"
+                      :options="visibleWxpaySourceOptions"
+                    />
+                    <label class="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <input
+                        v-model="form.payment_visible_method_wxpay_enabled"
+                        type="checkbox"
+                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      {{ t("admin.settings.payment.visibleMethodEnabled") }}
+                    </label>
+                  </div>
+                  <p class="md:col-span-2 text-xs text-gray-400 dark:text-gray-500">
+                    {{ t("admin.settings.payment.visibleMethodSourceHint") }}
                   </p>
                 </div>
                 <!-- Row 5: Help image + text -->
@@ -7483,6 +7667,7 @@ import {
   deriveWeChatConnectStoredMode,
   normalizeDefaultSubscriptionSettings,
   resolveWeChatConnectModeCapabilities,
+  getPaymentVisibleMethodSourceOptions,
 } from "@/api/admin/settings";
 import type {
   AuthSourceDefaultsState,
@@ -7523,7 +7708,6 @@ import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSi
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
-import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
   normalizeRegistrationEmailSuffixDomain,
@@ -8205,6 +8389,14 @@ const form = reactive<SettingsForm>({
   affiliate_rebate_duration_days: 0,
   affiliate_rebate_per_invitee_cap: 0,
   affiliate_admin_recharge_enabled: false,
+  affiliate_inviter_signup_reward: 0,
+  affiliate_inviter_signup_reward_cap: 0,
+  affiliate_invitee_signup_reward: 0,
+  region_block_enabled: false,
+  region_block_frontend_enabled: false,
+  region_block_api_enabled: false,
+  region_block_codes: "",
+  region_block_headers: "CF-IPCountry,X-Country-Code,X-Geo-Country",
   default_concurrency: 1,
   default_subscriptions: [],
   force_email_on_third_party_signup: false,
@@ -8231,6 +8423,7 @@ const form = reactive<SettingsForm>({
   payment_balance_recharge_multiplier: 1,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
+  payment_currency_exchange_rates: "USD:CNY=7.20,CNY:USD=0.13888889",
   payment_enabled_types: [],
   payment_help_image_url: "",
   payment_help_text: "",
@@ -9577,6 +9770,14 @@ async function saveSettings() {
       affiliate_rebate_duration_days: Math.max(0, Math.min(3650, Math.floor(Number(form.affiliate_rebate_duration_days) || 0))),
       affiliate_rebate_per_invitee_cap: Math.max(0, Number(form.affiliate_rebate_per_invitee_cap) || 0),
       affiliate_admin_recharge_enabled: form.affiliate_admin_recharge_enabled,
+      affiliate_inviter_signup_reward: Math.max(0, Number(form.affiliate_inviter_signup_reward) || 0),
+      affiliate_inviter_signup_reward_cap: Math.max(0, Number(form.affiliate_inviter_signup_reward_cap) || 0),
+      affiliate_invitee_signup_reward: Math.max(0, Number(form.affiliate_invitee_signup_reward) || 0),
+      region_block_enabled: form.region_block_enabled,
+      region_block_frontend_enabled: form.region_block_frontend_enabled,
+      region_block_api_enabled: form.region_block_api_enabled,
+      region_block_codes: form.region_block_codes,
+      region_block_headers: form.region_block_headers,
       default_concurrency: form.default_concurrency,
       default_subscriptions: normalizedDefaultSubscriptions,
       force_email_on_third_party_signup: form.force_email_on_third_party_signup,
@@ -9752,6 +9953,8 @@ async function saveSettings() {
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,
+      payment_currency_exchange_rates:
+        form.payment_currency_exchange_rates?.trim() || "",
       payment_enabled_types: form.payment_enabled_types,
       payment_load_balance_strategy: form.payment_load_balance_strategy,
       payment_product_name_prefix: form.payment_product_name_prefix,
@@ -10396,8 +10599,10 @@ const allPaymentTypes = computed(() => [
   { value: "easypay", label: t("payment.methods.easypay") },
   { value: "alipay", label: t("payment.methods.alipay") },
   { value: "wxpay", label: t("payment.methods.wxpay") },
+  { value: "paypal", label: t("payment.methods.paypal") },
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
+  { value: "jeepay", label: t("payment.methods.jeepay") },
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
@@ -10406,6 +10611,20 @@ function isPaymentTypeEnabled(type: string): boolean {
 
 const hasAnyPaymentTypeEnabled = computed(
   () => form.payment_enabled_types.length > 0,
+);
+
+const visibleAlipaySourceOptions = computed(() =>
+  getPaymentVisibleMethodSourceOptions("alipay").map((option) => ({
+    value: option.value,
+    label: localText(option.labelZh, option.labelEn),
+  })),
+);
+
+const visibleWxpaySourceOptions = computed(() =>
+  getPaymentVisibleMethodSourceOptions("wxpay").map((option) => ({
+    value: option.value,
+    label: localText(option.labelZh, option.labelEn),
+  })),
 );
 
 function togglePaymentType(type: string) {
@@ -10455,6 +10674,7 @@ const providerKeyOptions = computed(() => [
   { value: "wxpay", label: t("admin.settings.payment.providerWxpay") },
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
+  { value: "jeepay", label: t("admin.settings.payment.providerJeepay") },
 ]);
 
 const enabledProviderKeyOptions = computed(() => {
@@ -10498,76 +10718,10 @@ type ProviderEnablementCandidate = Pick<
   "id" | "provider_key" | "supported_types" | "enabled" | "name"
 >;
 
-function getProviderVisibleMethods(
-  provider: ProviderEnablementCandidate,
-): Array<"alipay" | "wxpay"> {
-  if (!provider.enabled) {
-    return [];
-  }
-
-  const supportedTypes = Array.isArray(provider.supported_types)
-    ? provider.supported_types
-    : [];
-  const methods = new Set<"alipay" | "wxpay">();
-  const addMethod = (type: string) => {
-    const method = normalizeVisibleMethod(type);
-    if (method === "alipay" || method === "wxpay") {
-      methods.add(method);
-    }
-  };
-
-  if (provider.provider_key === "alipay") {
-    if (supportedTypes.length === 0) {
-      methods.add("alipay");
-    } else {
-      supportedTypes.forEach((type) => {
-        if (normalizeVisibleMethod(type) === "alipay") {
-          methods.add("alipay");
-        }
-      });
-    }
-  } else if (provider.provider_key === "wxpay") {
-    if (supportedTypes.length === 0) {
-      methods.add("wxpay");
-    } else {
-      supportedTypes.forEach((type) => {
-        if (normalizeVisibleMethod(type) === "wxpay") {
-          methods.add("wxpay");
-        }
-      });
-    }
-  } else if (provider.provider_key === "easypay") {
-    supportedTypes.forEach(addMethod);
-  }
-
-  return Array.from(methods);
-}
-
 function findProviderEnablementConflict(
   candidate: ProviderEnablementCandidate,
 ): { method: "alipay" | "wxpay"; conflicting: ProviderInstance } | null {
-  const claimedMethods = getProviderVisibleMethods(candidate);
-  if (claimedMethods.length === 0) {
-    return null;
-  }
-
-  for (const other of providers.value) {
-    if (other.id === candidate.id || !other.enabled) {
-      continue;
-    }
-
-    const otherMethods = getProviderVisibleMethods(other);
-    const matchedMethod = claimedMethods.find((method) =>
-      otherMethods.includes(method),
-    );
-    if (matchedMethod) {
-      return {
-        method: matchedMethod,
-        conflicting: other,
-      };
-    }
-  }
-
+  void candidate;
   return null;
 }
 

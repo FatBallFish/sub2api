@@ -740,6 +740,7 @@ var ProviderSet = wire.NewSet(
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelPricingResolver,
+	NewModelPricingDisplayService,
 	NewContentModerationService,
 	NewAffiliateService,
 	ProvidePaymentConfigService,
@@ -776,6 +777,7 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService)
 	svc.SetNotificationEmailService(notificationEmailService)
+	svc.SetGlobalPlanService(NewGlobalPlanService(entClient))
 	return svc
 }
 

@@ -3,10 +3,14 @@
     <form id="plan-form" @submit.prevent="handleSavePlan" class="space-y-4">
       <div class="grid grid-cols-2 gap-4">
         <div>
+          <label class="input-label">{{ t('payment.admin.planScope') }} <span class="text-red-500">*</span></label>
+          <Select v-model="planForm.plan_scope" :options="planScopeOptions" class="w-full" />
+        </div>
+        <div>
           <label class="input-label">{{ t('payment.admin.planName') }} <span class="text-red-500">*</span></label>
           <input v-model="planForm.name" type="text" class="input" required />
         </div>
-        <div>
+        <div v-if="planForm.plan_scope === 'group'">
           <label class="input-label">{{ t('payment.admin.group') }} <span class="text-red-500">*</span></label>
           <Select v-model="planForm.group_id" :options="groupOptions" :placeholder="t('payment.admin.selectGroup')" class="w-full">
             <template #selected="{ option }">
@@ -18,6 +22,10 @@
               <Icon v-if="selected" name="check" size="sm" class="text-primary-500" :stroke-width="2" />
             </template>
           </Select>
+        </div>
+        <div v-if="planForm.plan_scope === 'global'">
+          <label class="input-label">{{ t('payment.admin.planCategory') }}</label>
+          <input v-model="planForm.plan_category" type="text" class="input" :placeholder="t('payment.admin.planCategoryPlaceholder')" />
         </div>
       </div>
 
@@ -50,6 +58,26 @@
       <div class="grid grid-cols-2 gap-4">
         <div><label class="input-label">{{ t('payment.admin.validityDays') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="text-red-500">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
+      </div>
+      <div v-if="planForm.plan_scope === 'global'" class="grid grid-cols-2 gap-4">
+        <div><label class="input-label">{{ t('payment.admin.tierRank') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.tier_rank" type="number" min="0" class="input" required /></div>
+        <div><label class="input-label">{{ t('payment.admin.publicBadge') }}</label><input v-model="planForm.public_badge" type="text" class="input" :placeholder="t('payment.admin.publicBadgePlaceholder')" /></div>
+        <div><label class="input-label">{{ t('payment.admin.quotaPeriod') }} <span class="text-red-500">*</span></label><Select v-model="planForm.quota_period" :options="quotaPeriodOptions" /></div>
+        <div><label class="input-label">{{ t('payment.admin.quotaPerPeriodUsd') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.quota_per_period_usd" type="number" step="0.01" min="0.01" class="input" required /></div>
+        <div><label class="input-label">{{ t('payment.admin.monthlyMaxUsd') }}</label><input v-model.number="planForm.monthly_max_usd" type="number" step="0.01" min="0" class="input" /></div>
+      </div>
+      <div v-if="planForm.plan_scope === 'global'" class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-800">
+        <div>
+          <label class="input-label">{{ t('payment.admin.applicableGroupMode') }}</label>
+          <Select v-model="planForm.applicable_group_mode" :options="applicableGroupModeOptions" />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.applicableGroupModeHint') }}</p>
+        </div>
+        <GroupSelector
+          v-if="planForm.applicable_group_mode !== 'all'"
+          v-model="planForm.applicable_group_ids"
+          :groups="applicableGroupOptions"
+          searchable
+        />
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
@@ -104,6 +132,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
+import GroupSelector from '@/components/common/GroupSelector.vue'
 import { platformTextClass } from '@/utils/platformColors'
 
 const props = defineProps<{
@@ -122,8 +151,45 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+const planForm = reactive({
+  name: '',
+  group_id: null as number | null,
+  plan_scope: 'global' as 'group' | 'global',
+  plan_category: 'default',
+  applicable_group_mode: 'all' as 'all' | 'whitelist' | 'blacklist',
+  applicable_group_ids: [] as number[],
+  description: '',
+  price: 0,
+  original_price: 0,
+	currency: '',
+  tier_rank: 0,
+  validity_days: 30,
+  validity_unit: 'days',
+  quota_period: 'week',
+  quota_per_period_usd: 0,
+  monthly_max_usd: 0,
+  public_badge: '',
+  sort_order: 0,
+  for_sale: true,
+})
 const planFeaturesText = ref('')
+
+const planScopeOptions = computed(() => [
+  { value: 'global', label: t('payment.admin.globalPlan') },
+  { value: 'group', label: t('payment.admin.groupPlan') },
+])
+
+const quotaPeriodOptions = computed(() => [
+  { value: 'day', label: t('payment.admin.day') },
+  { value: 'week', label: t('payment.admin.week') },
+  { value: 'month', label: t('payment.admin.month') },
+])
+
+const applicableGroupModeOptions = computed(() => [
+  { value: 'all', label: t('payment.admin.applicableGroupModeAll') },
+  { value: 'whitelist', label: t('payment.admin.applicableGroupModeWhitelist') },
+  { value: 'blacklist', label: t('payment.admin.applicableGroupModeBlacklist') },
+])
 
 const validityUnitOptions = computed(() => [
   { value: 'days', label: t('payment.admin.days') },
@@ -133,10 +199,10 @@ const validityUnitOptions = computed(() => [
 
 const groupOptions = computed(() =>
   props.groups
-    .filter(g => g.subscription_type === 'subscription')
+    .filter(g => g.subscription_type === 'subscription' && g.status === 'active')
     .map(g => ({
       value: g.id,
-      label: `${g.name} — ${g.platform} (${g.rate_multiplier}x)`,
+      label: `${g.name} — ${g.platform} (${g.rate_multiplier}x${g.subscription_type ? ` · ${g.subscription_type}` : ''})`,
       platform: g.platform,
     })),
 )
@@ -171,14 +237,36 @@ const subscriptionCnyPreview = computed(() => {
   }
 })
 
+const applicableGroupOptions = computed(() => props.groups.filter(g => g.status === 'active'))
+
 // Reset form when dialog opens
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
+    Object.assign(planForm, {
+      name: props.plan.name,
+      group_id: props.plan.group_id,
+      plan_scope: props.plan.plan_scope || (props.plan.group_id ? 'group' : 'global'),
+      plan_category: props.plan.plan_category || 'default',
+      applicable_group_mode: (props.plan.applicable_group_mode as 'all' | 'whitelist' | 'blacklist') || 'all',
+      applicable_group_ids: [...(props.plan.applicable_group_ids || [])],
+      description: props.plan.description,
+      price: props.plan.price,
+      original_price: props.plan.original_price || 0,
+	  currency: props.plan.currency || '',
+      tier_rank: props.plan.tier_rank || 0,
+      validity_days: props.plan.validity_days,
+      validity_unit: props.plan.validity_unit || 'days',
+      quota_period: props.plan.quota_period || 'week',
+      quota_per_period_usd: props.plan.quota_per_period_usd || 0,
+      monthly_max_usd: props.plan.monthly_max_usd || 0,
+      public_badge: props.plan.public_badge || '',
+      sort_order: props.plan.sort_order || 0,
+      for_sale: props.plan.for_sale,
+    })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+    Object.assign(planForm, { name: '', group_id: null, plan_scope: 'global', plan_category: 'default', applicable_group_mode: 'all', applicable_group_ids: [], description: '', price: 0, original_price: 0, currency: '', tier_rank: 0, validity_days: 30, validity_unit: 'days', quota_period: 'week', quota_per_period_usd: 0, monthly_max_usd: 0, public_badge: '', sort_order: 0, for_sale: true })
     planFeaturesText.value = ''
   }
 })
@@ -188,13 +276,22 @@ function buildPlanPayload() {
   const features = planFeaturesText.value.split('\n').map(f => f.trim()).filter(Boolean).join('\n')
   return {
     name: planForm.name,
-    group_id: planForm.group_id,
+    group_id: planForm.plan_scope === 'group' ? planForm.group_id : undefined,
+    plan_scope: planForm.plan_scope,
+    plan_category: planForm.plan_scope === 'global' ? planForm.plan_category : undefined,
+    applicable_group_mode: planForm.plan_scope === 'global' ? planForm.applicable_group_mode : 'all',
+    applicable_group_ids: planForm.plan_scope === 'global' && planForm.applicable_group_mode !== 'all' ? planForm.applicable_group_ids : [],
     description: planForm.description,
     price: planForm.price,
     original_price: planForm.original_price || 0,
     currency: planForm.currency.trim().toUpperCase(),
+    tier_rank: planForm.plan_scope === 'global' ? planForm.tier_rank : 0,
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
+    quota_period: planForm.plan_scope === 'global' ? planForm.quota_period : undefined,
+    quota_per_period_usd: planForm.plan_scope === 'global' ? planForm.quota_per_period_usd : undefined,
+    monthly_max_usd: planForm.plan_scope === 'global' ? planForm.monthly_max_usd : undefined,
+    public_badge: planForm.public_badge,
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
     features,
@@ -202,8 +299,12 @@ function buildPlanPayload() {
 }
 
 async function handleSavePlan() {
-  if (!planForm.group_id) {
+  if (planForm.plan_scope === 'group' && !planForm.group_id) {
     appStore.showError(t('payment.admin.groupRequired'))
+    return
+  }
+  if (planForm.plan_scope === 'global' && (!planForm.quota_per_period_usd || planForm.quota_per_period_usd <= 0)) {
+    appStore.showError(t('payment.admin.globalPlanQuotaRequired'))
     return
   }
   if (!planForm.price || planForm.price <= 0) {

@@ -50,6 +50,11 @@ var usageLogInsertArgTypes = [...]string{
 	"numeric",     // total_cost
 	"numeric",     // actual_cost
 	"numeric",     // rate_multiplier
+	"text",        // funding_source
+	"bigint",      // global_plan_subscription_id
+	"numeric",     // global_plan_cost
+	"numeric",     // balance_cost
+	"numeric",     // group_subscription_cost
 	"numeric",     // account_rate_multiplier
 	"smallint",    // billing_type
 	"smallint",    // request_type
@@ -245,6 +250,11 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -281,7 +291,7 @@ func (r *usageLogRepository) createSingle(ctx context.Context, sqlq sqlExecutor,
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 		RETURNING id, created_at
@@ -699,6 +709,11 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -731,7 +746,7 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 			created_at
 		) AS (VALUES `)
 
-	args := make([]any, 0, len(keys)*56)
+	args := make([]any, 0, len(keys)*(1+len(usageLogInsertArgTypes)))
 	argPos := 1
 	for idx, key := range keys {
 		if idx > 0 {
@@ -786,6 +801,11 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				total_cost,
 				actual_cost,
 				rate_multiplier,
+				funding_source,
+				global_plan_subscription_id,
+				global_plan_cost,
+				balance_cost,
+				group_subscription_cost,
 				account_rate_multiplier,
 				billing_type,
 				request_type,
@@ -844,6 +864,11 @@ func buildUsageLogBatchInsertQuery(keys []string, preparedByKey map[string]usage
 				total_cost,
 				actual_cost,
 				rate_multiplier,
+				funding_source,
+				global_plan_subscription_id,
+				global_plan_cost,
+				balance_cost,
+				group_subscription_cost,
 				account_rate_multiplier,
 				billing_type,
 				request_type,
@@ -942,6 +967,11 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -974,7 +1004,7 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			created_at
 		) AS (VALUES `)
 
-	args := make([]any, 0, len(preparedList)*56)
+	args := make([]any, 0, len(preparedList)*len(usageLogInsertArgTypes))
 	argPos := 1
 	for idx, prepared := range preparedList {
 		if idx > 0 {
@@ -1026,6 +1056,11 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -1084,6 +1119,11 @@ func buildUsageLogBestEffortInsertQuery(preparedList []usageLogInsertPrepared) (
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -1150,6 +1190,11 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			total_cost,
 			actual_cost,
 			rate_multiplier,
+			funding_source,
+			global_plan_subscription_id,
+			global_plan_cost,
+			balance_cost,
+			group_subscription_cost,
 			account_rate_multiplier,
 			billing_type,
 			request_type,
@@ -1186,7 +1231,7 @@ func execUsageLogInsertNoResult(ctx context.Context, sqlq sqlExecutor, prepared 
 			$10, $11, $12, $13,
 			$14, $15, $16, $17,
 			$18, $19, $20, $21, $22, $23,
-			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56
+			$24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61
 		)
 		ON CONFLICT (request_id, api_key_id) DO NOTHING
 	`, prepared.args...)
@@ -1201,6 +1246,14 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 
 	requestID := strings.TrimSpace(log.RequestID)
 	log.RequestID = requestID
+	fundingSource := strings.TrimSpace(log.FundingSource)
+	if fundingSource == "" {
+		if log.ActualCost > 0 {
+			fundingSource = service.UsageFundingSourceBalance
+		} else {
+			fundingSource = service.UsageFundingSourceFree
+		}
+	}
 
 	rateMultiplier := log.RateMultiplier
 	log.SyncRequestTypeAndLegacyFields()
@@ -1270,6 +1323,11 @@ func prepareUsageLogInsert(log *service.UsageLog) usageLogInsertPrepared {
 			log.TotalCost,
 			log.ActualCost,
 			rateMultiplier,
+			fundingSource,
+			log.GlobalPlanSubscriptionID,
+			log.GlobalPlanCost,
+			log.BalanceCost,
+			log.GroupSubscriptionCost,
 			log.AccountRateMultiplier,
 			log.BillingType,
 			requestType,

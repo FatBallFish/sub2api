@@ -12,6 +12,14 @@ import (
 var ErrUsageBillingRequestIDRequired = errors.New("usage billing request_id is required")
 var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerprint conflict")
 
+const (
+	UsageFundingSourceBalance      = "balance"
+	UsageFundingSourceSubscription = "subscription"
+	UsageFundingSourceGlobalPlan   = "global_plan"
+	UsageFundingSourceMixed        = "mixed"
+	UsageFundingSourceFree         = "free"
+)
+
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
 	RequestID          string
@@ -21,6 +29,7 @@ type UsageBillingCommand struct {
 
 	UserID              int64
 	AccountID           int64
+	GroupID             int64
 	SubscriptionID      *int64
 	AccountType         string
 	Model               string
@@ -56,10 +65,11 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		return ""
 	}
 	raw := fmt.Sprintf(
-		"%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
+		"%d|%d|%d|%d|%s|%s|%s|%s|%d|%d|%d|%d|%d|%d|%s|%d|%0.10f|%0.10f|%0.10f|%0.10f|%0.10f",
 		c.UserID,
 		c.AccountID,
 		c.APIKeyID,
+		c.GroupID,
 		strings.TrimSpace(c.AccountType),
 		strings.TrimSpace(c.Model),
 		strings.TrimSpace(c.ServiceTier),
@@ -117,6 +127,13 @@ type UsageBillingApplyResult struct {
 	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)
 	BalanceOverdrafted   bool               // true when the sufficient-balance guard missed and debt was still recorded
 	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
+
+	FundingSource            string
+	GlobalPlanSubscriptionID *int64
+	GlobalPlanCost           float64
+	BalanceCost              float64
+	SubscriptionCost         float64
+	GroupSubscriptionCost    float64
 }
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.

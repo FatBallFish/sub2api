@@ -311,6 +311,32 @@ func TestAPIContracts(t *testing.T) {
 			}`,
 		},
 		{
+			name: "POST /api/v1/keys/:id/reveal",
+			setup: func(t *testing.T, deps *contractDeps) {
+				t.Helper()
+				deps.apiKeyRepo.MustSeed(&service.APIKey{
+					ID:        100,
+					UserID:    1,
+					Key:       "sk_custom_1234567890",
+					Name:      "Key One",
+					Status:    service.StatusActive,
+					CreatedAt: deps.now,
+					UpdatedAt: deps.now,
+				})
+			},
+			method:     http.MethodPost,
+			path:       "/api/v1/keys/100/reveal",
+			wantStatus: http.StatusOK,
+			wantJSON: `{
+				"code": 0,
+				"message": "success",
+				"data": {
+					"key": "sk_custom_1234567890",
+					"expires_in_seconds": 60
+				}
+			}`,
+		},
+		{
 			name: "GET /api/v1/groups/available",
 			setup: func(t *testing.T, deps *contractDeps) {
 				t.Helper()
@@ -530,7 +556,9 @@ func TestAPIContracts(t *testing.T) {
 					"total_tokens": 53,
 					"total_cost": 0.75,
 					"total_actual_cost": 0.75,
-					"average_duration_ms": 200
+					"average_duration_ms": 200,
+					"remaining_balance_credits": 0,
+					"remaining_subscription_credits": 0
 				}
 			}`,
 		},
@@ -540,25 +568,30 @@ func TestAPIContracts(t *testing.T) {
 				t.Helper()
 				deps.usageRepo.SetUserLogs(1, []service.UsageLog{
 					{
-						ID:                    1,
-						UserID:                1,
-						APIKeyID:              100,
-						AccountID:             200,
-						AccountRateMultiplier: ptr(0.5),
-						RequestID:             "req_123",
-						Model:                 "claude-3",
-						InputTokens:           10,
-						OutputTokens:          20,
-						CacheCreationTokens:   1,
-						CacheReadTokens:       2,
-						TotalCost:             0.5,
-						ActualCost:            0.5,
-						RateMultiplier:        1,
-						BillingType:           service.BillingTypeBalance,
-						Stream:                true,
-						DurationMs:            ptr(100),
-						FirstTokenMs:          ptr(50),
-						CreatedAt:             deps.now,
+						ID:                       1,
+						UserID:                   1,
+						APIKeyID:                 100,
+						AccountID:                200,
+						AccountRateMultiplier:    ptr(0.5),
+						RequestID:                "req_123",
+						Model:                    "claude-3",
+						InputTokens:              10,
+						OutputTokens:             20,
+						CacheCreationTokens:      1,
+						CacheReadTokens:          2,
+						TotalCost:                0.5,
+						ActualCost:               0.5,
+						RateMultiplier:           1,
+						FundingSource:            service.UsageFundingSourceMixed,
+						GlobalPlanSubscriptionID: ptr(int64(300)),
+						GlobalPlanCost:           0.25,
+						BalanceCost:              0.25,
+						GroupSubscriptionCost:    0,
+						BillingType:              service.BillingTypeBalance,
+						Stream:                   true,
+						DurationMs:               ptr(100),
+						FirstTokenMs:             ptr(50),
+						CreatedAt:                deps.now,
 					},
 				})
 			},
@@ -595,6 +628,11 @@ func TestAPIContracts(t *testing.T) {
 						"actual_cost": 0.5,
 						"rate_multiplier": 1,
 						"long_context_billing_applied": false,
+						"funding_source": "mixed",
+						"global_plan_subscription_id": 300,
+						"global_plan_cost": 0.25,
+						"balance_cost": 0.25,
+						"group_subscription_cost": 0,
 						"billing_type": 0,
 							"stream": true,
 							"duration_ms": 100,
@@ -843,6 +881,9 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_rebate_duration_days": 0,
 					"affiliate_rebate_per_invitee_cap": 0,
 					"affiliate_admin_recharge_enabled": false,
+					"affiliate_inviter_signup_reward": 0,
+					"affiliate_inviter_signup_reward_cap": 0,
+					"affiliate_invitee_signup_reward": 0,
 					"default_user_rpm_limit": 0,
 					"default_subscriptions": [],
 					"enable_model_fallback": false,
@@ -857,6 +898,11 @@ func TestAPIContracts(t *testing.T) {
 					"hide_ccs_import_button": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"region_block_enabled": false,
+					"region_block_frontend_enabled": false,
+					"region_block_api_enabled": false,
+					"region_block_codes": "",
+					"region_block_headers": "CF-IPCountry,X-Country-Code,X-Geo-Country",
 					"table_default_page_size": 20,
 						"table_page_size_options": [10, 20, 50, 100],
 					"min_claude_code_version": "",
@@ -938,6 +984,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_cancel_rate_limit_window": 0,
 					"payment_cancel_rate_limit_unit": "",
 					"payment_cancel_rate_limit_window_mode": "",
+					"payment_currency_exchange_rates": "",
 					"payment_alipay_force_qrcode": false,
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
@@ -1106,6 +1153,11 @@ func TestAPIContracts(t *testing.T) {
 					"hide_ccs_import_button": false,
 					"purchase_subscription_enabled": false,
 					"purchase_subscription_url": "",
+					"region_block_enabled": false,
+					"region_block_frontend_enabled": false,
+					"region_block_api_enabled": false,
+					"region_block_codes": "",
+					"region_block_headers": "CF-IPCountry,X-Country-Code,X-Geo-Country",
 					"table_default_page_size": 20,
 					"table_page_size_options": [10, 20, 50],
 					"default_platform_quotas": {"anthropic":{"daily":null,"weekly":null,"monthly":null},"antigravity":{"daily":null,"weekly":null,"monthly":null},"gemini":{"daily":null,"weekly":null,"monthly":null},"grok":{"daily":null,"weekly":null,"monthly":null},"openai":{"daily":null,"weekly":null,"monthly":null}},
@@ -1125,6 +1177,9 @@ func TestAPIContracts(t *testing.T) {
 					"affiliate_rebate_duration_days": 0,
 					"affiliate_rebate_per_invitee_cap": 0,
 					"affiliate_admin_recharge_enabled": false,
+					"affiliate_inviter_signup_reward": 0,
+					"affiliate_inviter_signup_reward_cap": 0,
+					"affiliate_invitee_signup_reward": 0,
 					"default_user_rpm_limit": 0,
 					"default_subscriptions": [],
 					"enable_model_fallback": false,
@@ -1215,6 +1270,7 @@ func TestAPIContracts(t *testing.T) {
 					"payment_cancel_rate_limit_window": 0,
 					"payment_cancel_rate_limit_unit": "",
 					"payment_cancel_rate_limit_window_mode": "",
+					"payment_currency_exchange_rates": "",
 					"payment_alipay_force_qrcode": false,
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
@@ -1426,6 +1482,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	v1Keys.Use(jwtAuth)
 	v1Keys.GET("/keys", apiKeyHandler.List)
 	v1Keys.POST("/keys", apiKeyHandler.Create)
+	v1Keys.POST("/keys/:id/reveal", apiKeyHandler.Reveal)
 	v1Keys.GET("/groups/available", apiKeyHandler.GetAvailableGroups)
 
 	v1Usage := v1.Group("")
@@ -2077,6 +2134,10 @@ func (stubRedeemCodeRepo) ListByUserPaginated(ctx context.Context, userID int64,
 
 func (stubRedeemCodeRepo) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
 	return 0, errors.New("not implemented")
+}
+
+func (stubRedeemCodeRepo) SumByUserAndType(ctx context.Context, userID int64, codeType string) (float64, error) {
+	return 0, nil
 }
 
 type stubUserSubscriptionRepo struct {

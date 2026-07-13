@@ -721,6 +721,7 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 	}
 
 	var endpoints, upstreamEndpoints, endpointPaths []EndpointStat
+	var inventory remainingCreditInventory
 
 	// 汇总查询:失败即致命。
 	runSummary := func(c context.Context) error {
@@ -769,14 +770,23 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		}
 		endpointPaths = res
 	}
+	runInventory := func(c context.Context) error {
+		result, err := r.getRemainingCreditInventory(c)
+		if err != nil {
+			return err
+		}
+		inventory = result
+		return nil
+	}
 
 	if r.db != nil {
-		// 生产路径:r.sql 是 *sql.DB 连接池,可并发。4 条查询并行,延迟取最大值。
+		// 生产路径:r.sql 是 *sql.DB 连接池,可并发。多条查询并行,延迟取最大值。
 		g, gctx := errgroup.WithContext(ctx)
 		g.Go(func() error { return runSummary(gctx) })
 		g.Go(func() error { runEndpoints(gctx); return nil })
 		g.Go(func() error { runUpstream(gctx); return nil })
 		g.Go(func() error { runPaths(gctx); return nil })
+		g.Go(func() error { return runInventory(gctx) })
 		if err := g.Wait(); err != nil {
 			return nil, err
 		}
@@ -788,15 +798,106 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 		runEndpoints(ctx)
 		runUpstream(ctx)
 		runPaths(ctx)
+		if err := runInventory(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	stats.TotalAccountCost = &totalAccountCost
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	stats.RemainingBalanceCredits = inventory.remainingBalanceCredits
+	stats.RemainingSubscriptionCredits = inventory.remainingSubscriptionCredits
 	stats.Endpoints = endpoints
 	stats.UpstreamEndpoints = upstreamEndpoints
 	stats.EndpointPaths = endpointPaths
 
 	return stats, nil
+}
+
+type remainingCreditInventory struct {
+	remainingBalanceCredits      float64
+	remainingSubscriptionCredits float64
+}
+
+func (r *usageLogRepository) getRemainingCreditInventory(ctx context.Context) (remainingCreditInventory, error) {
+	var inventory remainingCreditInventory
+
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(balance, 0)), 0)
+		FROM users
+		WHERE deleted_at IS NULL
+	`, nil, &inventory.remainingBalanceCredits); err != nil {
+		return inventory, err
+	}
+
+	var remainingGlobalPlan float64
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(
+			CASE
+				WHEN current_period_end <= NOW() THEN quota_limit_usd
+				ELSE quota_limit_usd - quota_used_usd
+			END,
+			0
+		)), 0)
+		FROM user_global_plan_subscriptions
+		WHERE deleted_at IS NULL
+			AND status = 'active'
+			AND expires_at > NOW()
+	`, nil, &remainingGlobalPlan); err != nil {
+		return inventory, err
+	}
+
+	var remainingGroupSubscription float64
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(
+			CASE
+				WHEN us.expires_at > NOW()
+					AND (
+						g.daily_limit_usd IS NOT NULL
+						OR g.weekly_limit_usd IS NOT NULL
+						OR g.monthly_limit_usd IS NOT NULL
+					) THEN LEAST(
+					COALESCE(
+						CASE
+							WHEN g.daily_limit_usd IS NULL THEN NULL
+							WHEN us.daily_window_start IS NULL OR us.daily_window_start + INTERVAL '1 day' <= NOW() THEN g.daily_limit_usd
+							ELSE g.daily_limit_usd - us.daily_usage_usd
+						END,
+						1e18
+					),
+					COALESCE(
+						CASE
+							WHEN g.weekly_limit_usd IS NULL THEN NULL
+							WHEN us.weekly_window_start IS NULL OR us.weekly_window_start + INTERVAL '7 days' <= NOW() THEN g.weekly_limit_usd
+							ELSE g.weekly_limit_usd - us.weekly_usage_usd
+						END,
+						1e18
+					),
+					COALESCE(
+						CASE
+							WHEN g.monthly_limit_usd IS NULL THEN NULL
+							WHEN us.monthly_window_start IS NULL OR us.monthly_window_start + INTERVAL '1 month' <= NOW() THEN g.monthly_limit_usd
+							ELSE g.monthly_limit_usd - us.monthly_usage_usd
+						END,
+						1e18
+					)
+				)
+				ELSE 0
+			END,
+			0
+		)), 0)
+		FROM user_subscriptions us
+		JOIN groups g ON g.id = us.group_id
+		WHERE us.deleted_at IS NULL
+			AND g.deleted_at IS NULL
+			AND us.status = 'active'
+			AND us.expires_at > NOW()
+	`, nil, &remainingGroupSubscription); err != nil {
+		return inventory, err
+	}
+
+	inventory.remainingSubscriptionCredits = remainingGlobalPlan + remainingGroupSubscription
+	return inventory, nil
 }
 
 // AccountUsageHistory represents daily usage history for an account

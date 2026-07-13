@@ -835,6 +835,8 @@ export default {
       mixedSchedulingHint: '启用后可参与 Anthropic/Gemini 分组的调度',
       mixedSchedulingTooltip:
         '！！注意！！ Antigravity Claude 和 Anthropic Claude 无法在同个上下文中使用，如果你同时有 Anthropic 账号和 Antigravity 账号，开启此选项会导致经常 400 报错。开启后，请用分组功能做好 Antigravity 账号和 Anthropic 账号的隔离。一定要弄明白再开启！！',
+      fromModel: '源模型',
+      toModel: '目标模型',
       aiCreditsBalance: 'AI Credits',
       allowOverages: '允许超量请求 (AI Credits)',
       allowOveragesTooltip:
@@ -845,6 +847,9 @@ export default {
       accountUpdated: '账号更新成功',
       failedToCreate: '创建账号失败',
       failedToUpdate: '更新账号失败',
+      messages: {
+        accountCreated: '账号创建成功'
+      },
       pleaseSelectStatus: '请选择有效的账号状态',
       mixedChannelWarningTitle: '混合渠道警告',
       mixedChannelWarning: '警告：分组 "{groupName}" 中同时包含 {currentPlatform} 和 {otherPlatform} 账号。混合使用不同渠道可能导致 thinking block 签名验证问题，会自动回退到非 thinking 模式。确定要继续吗？',
@@ -952,6 +957,8 @@ export default {
               '未设置代理，当前服务器无法直连 OpenAI，导致 OpenAI OAuth 请求失败。请先选择可访问 OpenAI 的代理后重试；如果授权码已失效，请重新生成授权链接。'
           },
           // Refresh Token auth
+          mobileRefreshTokenAuth: '移动端 Refresh Token',
+          accessTokenAuth: 'Access Token',
           refreshTokenAuth: '手动输入 RT',
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',

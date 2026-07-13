@@ -221,6 +221,12 @@ func (s *PaymentService) executeFulfillment(ctx context.Context, oid int64) erro
 	if o.OrderType == payment.OrderTypeSubscription {
 		return s.ExecuteSubscriptionFulfillment(ctx, oid)
 	}
+	if o.OrderType == payment.OrderTypeGlobalPlan {
+		return s.ExecuteGlobalPlanFulfillment(ctx, oid)
+	}
+	if o.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		return s.ExecuteGlobalPlanUpgradeFulfillment(ctx, oid)
+	}
 	return s.ExecuteBalanceFulfillment(ctx, oid)
 }
 
@@ -493,6 +499,246 @@ func (s *PaymentService) ExecuteSubscriptionFulfillment(ctx context.Context, oid
 		return err
 	}
 	return nil
+}
+
+func (s *PaymentService) ExecuteGlobalPlanFulfillment(ctx context.Context, oid int64) error {
+	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	if o.Status == OrderStatusCompleted {
+		return nil
+	}
+	if psIsRefundStatus(o.Status) {
+		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot fulfill")
+	}
+	if o.Status != OrderStatusPaid && o.Status != OrderStatusFailed && o.Status != OrderStatusRecharging {
+		return infraerrors.BadRequest("INVALID_STATUS", "order cannot fulfill in status "+o.Status)
+	}
+	if o.PlanID == nil || o.SubscriptionDays == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "missing global plan info")
+	}
+	lease, err := s.acquirePaymentFulfillmentLease(ctx, o)
+	if err != nil {
+		return err
+	}
+	if lease == nil {
+		return nil
+	}
+	if err := s.doGlobalPlan(ctx, o, lease); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	return nil
+}
+
+func (s *PaymentService) ExecuteGlobalPlanUpgradeFulfillment(ctx context.Context, oid int64) error {
+	o, err := s.entClient.PaymentOrder.Get(ctx, oid)
+	if err != nil {
+		return infraerrors.NotFound("NOT_FOUND", "order not found")
+	}
+	if o.Status == OrderStatusCompleted {
+		return nil
+	}
+	if psIsRefundStatus(o.Status) {
+		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot fulfill")
+	}
+	if o.Status != OrderStatusPaid && o.Status != OrderStatusFailed && o.Status != OrderStatusRecharging {
+		return infraerrors.BadRequest("INVALID_STATUS", "order cannot fulfill in status "+o.Status)
+	}
+	if o.PlanID == nil || o.UpgradeFromSubscriptionID == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "missing global plan upgrade info")
+	}
+	lease, err := s.acquirePaymentFulfillmentLease(ctx, o)
+	if err != nil {
+		return err
+	}
+	if lease == nil {
+		return nil
+	}
+	if err := s.doGlobalPlanUpgrade(ctx, o, lease); err != nil {
+		s.markFailed(ctx, oid, lease, err)
+		return err
+	}
+	return nil
+}
+
+func (s *PaymentService) doGlobalPlan(ctx context.Context, o *dbent.PaymentOrder, lease *paymentFulfillmentLease) error {
+	if s.globalPlanService == nil {
+		s.globalPlanService = NewGlobalPlanService(s.entClient)
+	}
+	if s.hasAuditLog(ctx, o.ID, "GLOBAL_PLAN_SUCCESS") {
+		slog.Info("global plan already fulfilled for order, skipping", "orderID", o.ID)
+		return s.markCompleted(ctx, o, lease, "GLOBAL_PLAN_SUCCESS")
+	}
+	plan, err := s.entClient.SubscriptionPlan.Get(ctx, *o.PlanID)
+	if err != nil {
+		return fmt.Errorf("get global plan: %w", err)
+	}
+	if plan.PlanScope != PlanScopeGlobal {
+		return infraerrors.BadRequest("PLAN_NOT_GLOBAL", "plan is not a global plan")
+	}
+	sub, err := s.globalPlanService.FulfillPurchase(ctx, FulfillGlobalPlanPurchaseInput{
+		UserID:       o.UserID,
+		Plan:         plan,
+		OrderID:      o.ID,
+		ValidityDays: *o.SubscriptionDays,
+	})
+	if err != nil {
+		return fmt.Errorf("fulfill global plan: %w", err)
+	}
+	if err := s.setGlobalPlanSubscriptionForFulfillment(ctx, o, sub.ID, lease); err != nil {
+		return err
+	}
+	return s.markCompleted(ctx, o, lease, "GLOBAL_PLAN_SUCCESS")
+}
+
+func (s *PaymentService) doGlobalPlanUpgrade(ctx context.Context, o *dbent.PaymentOrder, lease *paymentFulfillmentLease) error {
+	if s.hasAuditLog(ctx, o.ID, "GLOBAL_PLAN_UPGRADE_SUCCESS") {
+		slog.Info("global plan upgrade already fulfilled for order, skipping", "orderID", o.ID)
+		return s.markCompleted(ctx, o, lease, "GLOBAL_PLAN_UPGRADE_SUCCESS")
+	}
+	plan, err := s.entClient.SubscriptionPlan.Get(ctx, *o.PlanID)
+	if err != nil {
+		return fmt.Errorf("get target global plan: %w", err)
+	}
+	if plan.PlanScope != PlanScopeGlobal {
+		return infraerrors.BadRequest("PLAN_NOT_GLOBAL", "plan is not a global plan")
+	}
+	sub, err := s.entClient.UserGlobalPlanSubscription.Get(ctx, *o.UpgradeFromSubscriptionID)
+	if err != nil {
+		return fmt.Errorf("get global plan subscription: %w", err)
+	}
+	now := time.Now()
+	if err := validateGlobalPlanUpgradeOrderState(o, sub, plan, now); err != nil {
+		return err
+	}
+	updatedSub, err := s.entClient.UserGlobalPlanSubscription.UpdateOneID(sub.ID).
+		SetPlanID(plan.ID).
+		SetPlanCategory(normalizePlanCategory(plan.PlanCategory)).
+		SetApplicableGroupMode(normalizePlanApplicableGroupMode(plan.ApplicableGroupMode)).
+		SetApplicableGroupIds(normalizePlanApplicableGroupIDs(plan.ApplicableGroupIds)).
+		SetPlanNameSnapshot(plan.Name).
+		SetTierRank(plan.TierRank).
+		SetQuotaPeriod(plan.QuotaPeriod).
+		SetQuotaLimitUsd(plan.QuotaPerPeriodUsd).
+		SetNillableSourceOrderID(&o.ID).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("upgrade global plan: %w", err)
+	}
+	if err := s.setGlobalPlanSubscriptionForFulfillment(ctx, o, updatedSub.ID, lease); err != nil {
+		return err
+	}
+	return s.markCompleted(ctx, o, lease, "GLOBAL_PLAN_UPGRADE_SUCCESS")
+}
+
+func (s *PaymentService) setGlobalPlanSubscriptionForFulfillment(ctx context.Context, o *dbent.PaymentOrder, subscriptionID int64, lease *paymentFulfillmentLease) error {
+	if o == nil || lease == nil {
+		return errors.New("missing payment fulfillment lease")
+	}
+
+	nextVersion := time.Now().UTC().Truncate(time.Microsecond)
+	if !nextVersion.After(lease.version) {
+		nextVersion = lease.version.Add(time.Microsecond)
+	}
+	updated, err := s.entClient.PaymentOrder.Update().
+		Where(
+			paymentorder.IDEQ(o.ID),
+			paymentorder.StatusEQ(OrderStatusRecharging),
+			paymentorder.UpdatedAtEQ(lease.version),
+		).
+		SetGlobalPlanSubscriptionID(subscriptionID).
+		SetUpdatedAt(nextVersion).
+		Save(ctx)
+	if err != nil {
+		return fmt.Errorf("attach global plan subscription: %w", err)
+	}
+	if updated == 0 {
+		return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before attaching global plan subscription")
+	}
+	lease.version = nextVersion
+	return nil
+}
+
+func validateGlobalPlanUpgradeOrderState(o *dbent.PaymentOrder, sub *dbent.UserGlobalPlanSubscription, targetPlan *dbent.SubscriptionPlan, now time.Time) error {
+	if o == nil || sub == nil || targetPlan == nil {
+		return infraerrors.BadRequest("INVALID_STATUS", "missing global plan upgrade info")
+	}
+	if sub.UserID != o.UserID {
+		return infraerrors.Forbidden("GLOBAL_PLAN_OWNER_MISMATCH", "global plan subscription does not belong to order user")
+	}
+	if sub.Status != GlobalPlanStatusActive || sub.StartsAt.After(now) || !sub.ExpiresAt.After(now) {
+		return infraerrors.BadRequest("GLOBAL_PLAN_EXPIRED", "current global plan is expired")
+	}
+	expectedFromPlanID := int64FromSnapshot(o.UpgradeProration, "from_plan_id")
+	expectedSubID := int64FromSnapshot(o.UpgradeProration, "current_subscription_id")
+	expectedToPlanID := int64FromSnapshot(o.UpgradeProration, "to_plan_id")
+	if expectedSubID > 0 && expectedSubID != sub.ID {
+		return infraerrors.BadRequest("GLOBAL_PLAN_CHANGED", "global plan subscription changed before fulfillment")
+	}
+	if expectedFromPlanID > 0 && expectedFromPlanID != sub.PlanID {
+		return infraerrors.BadRequest("GLOBAL_PLAN_CHANGED", "global plan subscription changed before fulfillment")
+	}
+	if expectedToPlanID > 0 && expectedToPlanID != targetPlan.ID {
+		return infraerrors.BadRequest("GLOBAL_PLAN_CHANGED", "target global plan changed before fulfillment")
+	}
+	expectedUpgradePrice := float64FromSnapshot(o.UpgradeProration, "upgrade_price")
+	if expectedUpgradePrice > 0 {
+		if o.Amount+amountToleranceCNY < expectedUpgradePrice || o.PayAmount+amountToleranceCNY < expectedUpgradePrice {
+			return infraerrors.BadRequest("GLOBAL_PLAN_AMOUNT_MISMATCH", "global plan upgrade amount changed before fulfillment")
+		}
+	}
+	if targetPlan.TierRank <= sub.TierRank {
+		return infraerrors.BadRequest("PLAN_NOT_UPGRADE", "target plan is not a higher tier")
+	}
+	return nil
+}
+
+func int64FromSnapshot(snapshot map[string]any, key string) int64 {
+	if snapshot == nil {
+		return 0
+	}
+	switch v := snapshot[key].(type) {
+	case int:
+		return int64(v)
+	case int64:
+		return v
+	case int32:
+		return int64(v)
+	case float64:
+		return int64(v)
+	case float32:
+		return int64(v)
+	case json.Number:
+		i, _ := v.Int64()
+		return i
+	default:
+		return 0
+	}
+}
+
+func float64FromSnapshot(snapshot map[string]any, key string) float64 {
+	if snapshot == nil {
+		return 0
+	}
+	switch v := snapshot[key].(type) {
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case int32:
+		return float64(v)
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case json.Number:
+		f, _ := v.Float64()
+		return f
+	default:
+		return 0
+	}
 }
 
 func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder, lease *paymentFulfillmentLease) error {

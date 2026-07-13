@@ -220,6 +220,34 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 		if actual := strings.TrimSpace(metadata["status"]); actual != "" && !strings.EqualFold(actual, "SUCCEEDED") {
 			return fmt.Errorf("airwallex status mismatch: expected SUCCEEDED, got %s", actual)
 		}
+	case payment.TypeJeepay:
+		if expected := strings.TrimSpace(snapshot.MerchantID); expected != "" {
+			actual := strings.TrimSpace(metadata["mchNo"])
+			if actual == "" {
+				return fmt.Errorf("jeepay mchNo missing")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay mchNo mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.MerchantAppID); expected != "" {
+			actual := strings.TrimSpace(metadata["appId"])
+			if actual == "" {
+				return fmt.Errorf("jeepay appId missing")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay appId mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.Currency); expected != "" {
+			actual := strings.ToUpper(strings.TrimSpace(metadata["currency"]))
+			if actual == "" {
+				return fmt.Errorf("jeepay notification missing currency")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay currency mismatch: expected %s, got %s", expected, actual)
+			}
+		}
 	}
 
 	return nil

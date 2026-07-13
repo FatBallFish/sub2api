@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 )
 
 // SubscriptionPlanCreate is the builder for creating a SubscriptionPlan entity.
@@ -25,6 +26,160 @@ type SubscriptionPlanCreate struct {
 // SetGroupID sets the "group_id" field.
 func (_c *SubscriptionPlanCreate) SetGroupID(v int64) *SubscriptionPlanCreate {
 	_c.mutation.SetGroupID(v)
+	return _c
+}
+
+// SetNillableGroupID sets the "group_id" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableGroupID(v *int64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetGroupID(*v)
+	}
+	return _c
+}
+
+// SetPlanScope sets the "plan_scope" field.
+func (_c *SubscriptionPlanCreate) SetPlanScope(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetPlanScope(v)
+	return _c
+}
+
+// SetNillablePlanScope sets the "plan_scope" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillablePlanScope(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetPlanScope(*v)
+	}
+	return _c
+}
+
+// SetPlanCategory sets the "plan_category" field.
+func (_c *SubscriptionPlanCreate) SetPlanCategory(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetPlanCategory(v)
+	return _c
+}
+
+// SetNillablePlanCategory sets the "plan_category" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillablePlanCategory(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetPlanCategory(*v)
+	}
+	return _c
+}
+
+// SetApplicableGroupMode sets the "applicable_group_mode" field.
+func (_c *SubscriptionPlanCreate) SetApplicableGroupMode(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetApplicableGroupMode(v)
+	return _c
+}
+
+// SetNillableApplicableGroupMode sets the "applicable_group_mode" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableApplicableGroupMode(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetApplicableGroupMode(*v)
+	}
+	return _c
+}
+
+// SetApplicableGroupIds sets the "applicable_group_ids" field.
+func (_c *SubscriptionPlanCreate) SetApplicableGroupIds(v []int64) *SubscriptionPlanCreate {
+	_c.mutation.SetApplicableGroupIds(v)
+	return _c
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (_c *SubscriptionPlanCreate) SetTierRank(v int) *SubscriptionPlanCreate {
+	_c.mutation.SetTierRank(v)
+	return _c
+}
+
+// SetNillableTierRank sets the "tier_rank" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableTierRank(v *int) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetTierRank(*v)
+	}
+	return _c
+}
+
+// SetQuotaPeriod sets the "quota_period" field.
+func (_c *SubscriptionPlanCreate) SetQuotaPeriod(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetQuotaPeriod(v)
+	return _c
+}
+
+// SetNillableQuotaPeriod sets the "quota_period" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableQuotaPeriod(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetQuotaPeriod(*v)
+	}
+	return _c
+}
+
+// SetQuotaPerPeriodUsd sets the "quota_per_period_usd" field.
+func (_c *SubscriptionPlanCreate) SetQuotaPerPeriodUsd(v float64) *SubscriptionPlanCreate {
+	_c.mutation.SetQuotaPerPeriodUsd(v)
+	return _c
+}
+
+// SetNillableQuotaPerPeriodUsd sets the "quota_per_period_usd" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableQuotaPerPeriodUsd(v *float64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetQuotaPerPeriodUsd(*v)
+	}
+	return _c
+}
+
+// SetMonthlyMaxUsd sets the "monthly_max_usd" field.
+func (_c *SubscriptionPlanCreate) SetMonthlyMaxUsd(v float64) *SubscriptionPlanCreate {
+	_c.mutation.SetMonthlyMaxUsd(v)
+	return _c
+}
+
+// SetNillableMonthlyMaxUsd sets the "monthly_max_usd" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableMonthlyMaxUsd(v *float64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetMonthlyMaxUsd(*v)
+	}
+	return _c
+}
+
+// SetSpeedTier sets the "speed_tier" field.
+func (_c *SubscriptionPlanCreate) SetSpeedTier(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetSpeedTier(v)
+	return _c
+}
+
+// SetNillableSpeedTier sets the "speed_tier" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableSpeedTier(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetSpeedTier(*v)
+	}
+	return _c
+}
+
+// SetSupportTier sets the "support_tier" field.
+func (_c *SubscriptionPlanCreate) SetSupportTier(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetSupportTier(v)
+	return _c
+}
+
+// SetNillableSupportTier sets the "support_tier" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableSupportTier(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetSupportTier(*v)
+	}
+	return _c
+}
+
+// SetPublicBadge sets the "public_badge" field.
+func (_c *SubscriptionPlanCreate) SetPublicBadge(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetPublicBadge(v)
+	return _c
+}
+
+// SetNillablePublicBadge sets the "public_badge" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillablePublicBadge(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetPublicBadge(*v)
+	}
 	return _c
 }
 
@@ -194,6 +349,21 @@ func (_c *SubscriptionPlanCreate) SetNillableUpdatedAt(v *time.Time) *Subscripti
 	return _c
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_c *SubscriptionPlanCreate) AddGlobalPlanSubscriptionIDs(ids ...int64) *SubscriptionPlanCreate {
+	_c.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _c
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_c *SubscriptionPlanCreate) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *SubscriptionPlanCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
 // Mutation returns the SubscriptionPlanMutation object of the builder.
 func (_c *SubscriptionPlanCreate) Mutation() *SubscriptionPlanMutation {
 	return _c.mutation
@@ -229,6 +399,50 @@ func (_c *SubscriptionPlanCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *SubscriptionPlanCreate) defaults() {
+	if _, ok := _c.mutation.PlanScope(); !ok {
+		v := subscriptionplan.DefaultPlanScope
+		_c.mutation.SetPlanScope(v)
+	}
+	if _, ok := _c.mutation.PlanCategory(); !ok {
+		v := subscriptionplan.DefaultPlanCategory
+		_c.mutation.SetPlanCategory(v)
+	}
+	if _, ok := _c.mutation.ApplicableGroupMode(); !ok {
+		v := subscriptionplan.DefaultApplicableGroupMode
+		_c.mutation.SetApplicableGroupMode(v)
+	}
+	if _, ok := _c.mutation.ApplicableGroupIds(); !ok {
+		v := subscriptionplan.DefaultApplicableGroupIds
+		_c.mutation.SetApplicableGroupIds(v)
+	}
+	if _, ok := _c.mutation.TierRank(); !ok {
+		v := subscriptionplan.DefaultTierRank
+		_c.mutation.SetTierRank(v)
+	}
+	if _, ok := _c.mutation.QuotaPeriod(); !ok {
+		v := subscriptionplan.DefaultQuotaPeriod
+		_c.mutation.SetQuotaPeriod(v)
+	}
+	if _, ok := _c.mutation.QuotaPerPeriodUsd(); !ok {
+		v := subscriptionplan.DefaultQuotaPerPeriodUsd
+		_c.mutation.SetQuotaPerPeriodUsd(v)
+	}
+	if _, ok := _c.mutation.MonthlyMaxUsd(); !ok {
+		v := subscriptionplan.DefaultMonthlyMaxUsd
+		_c.mutation.SetMonthlyMaxUsd(v)
+	}
+	if _, ok := _c.mutation.SpeedTier(); !ok {
+		v := subscriptionplan.DefaultSpeedTier
+		_c.mutation.SetSpeedTier(v)
+	}
+	if _, ok := _c.mutation.SupportTier(); !ok {
+		v := subscriptionplan.DefaultSupportTier
+		_c.mutation.SetSupportTier(v)
+	}
+	if _, ok := _c.mutation.PublicBadge(); !ok {
+		v := subscriptionplan.DefaultPublicBadge
+		_c.mutation.SetPublicBadge(v)
+	}
 	if _, ok := _c.mutation.Description(); !ok {
 		v := subscriptionplan.DefaultDescription
 		_c.mutation.SetDescription(v)
@@ -273,8 +487,73 @@ func (_c *SubscriptionPlanCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_c *SubscriptionPlanCreate) check() error {
-	if _, ok := _c.mutation.GroupID(); !ok {
-		return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "SubscriptionPlan.group_id"`)}
+	if _, ok := _c.mutation.PlanScope(); !ok {
+		return &ValidationError{Name: "plan_scope", err: errors.New(`ent: missing required field "SubscriptionPlan.plan_scope"`)}
+	}
+	if v, ok := _c.mutation.PlanScope(); ok {
+		if err := subscriptionplan.PlanScopeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_scope", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.plan_scope": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PlanCategory(); !ok {
+		return &ValidationError{Name: "plan_category", err: errors.New(`ent: missing required field "SubscriptionPlan.plan_category"`)}
+	}
+	if v, ok := _c.mutation.PlanCategory(); ok {
+		if err := subscriptionplan.PlanCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "plan_category", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.plan_category": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ApplicableGroupMode(); !ok {
+		return &ValidationError{Name: "applicable_group_mode", err: errors.New(`ent: missing required field "SubscriptionPlan.applicable_group_mode"`)}
+	}
+	if v, ok := _c.mutation.ApplicableGroupMode(); ok {
+		if err := subscriptionplan.ApplicableGroupModeValidator(v); err != nil {
+			return &ValidationError{Name: "applicable_group_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.applicable_group_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ApplicableGroupIds(); !ok {
+		return &ValidationError{Name: "applicable_group_ids", err: errors.New(`ent: missing required field "SubscriptionPlan.applicable_group_ids"`)}
+	}
+	if _, ok := _c.mutation.TierRank(); !ok {
+		return &ValidationError{Name: "tier_rank", err: errors.New(`ent: missing required field "SubscriptionPlan.tier_rank"`)}
+	}
+	if _, ok := _c.mutation.QuotaPeriod(); !ok {
+		return &ValidationError{Name: "quota_period", err: errors.New(`ent: missing required field "SubscriptionPlan.quota_period"`)}
+	}
+	if v, ok := _c.mutation.QuotaPeriod(); ok {
+		if err := subscriptionplan.QuotaPeriodValidator(v); err != nil {
+			return &ValidationError{Name: "quota_period", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_period": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.QuotaPerPeriodUsd(); !ok {
+		return &ValidationError{Name: "quota_per_period_usd", err: errors.New(`ent: missing required field "SubscriptionPlan.quota_per_period_usd"`)}
+	}
+	if _, ok := _c.mutation.MonthlyMaxUsd(); !ok {
+		return &ValidationError{Name: "monthly_max_usd", err: errors.New(`ent: missing required field "SubscriptionPlan.monthly_max_usd"`)}
+	}
+	if _, ok := _c.mutation.SpeedTier(); !ok {
+		return &ValidationError{Name: "speed_tier", err: errors.New(`ent: missing required field "SubscriptionPlan.speed_tier"`)}
+	}
+	if v, ok := _c.mutation.SpeedTier(); ok {
+		if err := subscriptionplan.SpeedTierValidator(v); err != nil {
+			return &ValidationError{Name: "speed_tier", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.speed_tier": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SupportTier(); !ok {
+		return &ValidationError{Name: "support_tier", err: errors.New(`ent: missing required field "SubscriptionPlan.support_tier"`)}
+	}
+	if v, ok := _c.mutation.SupportTier(); ok {
+		if err := subscriptionplan.SupportTierValidator(v); err != nil {
+			return &ValidationError{Name: "support_tier", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.support_tier": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PublicBadge(); !ok {
+		return &ValidationError{Name: "public_badge", err: errors.New(`ent: missing required field "SubscriptionPlan.public_badge"`)}
+	}
+	if v, ok := _c.mutation.PublicBadge(); ok {
+		if err := subscriptionplan.PublicBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "public_badge", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.public_badge": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Name(); !ok {
 		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "SubscriptionPlan.name"`)}
@@ -361,7 +640,51 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	_spec.OnConflict = _c.conflict
 	if value, ok := _c.mutation.GroupID(); ok {
 		_spec.SetField(subscriptionplan.FieldGroupID, field.TypeInt64, value)
-		_node.GroupID = value
+		_node.GroupID = &value
+	}
+	if value, ok := _c.mutation.PlanScope(); ok {
+		_spec.SetField(subscriptionplan.FieldPlanScope, field.TypeString, value)
+		_node.PlanScope = value
+	}
+	if value, ok := _c.mutation.PlanCategory(); ok {
+		_spec.SetField(subscriptionplan.FieldPlanCategory, field.TypeString, value)
+		_node.PlanCategory = value
+	}
+	if value, ok := _c.mutation.ApplicableGroupMode(); ok {
+		_spec.SetField(subscriptionplan.FieldApplicableGroupMode, field.TypeString, value)
+		_node.ApplicableGroupMode = value
+	}
+	if value, ok := _c.mutation.ApplicableGroupIds(); ok {
+		_spec.SetField(subscriptionplan.FieldApplicableGroupIds, field.TypeJSON, value)
+		_node.ApplicableGroupIds = value
+	}
+	if value, ok := _c.mutation.TierRank(); ok {
+		_spec.SetField(subscriptionplan.FieldTierRank, field.TypeInt, value)
+		_node.TierRank = value
+	}
+	if value, ok := _c.mutation.QuotaPeriod(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaPeriod, field.TypeString, value)
+		_node.QuotaPeriod = value
+	}
+	if value, ok := _c.mutation.QuotaPerPeriodUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldQuotaPerPeriodUsd, field.TypeFloat64, value)
+		_node.QuotaPerPeriodUsd = value
+	}
+	if value, ok := _c.mutation.MonthlyMaxUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldMonthlyMaxUsd, field.TypeFloat64, value)
+		_node.MonthlyMaxUsd = value
+	}
+	if value, ok := _c.mutation.SpeedTier(); ok {
+		_spec.SetField(subscriptionplan.FieldSpeedTier, field.TypeString, value)
+		_node.SpeedTier = value
+	}
+	if value, ok := _c.mutation.SupportTier(); ok {
+		_spec.SetField(subscriptionplan.FieldSupportTier, field.TypeString, value)
+		_node.SupportTier = value
+	}
+	if value, ok := _c.mutation.PublicBadge(); ok {
+		_spec.SetField(subscriptionplan.FieldPublicBadge, field.TypeString, value)
+		_node.PublicBadge = value
 	}
 	if value, ok := _c.mutation.Name(); ok {
 		_spec.SetField(subscriptionplan.FieldName, field.TypeString, value)
@@ -414,6 +737,22 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(subscriptionplan.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   subscriptionplan.GlobalPlanSubscriptionsTable,
+			Columns: []string{subscriptionplan.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
@@ -482,6 +821,162 @@ func (u *SubscriptionPlanUpsert) UpdateGroupID() *SubscriptionPlanUpsert {
 // AddGroupID adds v to the "group_id" field.
 func (u *SubscriptionPlanUpsert) AddGroupID(v int64) *SubscriptionPlanUpsert {
 	u.Add(subscriptionplan.FieldGroupID, v)
+	return u
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *SubscriptionPlanUpsert) ClearGroupID() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldGroupID)
+	return u
+}
+
+// SetPlanScope sets the "plan_scope" field.
+func (u *SubscriptionPlanUpsert) SetPlanScope(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldPlanScope, v)
+	return u
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdatePlanScope() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldPlanScope)
+	return u
+}
+
+// SetPlanCategory sets the "plan_category" field.
+func (u *SubscriptionPlanUpsert) SetPlanCategory(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldPlanCategory, v)
+	return u
+}
+
+// UpdatePlanCategory sets the "plan_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdatePlanCategory() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldPlanCategory)
+	return u
+}
+
+// SetApplicableGroupMode sets the "applicable_group_mode" field.
+func (u *SubscriptionPlanUpsert) SetApplicableGroupMode(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldApplicableGroupMode, v)
+	return u
+}
+
+// UpdateApplicableGroupMode sets the "applicable_group_mode" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateApplicableGroupMode() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldApplicableGroupMode)
+	return u
+}
+
+// SetApplicableGroupIds sets the "applicable_group_ids" field.
+func (u *SubscriptionPlanUpsert) SetApplicableGroupIds(v []int64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldApplicableGroupIds, v)
+	return u
+}
+
+// UpdateApplicableGroupIds sets the "applicable_group_ids" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateApplicableGroupIds() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldApplicableGroupIds)
+	return u
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsert) SetTierRank(v int) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldTierRank, v)
+	return u
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateTierRank() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldTierRank)
+	return u
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsert) AddTierRank(v int) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldTierRank, v)
+	return u
+}
+
+// SetQuotaPeriod sets the "quota_period" field.
+func (u *SubscriptionPlanUpsert) SetQuotaPeriod(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldQuotaPeriod, v)
+	return u
+}
+
+// UpdateQuotaPeriod sets the "quota_period" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateQuotaPeriod() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldQuotaPeriod)
+	return u
+}
+
+// SetQuotaPerPeriodUsd sets the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsert) SetQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldQuotaPerPeriodUsd, v)
+	return u
+}
+
+// UpdateQuotaPerPeriodUsd sets the "quota_per_period_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateQuotaPerPeriodUsd() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldQuotaPerPeriodUsd)
+	return u
+}
+
+// AddQuotaPerPeriodUsd adds v to the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsert) AddQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldQuotaPerPeriodUsd, v)
+	return u
+}
+
+// SetMonthlyMaxUsd sets the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsert) SetMonthlyMaxUsd(v float64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldMonthlyMaxUsd, v)
+	return u
+}
+
+// UpdateMonthlyMaxUsd sets the "monthly_max_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateMonthlyMaxUsd() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldMonthlyMaxUsd)
+	return u
+}
+
+// AddMonthlyMaxUsd adds v to the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsert) AddMonthlyMaxUsd(v float64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldMonthlyMaxUsd, v)
+	return u
+}
+
+// SetSpeedTier sets the "speed_tier" field.
+func (u *SubscriptionPlanUpsert) SetSpeedTier(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldSpeedTier, v)
+	return u
+}
+
+// UpdateSpeedTier sets the "speed_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateSpeedTier() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldSpeedTier)
+	return u
+}
+
+// SetSupportTier sets the "support_tier" field.
+func (u *SubscriptionPlanUpsert) SetSupportTier(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldSupportTier, v)
+	return u
+}
+
+// UpdateSupportTier sets the "support_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateSupportTier() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldSupportTier)
+	return u
+}
+
+// SetPublicBadge sets the "public_badge" field.
+func (u *SubscriptionPlanUpsert) SetPublicBadge(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldPublicBadge, v)
+	return u
+}
+
+// UpdatePublicBadge sets the "public_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdatePublicBadge() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldPublicBadge)
 	return u
 }
 
@@ -722,6 +1217,188 @@ func (u *SubscriptionPlanUpsertOne) AddGroupID(v int64) *SubscriptionPlanUpsertO
 func (u *SubscriptionPlanUpsertOne) UpdateGroupID() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *SubscriptionPlanUpsertOne) ClearGroupID() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearGroupID()
+	})
+}
+
+// SetPlanScope sets the "plan_scope" field.
+func (u *SubscriptionPlanUpsertOne) SetPlanScope(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanScope(v)
+	})
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdatePlanScope() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanScope()
+	})
+}
+
+// SetPlanCategory sets the "plan_category" field.
+func (u *SubscriptionPlanUpsertOne) SetPlanCategory(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanCategory(v)
+	})
+}
+
+// UpdatePlanCategory sets the "plan_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdatePlanCategory() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanCategory()
+	})
+}
+
+// SetApplicableGroupMode sets the "applicable_group_mode" field.
+func (u *SubscriptionPlanUpsertOne) SetApplicableGroupMode(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetApplicableGroupMode(v)
+	})
+}
+
+// UpdateApplicableGroupMode sets the "applicable_group_mode" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateApplicableGroupMode() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateApplicableGroupMode()
+	})
+}
+
+// SetApplicableGroupIds sets the "applicable_group_ids" field.
+func (u *SubscriptionPlanUpsertOne) SetApplicableGroupIds(v []int64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetApplicableGroupIds(v)
+	})
+}
+
+// UpdateApplicableGroupIds sets the "applicable_group_ids" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateApplicableGroupIds() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateApplicableGroupIds()
+	})
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsertOne) SetTierRank(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTierRank(v)
+	})
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsertOne) AddTierRank(v int) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTierRank(v)
+	})
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateTierRank() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTierRank()
+	})
+}
+
+// SetQuotaPeriod sets the "quota_period" field.
+func (u *SubscriptionPlanUpsertOne) SetQuotaPeriod(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaPeriod(v)
+	})
+}
+
+// UpdateQuotaPeriod sets the "quota_period" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateQuotaPeriod() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaPeriod()
+	})
+}
+
+// SetQuotaPerPeriodUsd sets the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsertOne) SetQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaPerPeriodUsd(v)
+	})
+}
+
+// AddQuotaPerPeriodUsd adds v to the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsertOne) AddQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddQuotaPerPeriodUsd(v)
+	})
+}
+
+// UpdateQuotaPerPeriodUsd sets the "quota_per_period_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateQuotaPerPeriodUsd() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaPerPeriodUsd()
+	})
+}
+
+// SetMonthlyMaxUsd sets the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsertOne) SetMonthlyMaxUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetMonthlyMaxUsd(v)
+	})
+}
+
+// AddMonthlyMaxUsd adds v to the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsertOne) AddMonthlyMaxUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddMonthlyMaxUsd(v)
+	})
+}
+
+// UpdateMonthlyMaxUsd sets the "monthly_max_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateMonthlyMaxUsd() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateMonthlyMaxUsd()
+	})
+}
+
+// SetSpeedTier sets the "speed_tier" field.
+func (u *SubscriptionPlanUpsertOne) SetSpeedTier(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSpeedTier(v)
+	})
+}
+
+// UpdateSpeedTier sets the "speed_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateSpeedTier() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSpeedTier()
+	})
+}
+
+// SetSupportTier sets the "support_tier" field.
+func (u *SubscriptionPlanUpsertOne) SetSupportTier(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSupportTier(v)
+	})
+}
+
+// UpdateSupportTier sets the "support_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateSupportTier() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSupportTier()
+	})
+}
+
+// SetPublicBadge sets the "public_badge" field.
+func (u *SubscriptionPlanUpsertOne) SetPublicBadge(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPublicBadge(v)
+	})
+}
+
+// UpdatePublicBadge sets the "public_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdatePublicBadge() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePublicBadge()
 	})
 }
 
@@ -1157,6 +1834,188 @@ func (u *SubscriptionPlanUpsertBulk) AddGroupID(v int64) *SubscriptionPlanUpsert
 func (u *SubscriptionPlanUpsertBulk) UpdateGroupID() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateGroupID()
+	})
+}
+
+// ClearGroupID clears the value of the "group_id" field.
+func (u *SubscriptionPlanUpsertBulk) ClearGroupID() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearGroupID()
+	})
+}
+
+// SetPlanScope sets the "plan_scope" field.
+func (u *SubscriptionPlanUpsertBulk) SetPlanScope(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanScope(v)
+	})
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdatePlanScope() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanScope()
+	})
+}
+
+// SetPlanCategory sets the "plan_category" field.
+func (u *SubscriptionPlanUpsertBulk) SetPlanCategory(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPlanCategory(v)
+	})
+}
+
+// UpdatePlanCategory sets the "plan_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdatePlanCategory() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePlanCategory()
+	})
+}
+
+// SetApplicableGroupMode sets the "applicable_group_mode" field.
+func (u *SubscriptionPlanUpsertBulk) SetApplicableGroupMode(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetApplicableGroupMode(v)
+	})
+}
+
+// UpdateApplicableGroupMode sets the "applicable_group_mode" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateApplicableGroupMode() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateApplicableGroupMode()
+	})
+}
+
+// SetApplicableGroupIds sets the "applicable_group_ids" field.
+func (u *SubscriptionPlanUpsertBulk) SetApplicableGroupIds(v []int64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetApplicableGroupIds(v)
+	})
+}
+
+// UpdateApplicableGroupIds sets the "applicable_group_ids" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateApplicableGroupIds() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateApplicableGroupIds()
+	})
+}
+
+// SetTierRank sets the "tier_rank" field.
+func (u *SubscriptionPlanUpsertBulk) SetTierRank(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTierRank(v)
+	})
+}
+
+// AddTierRank adds v to the "tier_rank" field.
+func (u *SubscriptionPlanUpsertBulk) AddTierRank(v int) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTierRank(v)
+	})
+}
+
+// UpdateTierRank sets the "tier_rank" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateTierRank() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTierRank()
+	})
+}
+
+// SetQuotaPeriod sets the "quota_period" field.
+func (u *SubscriptionPlanUpsertBulk) SetQuotaPeriod(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaPeriod(v)
+	})
+}
+
+// UpdateQuotaPeriod sets the "quota_period" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateQuotaPeriod() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaPeriod()
+	})
+}
+
+// SetQuotaPerPeriodUsd sets the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsertBulk) SetQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetQuotaPerPeriodUsd(v)
+	})
+}
+
+// AddQuotaPerPeriodUsd adds v to the "quota_per_period_usd" field.
+func (u *SubscriptionPlanUpsertBulk) AddQuotaPerPeriodUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddQuotaPerPeriodUsd(v)
+	})
+}
+
+// UpdateQuotaPerPeriodUsd sets the "quota_per_period_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateQuotaPerPeriodUsd() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateQuotaPerPeriodUsd()
+	})
+}
+
+// SetMonthlyMaxUsd sets the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsertBulk) SetMonthlyMaxUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetMonthlyMaxUsd(v)
+	})
+}
+
+// AddMonthlyMaxUsd adds v to the "monthly_max_usd" field.
+func (u *SubscriptionPlanUpsertBulk) AddMonthlyMaxUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddMonthlyMaxUsd(v)
+	})
+}
+
+// UpdateMonthlyMaxUsd sets the "monthly_max_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateMonthlyMaxUsd() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateMonthlyMaxUsd()
+	})
+}
+
+// SetSpeedTier sets the "speed_tier" field.
+func (u *SubscriptionPlanUpsertBulk) SetSpeedTier(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSpeedTier(v)
+	})
+}
+
+// UpdateSpeedTier sets the "speed_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateSpeedTier() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSpeedTier()
+	})
+}
+
+// SetSupportTier sets the "support_tier" field.
+func (u *SubscriptionPlanUpsertBulk) SetSupportTier(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetSupportTier(v)
+	})
+}
+
+// UpdateSupportTier sets the "support_tier" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateSupportTier() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateSupportTier()
+	})
+}
+
+// SetPublicBadge sets the "public_badge" field.
+func (u *SubscriptionPlanUpsertBulk) SetPublicBadge(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetPublicBadge(v)
+	})
+}
+
+// UpdatePublicBadge sets the "public_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdatePublicBadge() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdatePublicBadge()
 	})
 }
 

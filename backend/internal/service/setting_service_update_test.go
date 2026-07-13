@@ -51,42 +51,6 @@ func (s *settingUpdateRepoStub) Delete(ctx context.Context, key string) error {
 	panic("unexpected Delete call")
 }
 
-type settingGetAllRepoStub struct {
-	values map[string]string
-}
-
-func (s *settingGetAllRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
-	panic("unexpected Get call")
-}
-
-func (s *settingGetAllRepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	panic("unexpected GetValue call")
-}
-
-func (s *settingGetAllRepoStub) Set(ctx context.Context, key, value string) error {
-	panic("unexpected Set call")
-}
-
-func (s *settingGetAllRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
-	panic("unexpected GetMultiple call")
-}
-
-func (s *settingGetAllRepoStub) SetMultiple(ctx context.Context, settings map[string]string) error {
-	panic("unexpected SetMultiple call")
-}
-
-func (s *settingGetAllRepoStub) GetAll(ctx context.Context) (map[string]string, error) {
-	out := make(map[string]string, len(s.values))
-	for key, value := range s.values {
-		out[key] = value
-	}
-	return out, nil
-}
-
-func (s *settingGetAllRepoStub) Delete(ctx context.Context, key string) error {
-	panic("unexpected Delete call")
-}
-
 type settingAntigravityUARepoStub struct {
 	values map[string]string
 }
@@ -330,15 +294,12 @@ func TestSettingService_UpdateSettings_TablePreferences(t *testing.T) {
 }
 
 func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler(t *testing.T) {
-	resetOpenAIAdvancedSchedulerSettingCacheForTest()
-	defer resetOpenAIAdvancedSchedulerSettingCacheForTest()
-
 	repo := &settingUpdateRepoStub{}
 	svc := NewSettingService(repo, &config.Config{})
 
 	err := svc.UpdateSettings(context.Background(), &SystemSettings{
-		PaymentVisibleMethodAlipaySource:                   "alipay",
-		PaymentVisibleMethodWxpaySource:                    "easypay",
+		PaymentVisibleMethodAlipaySource:                   "jeepay",
+		PaymentVisibleMethodWxpaySource:                    "jeepay",
 		PaymentVisibleMethodAlipayEnabled:                  true,
 		PaymentVisibleMethodWxpayEnabled:                   false,
 		OpenAILowUpstreamRatePriorityEnabled:               true,
@@ -359,8 +320,8 @@ func TestSettingService_UpdateSettings_PaymentVisibleMethodsAndAdvancedScheduler
 		OpenAIAdvancedSchedulerWeightSessionSticky:         "4",
 	})
 	require.NoError(t, err)
-	require.Equal(t, VisibleMethodSourceOfficialAlipay, repo.updates[SettingPaymentVisibleMethodAlipaySource])
-	require.Equal(t, VisibleMethodSourceEasyPayWechat, repo.updates[SettingPaymentVisibleMethodWxpaySource])
+	require.Equal(t, VisibleMethodSourceJeepayAlipay, repo.updates[SettingPaymentVisibleMethodAlipaySource])
+	require.Equal(t, VisibleMethodSourceJeepayWechat, repo.updates[SettingPaymentVisibleMethodWxpaySource])
 	require.Equal(t, "true", repo.updates[SettingPaymentVisibleMethodAlipayEnabled])
 	require.Equal(t, "false", repo.updates[SettingPaymentVisibleMethodWxpayEnabled])
 	require.Equal(t, "true", repo.updates[SettingKeyOpenAILowUpstreamRatePriorityEnabled])

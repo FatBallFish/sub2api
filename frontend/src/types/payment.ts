@@ -19,9 +19,9 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'jeepay' | 'paypal'
 
-export type OrderType = 'balance' | 'subscription'
+export type OrderType = 'balance' | 'subscription' | 'global_plan' | 'global_plan_upgrade'
 
 // ==================== Configuration ====================
 
@@ -71,6 +71,8 @@ export interface CheckoutInfoResponse {
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
+  billing_currency?: string
+  currency_exchange_rates?: string
   help_text: string
   help_image_url: string
   stripe_publishable_key: string
@@ -108,7 +110,11 @@ export interface PaymentOrder {
 
 export interface SubscriptionPlan {
   id: number
-  group_id: number
+  group_id: number | null
+  plan_scope?: 'group' | 'global'
+  plan_category?: string
+  applicable_group_mode?: 'all' | 'whitelist' | 'blacklist' | string
+  applicable_group_ids?: number[]
   group_platform?: string
   group_name?: string
   rate_multiplier?: number
@@ -126,6 +132,11 @@ export interface SubscriptionPlan {
   original_price?: number
   /** Display-only ISO 4217 currency label (e.g. "NZD"); empty means no label */
   currency?: string
+  quota_period?: string
+  quota_per_period_usd?: number
+  monthly_max_usd?: number
+  tier_rank?: number
+  public_badge?: string
   validity_days: number
   validity_unit: string
   /** Stored as JSON string in backend; API layer should parse before use */
@@ -166,6 +177,7 @@ export interface ProviderInstance {
 
 export interface CreateOrderRequest {
   amount: number
+  amount_currency?: string
   payment_type: string
   order_type: string
   plan_id?: number

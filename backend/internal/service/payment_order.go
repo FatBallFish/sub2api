@@ -40,6 +40,21 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if err != nil {
 		return nil, err
 	}
+	if plan != nil {
+		req.OrderType = normalizePlanOrderType(req.OrderType, plan.PlanScope)
+	}
+	var upgradeQuote *GlobalPlanUpgradeQuote
+	if req.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		if s.globalPlanService == nil {
+			s.globalPlanService = NewGlobalPlanService(s.entClient)
+		}
+		quote, err := s.globalPlanService.CalculateUpgradeQuote(ctx, req.UserID, req.PlanID, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		upgradeQuote = &quote
+		req.UpgradeQuote = upgradeQuote
+	}
 	if err := s.checkCancelRateLimit(ctx, req.UserID, cfg); err != nil {
 		return nil, err
 	}
@@ -50,14 +65,26 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if user.Status != payment.EntityStatusActive {
 		return nil, infraerrors.Forbidden("USER_INACTIVE", "user account is disabled")
 	}
+	if plan != nil && plan.PlanScope == PlanScopeGlobal {
+		if err := s.ensureGlobalPlanVisibleToUser(ctx, plan, user); err != nil {
+			return nil, err
+		}
+	}
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)
 	}
 	orderAmount := req.Amount
 	limitAmount := req.Amount
+	payBaseAmount := req.Amount
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
+		payBaseAmount = plan.Price
+		if upgradeQuote != nil {
+			orderAmount = upgradeQuote.UpgradePrice
+			limitAmount = upgradeQuote.UpgradePrice
+			payBaseAmount = upgradeQuote.UpgradePrice
+		}
 	} else if req.OrderType == payment.OrderTypeBalance {
 		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
 	}
@@ -69,7 +96,22 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			return nil, err
 		}
 	}
-	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+	exchangeRates := parsePaymentCurrencyExchangeRatesWithLegacySubscriptionRate(cfg.CurrencyExchangeRates, cfg.SubscriptionUSDToCNYRate)
+	if strings.TrimSpace(req.AmountCurrency) == "" && orderUsesSubscriptionCurrency(req.OrderType, cfg.SubscriptionUSDToCNYRate, methodCurrency) {
+		req.AmountCurrency = "USD"
+	}
+	if amountCurrency := strings.TrimSpace(req.AmountCurrency); amountCurrency != "" {
+		converted, rate, err := convertPaymentBillingAmount(limitAmount, amountCurrency, methodCurrency, exchangeRates)
+		if err != nil {
+			return nil, err
+		}
+		payBaseAmount = converted
+		req.AmountCurrency = strings.ToUpper(strings.TrimSpace(amountCurrency))
+		req.PaymentCurrency = methodCurrency
+		req.CurrencyExchangeRate = rate
+	}
+	// 订阅套餐 price 是直付价，余额充值倍率只影响余额充值到账，不参与订阅 pay_amount 计算。
+	payAmountStr, payAmount, err := calculateCreateOrderPayAmount(payBaseAmount, feeRate, methodCurrency)
 	if err != nil {
 		return nil, err
 	}
@@ -84,8 +126,20 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if sel != nil {
 		selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
 	}
-	if selectedCurrency != methodCurrency {
-		payAmountStr, payAmount, err = calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, selectedCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+	if amountCurrency := strings.TrimSpace(req.AmountCurrency); amountCurrency != "" {
+		converted, rate, err := convertPaymentBillingAmount(limitAmount, amountCurrency, selectedCurrency, exchangeRates)
+		if err != nil {
+			return nil, err
+		}
+		payBaseAmount = converted
+		req.AmountCurrency = strings.ToUpper(strings.TrimSpace(amountCurrency))
+		req.PaymentCurrency = selectedCurrency
+		req.CurrencyExchangeRate = rate
+	} else if selectedCurrency != methodCurrency {
+		payBaseAmount = limitAmount
+	}
+	if selectedCurrency != methodCurrency || strings.TrimSpace(req.AmountCurrency) != "" {
+		payAmountStr, payAmount, err = calculateCreateOrderPayAmount(payBaseAmount, feeRate, selectedCurrency)
 		if err != nil {
 			return nil, err
 		}
@@ -93,18 +147,18 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
 		return nil, err
 	}
-	oauthResp, err := s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, limitAmount, payAmount, feeRate, sel)
+	oauthResp, err := s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, payBaseAmount, payAmount, feeRate, sel)
 	if err != nil {
 		return nil, err
 	}
 	if oauthResp != nil {
 		return oauthResp, nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, payBaseAmount, feeRate, payAmount, sel)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
+	resp, err := s.invokeProvider(ctx, order, req, cfg, payBaseAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {
 		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
 			SetStatus(OrderStatusFailed).
@@ -114,15 +168,47 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	return resp, nil
 }
 
+func (s *PaymentService) ensureGlobalPlanVisibleToUser(ctx context.Context, plan *dbent.SubscriptionPlan, user *User) error {
+	if plan == nil || user == nil || plan.PlanScope != PlanScopeGlobal {
+		return nil
+	}
+	mode := normalizePlanApplicableGroupMode(plan.ApplicableGroupMode)
+	ids := normalizePlanApplicableGroupIDs(plan.ApplicableGroupIds)
+	if mode == PlanApplicableGroupModeAll || len(ids) == 0 {
+		return nil
+	}
+	if s.configService == nil {
+		return nil
+	}
+	heldGroupIDs, err := s.configService.ListVisibleGroupIDsForUser(ctx, user.AllowedGroups)
+	if err != nil {
+		return err
+	}
+	if !IsGlobalPlanVisibleForGroups(mode, ids, heldGroupIDs) {
+		return infraerrors.Forbidden("PLAN_NOT_AVAILABLE_FOR_GROUPS", "global plan is not available for your groups")
+	}
+	return nil
+}
+
+func (s *PaymentService) CalculateGlobalPlanUpgradeQuote(ctx context.Context, userID int64, targetPlanID int64) (GlobalPlanUpgradeQuote, error) {
+	if s.globalPlanService == nil {
+		s.globalPlanService = NewGlobalPlanService(s.entClient)
+	}
+	return s.globalPlanService.CalculateUpgradeQuote(ctx, userID, targetPlanID, time.Now())
+}
+
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {
 	if req.OrderType == payment.OrderTypeBalance && cfg.BalanceDisabled {
 		return nil, infraerrors.Forbidden("BALANCE_PAYMENT_DISABLED", "balance recharge has been disabled")
 	}
-	if req.OrderType == payment.OrderTypeSubscription {
-		return s.validateSubOrder(ctx, req)
+	if req.OrderType == payment.OrderTypeSubscription || req.OrderType == payment.OrderTypeGlobalPlan || req.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		return s.validatePlanOrder(ctx, req)
 	}
 	if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || req.Amount <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount must be a positive number")
+	}
+	if strings.TrimSpace(req.AmountCurrency) != "" {
+		return nil, nil
 	}
 	if (cfg.MinAmount > 0 && req.Amount < cfg.MinAmount) || (cfg.MaxAmount > 0 && req.Amount > cfg.MaxAmount) {
 		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "amount out of range").
@@ -131,15 +217,27 @@ func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrder
 	return nil, nil
 }
 
-func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRequest) (*dbent.SubscriptionPlan, error) {
+func (s *PaymentService) validatePlanOrder(ctx context.Context, req CreateOrderRequest) (*dbent.SubscriptionPlan, error) {
 	if req.PlanID == 0 {
-		return nil, infraerrors.BadRequest("INVALID_INPUT", "subscription order requires a plan")
+		return nil, infraerrors.BadRequest("INVALID_INPUT", "plan order requires a plan")
 	}
 	plan, err := s.configService.GetPlan(ctx, req.PlanID)
 	if err != nil || !plan.ForSale {
 		return nil, infraerrors.NotFound("PLAN_NOT_AVAILABLE", "plan not found or not for sale")
 	}
-	group, err := s.groupRepo.GetByID(ctx, plan.GroupID)
+	if plan.PlanScope == PlanScopeGlobal {
+		if req.OrderType != payment.OrderTypeSubscription && req.OrderType != payment.OrderTypeGlobalPlan && req.OrderType != payment.OrderTypeGlobalPlanUpgrade {
+			return nil, infraerrors.BadRequest("ORDER_TYPE_MISMATCH", "global plan requires a global plan order type")
+		}
+		return plan, nil
+	}
+	if req.OrderType == payment.OrderTypeGlobalPlan || req.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		return nil, infraerrors.BadRequest("ORDER_TYPE_MISMATCH", "global plan order requires a global plan")
+	}
+	if plan.GroupID == nil || *plan.GroupID <= 0 {
+		return nil, infraerrors.NotFound("GROUP_NOT_FOUND", "subscription group is no longer available")
+	}
+	group, err := s.groupRepo.GetByID(ctx, *plan.GroupID)
 	if err != nil || group.Status != payment.EntityStatusActive {
 		return nil, infraerrors.NotFound("GROUP_NOT_FOUND", "subscription group is no longer available")
 	}
@@ -147,6 +245,16 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 		return nil, infraerrors.BadRequest("GROUP_TYPE_MISMATCH", "group is not a subscription type")
 	}
 	return plan, nil
+}
+
+func normalizePlanOrderType(orderType, planScope string) string {
+	if orderType == payment.OrderTypeGlobalPlanUpgrade {
+		return payment.OrderTypeGlobalPlanUpgrade
+	}
+	if planScope == PlanScopeGlobal && orderType == payment.OrderTypeSubscription {
+		return payment.OrderTypeGlobalPlan
+	}
+	return orderType
 }
 
 func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
@@ -171,6 +279,7 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, err
 	}
 	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
+	refundSnapshot := buildPaymentOrderRefundSnapshot(req, orderAmount, limitAmount, feeRate, payAmount)
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {
@@ -206,8 +315,21 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if providerSnapshot != nil {
 		b.SetProviderSnapshot(providerSnapshot)
 	}
+	if refundSnapshot != nil {
+		b.SetRefundSnapshot(refundSnapshot)
+	}
 	if plan != nil {
-		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		b.SetPlanID(plan.ID).
+			SetPlanScope(plan.PlanScope).
+			SetPlanSnapshot(buildPaymentOrderPlanSnapshot(plan)).
+			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		if plan.GroupID != nil {
+			b.SetSubscriptionGroupID(*plan.GroupID)
+		}
+	}
+	if req.OrderType == payment.OrderTypeGlobalPlanUpgrade && req.UpgradeQuote != nil {
+		b.SetUpgradeFromSubscriptionID(req.UpgradeQuote.CurrentSubscriptionID).
+			SetUpgradeProration(buildPaymentOrderUpgradeProration(req.UpgradeQuote))
 	}
 	order, err := b.Save(ctx)
 	if err != nil {
@@ -305,11 +427,91 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
+	if providerKey == payment.TypeJeepay {
+		if appID := strings.TrimSpace(sel.Config["appId"]); appID != "" {
+			snapshot["merchant_app_id"] = appID
+		}
+		if mchNo := strings.TrimSpace(sel.Config["mchNo"]); mchNo != "" {
+			snapshot["merchant_id"] = mchNo
+		}
+		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
+	}
 
 	if len(snapshot) == 1 {
 		return nil
 	}
 	return snapshot
+}
+
+func buildPaymentOrderPlanSnapshot(plan *dbent.SubscriptionPlan) map[string]any {
+	if plan == nil {
+		return nil
+	}
+	return map[string]any{
+		"schema_version":        1,
+		"plan_id":               plan.ID,
+		"plan_scope":            plan.PlanScope,
+		"plan_category":         normalizePlanCategory(plan.PlanCategory),
+		"applicable_group_mode": normalizePlanApplicableGroupMode(plan.ApplicableGroupMode),
+		"applicable_group_ids":  append([]int64(nil), plan.ApplicableGroupIds...),
+		"name":                  plan.Name,
+		"price":                 plan.Price,
+		"validity_days":         plan.ValidityDays,
+		"validity_unit":         plan.ValidityUnit,
+		"tier_rank":             plan.TierRank,
+		"quota_period":          plan.QuotaPeriod,
+		"quota_per_period_usd":  plan.QuotaPerPeriodUsd,
+		"monthly_max_usd":       plan.MonthlyMaxUsd,
+		"speed_tier":            plan.SpeedTier,
+		"support_tier":          plan.SupportTier,
+		"public_badge":          plan.PublicBadge,
+	}
+}
+
+func buildPaymentOrderRefundSnapshot(req CreateOrderRequest, orderAmount, limitAmount, feeRate, payAmount float64) map[string]any {
+	snapshot := map[string]any{
+		"schema_version":  1,
+		"order_type":      req.OrderType,
+		"order_amount":    orderAmount,
+		"pay_base_amount": limitAmount,
+		"pay_amount":      payAmount,
+		"fee_rate":        feeRate,
+	}
+	if strings.TrimSpace(req.AmountCurrency) != "" {
+		snapshot["amount_currency"] = strings.ToUpper(strings.TrimSpace(req.AmountCurrency))
+		snapshot["payment_currency"] = strings.ToUpper(strings.TrimSpace(req.PaymentCurrency))
+		snapshot["currency_exchange_rate"] = req.CurrencyExchangeRate
+	}
+	if req.OrderType == payment.OrderTypeBalance {
+		balanceSnapshot := buildBalanceRefundSnapshotWithPaid(payAmount, limitAmount, orderAmount, feeRate)
+		snapshot["balance"] = map[string]any{
+			"schema_version":       balanceSnapshot.SchemaVersion,
+			"paid_amount":          balanceSnapshot.PaidAmount,
+			"credited_balance":     balanceSnapshot.CreditedBalance,
+			"fee_amount":           balanceSnapshot.FeeAmount,
+			"credit_per_paid_unit": balanceSnapshot.CreditPerPaidUnit,
+		}
+	}
+	return snapshot
+}
+
+func buildPaymentOrderUpgradeProration(quote *GlobalPlanUpgradeQuote) map[string]any {
+	if quote == nil {
+		return nil
+	}
+	return map[string]any{
+		"schema_version":          1,
+		"current_subscription_id": quote.CurrentSubscriptionID,
+		"from_plan_id":            quote.FromPlanID,
+		"to_plan_id":              quote.ToPlanID,
+		"remaining_seconds":       quote.RemainingSeconds,
+		"cycle_seconds":           quote.CycleSeconds,
+		"current_plan_price":      quote.CurrentPlanPrice,
+		"target_plan_price":       quote.TargetPlanPrice,
+		"upgrade_price":           quote.UpgradePrice,
+		"currency":                quote.Currency,
+		"expires_at":              quote.ExpiresAt.Format(time.RFC3339Nano),
+	}
 }
 
 func paymentOrderSnapshotWxpayAppID(sel *payment.InstanceSelection, req CreateOrderRequest) string {
@@ -720,27 +922,33 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 }
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
+	currency := pr.Currency
+	if strings.TrimSpace(currency) == "" && sel != nil {
+		currency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
+	}
 	return &CreateOrderResponse{
-		OrderID:      order.ID,
-		Amount:       order.Amount,
-		PayAmount:    payAmount,
-		FeeRate:      order.FeeRate,
-		Status:       OrderStatusPending,
-		ResultType:   resultType,
-		PaymentType:  req.PaymentType,
-		OutTradeNo:   order.OutTradeNo,
-		PayURL:       pr.PayURL,
-		QRCode:       pr.QRCode,
-		ClientSecret: pr.ClientSecret,
-		IntentID:     pr.IntentID,
-		Currency:     pr.Currency,
-		CountryCode:  pr.CountryCode,
-		PaymentEnv:   pr.PaymentEnv,
-		OAuth:        pr.OAuth,
-		JSAPI:        pr.JSAPI,
-		JSAPIPayload: pr.JSAPI,
-		ExpiresAt:    order.ExpiresAt,
-		PaymentMode:  sel.PaymentMode,
+		OrderID:         order.ID,
+		Amount:          order.Amount,
+		PayAmount:       payAmount,
+		FeeRate:         order.FeeRate,
+		Status:          OrderStatusPending,
+		ResultType:      resultType,
+		PaymentType:     req.PaymentType,
+		OutTradeNo:      order.OutTradeNo,
+		PayURL:          pr.PayURL,
+		QRCode:          pr.QRCode,
+		ClientSecret:    pr.ClientSecret,
+		IntentID:        pr.IntentID,
+		Currency:        currency,
+		AmountCurrency:  PaymentOrderAmountCurrency(order, currency),
+		PaymentCurrency: currency,
+		CountryCode:     pr.CountryCode,
+		PaymentEnv:      pr.PaymentEnv,
+		OAuth:           pr.OAuth,
+		JSAPI:           pr.JSAPI,
+		JSAPIPayload:    pr.JSAPI,
+		ExpiresAt:       order.ExpiresAt,
+		PaymentMode:     sel.PaymentMode,
 	}
 }
 
@@ -753,6 +961,9 @@ func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope string) (stri
 	q.Set("payment_type", strings.TrimSpace(req.PaymentType))
 	if req.Amount > 0 {
 		q.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	}
+	if amountCurrency := strings.TrimSpace(req.AmountCurrency); amountCurrency != "" {
+		q.Set("amount_currency", amountCurrency)
 	}
 	if orderType := strings.TrimSpace(req.OrderType); orderType != "" {
 		q.Set("order_type", orderType)

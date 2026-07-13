@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -365,6 +366,76 @@ func (_c *UsageLogCreate) SetNillableLongContextBillingApplied(v *bool) *UsageLo
 	return _c
 }
 
+// SetFundingSource sets the "funding_source" field.
+func (_c *UsageLogCreate) SetFundingSource(v string) *UsageLogCreate {
+	_c.mutation.SetFundingSource(v)
+	return _c
+}
+
+// SetNillableFundingSource sets the "funding_source" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableFundingSource(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetFundingSource(*v)
+	}
+	return _c
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (_c *UsageLogCreate) SetGlobalPlanSubscriptionID(v int64) *UsageLogCreate {
+	_c.mutation.SetGlobalPlanSubscriptionID(v)
+	return _c
+}
+
+// SetNillableGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableGlobalPlanSubscriptionID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetGlobalPlanSubscriptionID(*v)
+	}
+	return _c
+}
+
+// SetGlobalPlanCost sets the "global_plan_cost" field.
+func (_c *UsageLogCreate) SetGlobalPlanCost(v float64) *UsageLogCreate {
+	_c.mutation.SetGlobalPlanCost(v)
+	return _c
+}
+
+// SetNillableGlobalPlanCost sets the "global_plan_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableGlobalPlanCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetGlobalPlanCost(*v)
+	}
+	return _c
+}
+
+// SetBalanceCost sets the "balance_cost" field.
+func (_c *UsageLogCreate) SetBalanceCost(v float64) *UsageLogCreate {
+	_c.mutation.SetBalanceCost(v)
+	return _c
+}
+
+// SetNillableBalanceCost sets the "balance_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBalanceCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetBalanceCost(*v)
+	}
+	return _c
+}
+
+// SetGroupSubscriptionCost sets the "group_subscription_cost" field.
+func (_c *UsageLogCreate) SetGroupSubscriptionCost(v float64) *UsageLogCreate {
+	_c.mutation.SetGroupSubscriptionCost(v)
+	return _c
+}
+
+// SetNillableGroupSubscriptionCost sets the "group_subscription_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableGroupSubscriptionCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetGroupSubscriptionCost(*v)
+	}
+	return _c
+}
+
 // SetAccountRateMultiplier sets the "account_rate_multiplier" field.
 func (_c *UsageLogCreate) SetAccountRateMultiplier(v float64) *UsageLogCreate {
 	_c.mutation.SetAccountRateMultiplier(v)
@@ -634,6 +705,11 @@ func (_c *UsageLogCreate) SetSubscription(v *UserSubscription) *UsageLogCreate {
 	return _c.SetSubscriptionID(v.ID)
 }
 
+// SetGlobalPlanSubscription sets the "global_plan_subscription" edge to the UserGlobalPlanSubscription entity.
+func (_c *UsageLogCreate) SetGlobalPlanSubscription(v *UserGlobalPlanSubscription) *UsageLogCreate {
+	return _c.SetGlobalPlanSubscriptionID(v.ID)
+}
+
 // Mutation returns the UsageLogMutation object of the builder.
 func (_c *UsageLogCreate) Mutation() *UsageLogMutation {
 	return _c.mutation
@@ -724,6 +800,22 @@ func (_c *UsageLogCreate) defaults() {
 	if _, ok := _c.mutation.LongContextBillingApplied(); !ok {
 		v := usagelog.DefaultLongContextBillingApplied
 		_c.mutation.SetLongContextBillingApplied(v)
+	}
+	if _, ok := _c.mutation.FundingSource(); !ok {
+		v := usagelog.DefaultFundingSource
+		_c.mutation.SetFundingSource(v)
+	}
+	if _, ok := _c.mutation.GlobalPlanCost(); !ok {
+		v := usagelog.DefaultGlobalPlanCost
+		_c.mutation.SetGlobalPlanCost(v)
+	}
+	if _, ok := _c.mutation.BalanceCost(); !ok {
+		v := usagelog.DefaultBalanceCost
+		_c.mutation.SetBalanceCost(v)
+	}
+	if _, ok := _c.mutation.GroupSubscriptionCost(); !ok {
+		v := usagelog.DefaultGroupSubscriptionCost
+		_c.mutation.SetGroupSubscriptionCost(v)
 	}
 	if _, ok := _c.mutation.BillingType(); !ok {
 		v := usagelog.DefaultBillingType
@@ -844,6 +936,23 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.LongContextBillingApplied(); !ok {
 		return &ValidationError{Name: "long_context_billing_applied", err: errors.New(`ent: missing required field "UsageLog.long_context_billing_applied"`)}
+	}
+	if _, ok := _c.mutation.FundingSource(); !ok {
+		return &ValidationError{Name: "funding_source", err: errors.New(`ent: missing required field "UsageLog.funding_source"`)}
+	}
+	if v, ok := _c.mutation.FundingSource(); ok {
+		if err := usagelog.FundingSourceValidator(v); err != nil {
+			return &ValidationError{Name: "funding_source", err: fmt.Errorf(`ent: validator failed for field "UsageLog.funding_source": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.GlobalPlanCost(); !ok {
+		return &ValidationError{Name: "global_plan_cost", err: errors.New(`ent: missing required field "UsageLog.global_plan_cost"`)}
+	}
+	if _, ok := _c.mutation.BalanceCost(); !ok {
+		return &ValidationError{Name: "balance_cost", err: errors.New(`ent: missing required field "UsageLog.balance_cost"`)}
+	}
+	if _, ok := _c.mutation.GroupSubscriptionCost(); !ok {
+		return &ValidationError{Name: "group_subscription_cost", err: errors.New(`ent: missing required field "UsageLog.group_subscription_cost"`)}
 	}
 	if _, ok := _c.mutation.BillingType(); !ok {
 		return &ValidationError{Name: "billing_type", err: errors.New(`ent: missing required field "UsageLog.billing_type"`)}
@@ -1022,6 +1131,22 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldLongContextBillingApplied, field.TypeBool, value)
 		_node.LongContextBillingApplied = value
 	}
+	if value, ok := _c.mutation.FundingSource(); ok {
+		_spec.SetField(usagelog.FieldFundingSource, field.TypeString, value)
+		_node.FundingSource = value
+	}
+	if value, ok := _c.mutation.GlobalPlanCost(); ok {
+		_spec.SetField(usagelog.FieldGlobalPlanCost, field.TypeFloat64, value)
+		_node.GlobalPlanCost = value
+	}
+	if value, ok := _c.mutation.BalanceCost(); ok {
+		_spec.SetField(usagelog.FieldBalanceCost, field.TypeFloat64, value)
+		_node.BalanceCost = value
+	}
+	if value, ok := _c.mutation.GroupSubscriptionCost(); ok {
+		_spec.SetField(usagelog.FieldGroupSubscriptionCost, field.TypeFloat64, value)
+		_node.GroupSubscriptionCost = value
+	}
 	if value, ok := _c.mutation.AccountRateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldAccountRateMultiplier, field.TypeFloat64, value)
 		_node.AccountRateMultiplier = &value
@@ -1177,6 +1302,23 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.SubscriptionID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GlobalPlanSubscriptionIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   usagelog.GlobalPlanSubscriptionTable,
+			Columns: []string{usagelog.GlobalPlanSubscriptionColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.GlobalPlanSubscriptionID = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -1684,6 +1826,90 @@ func (u *UsageLogUpsert) SetLongContextBillingApplied(v bool) *UsageLogUpsert {
 // UpdateLongContextBillingApplied sets the "long_context_billing_applied" field to the value that was provided on create.
 func (u *UsageLogUpsert) UpdateLongContextBillingApplied() *UsageLogUpsert {
 	u.SetExcluded(usagelog.FieldLongContextBillingApplied)
+	return u
+}
+
+// SetFundingSource sets the "funding_source" field.
+func (u *UsageLogUpsert) SetFundingSource(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldFundingSource, v)
+	return u
+}
+
+// UpdateFundingSource sets the "funding_source" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateFundingSource() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldFundingSource)
+	return u
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *UsageLogUpsert) SetGlobalPlanSubscriptionID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldGlobalPlanSubscriptionID, v)
+	return u
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateGlobalPlanSubscriptionID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldGlobalPlanSubscriptionID)
+	return u
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *UsageLogUpsert) ClearGlobalPlanSubscriptionID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldGlobalPlanSubscriptionID)
+	return u
+}
+
+// SetGlobalPlanCost sets the "global_plan_cost" field.
+func (u *UsageLogUpsert) SetGlobalPlanCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldGlobalPlanCost, v)
+	return u
+}
+
+// UpdateGlobalPlanCost sets the "global_plan_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateGlobalPlanCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldGlobalPlanCost)
+	return u
+}
+
+// AddGlobalPlanCost adds v to the "global_plan_cost" field.
+func (u *UsageLogUpsert) AddGlobalPlanCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldGlobalPlanCost, v)
+	return u
+}
+
+// SetBalanceCost sets the "balance_cost" field.
+func (u *UsageLogUpsert) SetBalanceCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldBalanceCost, v)
+	return u
+}
+
+// UpdateBalanceCost sets the "balance_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBalanceCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBalanceCost)
+	return u
+}
+
+// AddBalanceCost adds v to the "balance_cost" field.
+func (u *UsageLogUpsert) AddBalanceCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldBalanceCost, v)
+	return u
+}
+
+// SetGroupSubscriptionCost sets the "group_subscription_cost" field.
+func (u *UsageLogUpsert) SetGroupSubscriptionCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldGroupSubscriptionCost, v)
+	return u
+}
+
+// UpdateGroupSubscriptionCost sets the "group_subscription_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateGroupSubscriptionCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldGroupSubscriptionCost)
+	return u
+}
+
+// AddGroupSubscriptionCost adds v to the "group_subscription_cost" field.
+func (u *UsageLogUpsert) AddGroupSubscriptionCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldGroupSubscriptionCost, v)
 	return u
 }
 
@@ -2579,6 +2805,104 @@ func (u *UsageLogUpsertOne) SetLongContextBillingApplied(v bool) *UsageLogUpsert
 func (u *UsageLogUpsertOne) UpdateLongContextBillingApplied() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateLongContextBillingApplied()
+	})
+}
+
+// SetFundingSource sets the "funding_source" field.
+func (u *UsageLogUpsertOne) SetFundingSource(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFundingSource(v)
+	})
+}
+
+// UpdateFundingSource sets the "funding_source" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateFundingSource() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFundingSource()
+	})
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *UsageLogUpsertOne) SetGlobalPlanSubscriptionID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGlobalPlanSubscriptionID(v)
+	})
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateGlobalPlanSubscriptionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGlobalPlanSubscriptionID()
+	})
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *UsageLogUpsertOne) ClearGlobalPlanSubscriptionID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearGlobalPlanSubscriptionID()
+	})
+}
+
+// SetGlobalPlanCost sets the "global_plan_cost" field.
+func (u *UsageLogUpsertOne) SetGlobalPlanCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGlobalPlanCost(v)
+	})
+}
+
+// AddGlobalPlanCost adds v to the "global_plan_cost" field.
+func (u *UsageLogUpsertOne) AddGlobalPlanCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGlobalPlanCost(v)
+	})
+}
+
+// UpdateGlobalPlanCost sets the "global_plan_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateGlobalPlanCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGlobalPlanCost()
+	})
+}
+
+// SetBalanceCost sets the "balance_cost" field.
+func (u *UsageLogUpsertOne) SetBalanceCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBalanceCost(v)
+	})
+}
+
+// AddBalanceCost adds v to the "balance_cost" field.
+func (u *UsageLogUpsertOne) AddBalanceCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBalanceCost(v)
+	})
+}
+
+// UpdateBalanceCost sets the "balance_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBalanceCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBalanceCost()
+	})
+}
+
+// SetGroupSubscriptionCost sets the "group_subscription_cost" field.
+func (u *UsageLogUpsertOne) SetGroupSubscriptionCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGroupSubscriptionCost(v)
+	})
+}
+
+// AddGroupSubscriptionCost adds v to the "group_subscription_cost" field.
+func (u *UsageLogUpsertOne) AddGroupSubscriptionCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGroupSubscriptionCost(v)
+	})
+}
+
+// UpdateGroupSubscriptionCost sets the "group_subscription_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateGroupSubscriptionCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGroupSubscriptionCost()
 	})
 }
 
@@ -3693,6 +4017,104 @@ func (u *UsageLogUpsertBulk) SetLongContextBillingApplied(v bool) *UsageLogUpser
 func (u *UsageLogUpsertBulk) UpdateLongContextBillingApplied() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateLongContextBillingApplied()
+	})
+}
+
+// SetFundingSource sets the "funding_source" field.
+func (u *UsageLogUpsertBulk) SetFundingSource(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetFundingSource(v)
+	})
+}
+
+// UpdateFundingSource sets the "funding_source" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateFundingSource() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateFundingSource()
+	})
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *UsageLogUpsertBulk) SetGlobalPlanSubscriptionID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGlobalPlanSubscriptionID(v)
+	})
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateGlobalPlanSubscriptionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGlobalPlanSubscriptionID()
+	})
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *UsageLogUpsertBulk) ClearGlobalPlanSubscriptionID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearGlobalPlanSubscriptionID()
+	})
+}
+
+// SetGlobalPlanCost sets the "global_plan_cost" field.
+func (u *UsageLogUpsertBulk) SetGlobalPlanCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGlobalPlanCost(v)
+	})
+}
+
+// AddGlobalPlanCost adds v to the "global_plan_cost" field.
+func (u *UsageLogUpsertBulk) AddGlobalPlanCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGlobalPlanCost(v)
+	})
+}
+
+// UpdateGlobalPlanCost sets the "global_plan_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateGlobalPlanCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGlobalPlanCost()
+	})
+}
+
+// SetBalanceCost sets the "balance_cost" field.
+func (u *UsageLogUpsertBulk) SetBalanceCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBalanceCost(v)
+	})
+}
+
+// AddBalanceCost adds v to the "balance_cost" field.
+func (u *UsageLogUpsertBulk) AddBalanceCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBalanceCost(v)
+	})
+}
+
+// UpdateBalanceCost sets the "balance_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBalanceCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBalanceCost()
+	})
+}
+
+// SetGroupSubscriptionCost sets the "group_subscription_cost" field.
+func (u *UsageLogUpsertBulk) SetGroupSubscriptionCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetGroupSubscriptionCost(v)
+	})
+}
+
+// AddGroupSubscriptionCost adds v to the "group_subscription_cost" field.
+func (u *UsageLogUpsertBulk) AddGroupSubscriptionCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddGroupSubscriptionCost(v)
+	})
+}
+
+// UpdateGroupSubscriptionCost sets the "group_subscription_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateGroupSubscriptionCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateGroupSubscriptionCost()
 	})
 }
 

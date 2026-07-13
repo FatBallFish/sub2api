@@ -167,6 +167,42 @@ func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID
 	require.Equal(t, "local:req-local-123", billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestGatewayServiceRecordUsage_PersistsGlobalPlanFundingResult(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{}
+	globalPlanSubID := int64(801)
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{
+		Applied:                  true,
+		FundingSource:            UsageFundingSourceMixed,
+		GlobalPlanSubscriptionID: &globalPlanSubID,
+		GlobalPlanCost:           2,
+		BalanceCost:              1,
+	}}
+	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway_global_plan_funding",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 501, Quota: 100},
+		User:    &User{ID: 601},
+		Account: &Account{ID: 701},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, UsageFundingSourceMixed, usageRepo.lastLog.FundingSource)
+	require.NotNil(t, usageRepo.lastLog.GlobalPlanSubscriptionID)
+	require.Equal(t, globalPlanSubID, *usageRepo.lastLog.GlobalPlanSubscriptionID)
+	require.InDelta(t, 2, usageRepo.lastLog.GlobalPlanCost, 0.000001)
+	require.InDelta(t, 1, usageRepo.lastLog.BalanceCost, 0.000001)
+	require.InDelta(t, 0, usageRepo.lastLog.GroupSubscriptionCost, 0.000001)
+}
+
 func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})

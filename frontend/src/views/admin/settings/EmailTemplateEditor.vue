@@ -239,6 +239,11 @@ import type {
 } from "@/api/admin/settings";
 import { useAppStore } from "@/stores";
 import { extractApiErrorMessage } from "@/utils/apiError";
+import {
+  readSavedEmailTemplateLocale,
+  resolveInitialEmailTemplateLocale,
+  saveEmailTemplateLocale,
+} from "./emailTemplateSelection";
 
 const { t, locale } = useI18n();
 const appStore = useAppStore();
@@ -544,22 +549,6 @@ function formatLocale(locale: string): string {
   return locale;
 }
 
-function selectInitialLocale(locales: string[]): string {
-  const currentLocale = locale.value.toLowerCase();
-  const exactMatch = locales.find(
-    (availableLocale) => availableLocale.toLowerCase() === currentLocale,
-  );
-  if (exactMatch) return exactMatch;
-
-  const currentLanguage = currentLocale.split("-")[0];
-  const languageMatch = locales.find(
-    (availableLocale) => availableLocale.toLowerCase().split("-")[0] === currentLanguage,
-  );
-  if (languageMatch) return languageMatch;
-
-  return locales[0] || "";
-}
-
 function applyTemplate(template: {
   subject: string;
   html: string;
@@ -598,7 +587,11 @@ async function loadTemplateList() {
     placeholders.value = response.placeholders || [];
     initializingSelection.value = true;
     selectedEvent.value = eventOptions.value[0]?.value || "";
-    selectedLocale.value = selectInitialLocale(response.locales);
+    selectedLocale.value = resolveInitialEmailTemplateLocale(
+      response.locales,
+      locale.value,
+      readSavedEmailTemplateLocale(),
+    );
     await loadTemplate();
     initializingSelection.value = false;
   } catch (err: unknown) {
@@ -690,6 +683,7 @@ watch([selectedEvent, selectedLocale], ([eventValue, localeValue], [oldEvent, ol
   if (initializingSelection.value) return;
   if (!eventValue || !localeValue) return;
   if (eventValue === oldEvent && localeValue === oldLocale) return;
+  saveEmailTemplateLocale(localeValue);
   void loadTemplate();
 });
 

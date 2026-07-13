@@ -16,8 +16,10 @@ const (
 	TypeStripe       PaymentType = "stripe"
 	TypeCard         PaymentType = "card"
 	TypeLink         PaymentType = "link"
+	TypePaypal       PaymentType = "paypal"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeJeepay       PaymentType = "jeepay"
 )
 
 // Order status constants shared across payment and service layers.
@@ -39,8 +41,10 @@ const (
 
 // Order types distinguish balance recharges from subscription purchases.
 const (
-	OrderTypeBalance      = "balance"
-	OrderTypeSubscription = "subscription"
+	OrderTypeBalance           = "balance"
+	OrderTypeSubscription      = "subscription"
+	OrderTypeGlobalPlan        = "global_plan"
+	OrderTypeGlobalPlanUpgrade = "global_plan_upgrade"
 )
 
 // Entity statuses shared across users, groups, etc.
@@ -86,8 +90,12 @@ func GetBasePaymentType(t string) string {
 		return TypeEasyPay
 	case t == TypeAirwallex:
 		return TypeAirwallex
+	case t == TypeJeepay:
+		return TypeJeepay
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
+	case t == TypePaypal:
+		return TypePaypal
 	case len(t) >= len(TypeAlipay) && t[:len(TypeAlipay)] == TypeAlipay:
 		return TypeAlipay
 	case len(t) >= len(TypeWxpay) && t[:len(TypeWxpay)] == TypeWxpay:
@@ -176,10 +184,12 @@ type PaymentNotification struct {
 
 // RefundRequest contains the parameters for requesting a refund.
 type RefundRequest struct {
-	TradeNo string
-	OrderID string
-	Amount  string // Refund amount formatted to 2 decimal places
-	Reason  string
+	TradeNo  string
+	OrderID  string
+	RefundID string // Merchant-generated refund order number.
+	Amount   string // Refund amount formatted to 2 decimal places
+	Reason   string
+	ClientIP string
 }
 
 // RefundQueryRequest contains identifiers needed to query a previously

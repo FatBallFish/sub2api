@@ -104,6 +104,46 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	require.True(t, settings.AllowUserViewErrorRequests)
 }
 
+func TestSettingService_GetPublicSettings_ExposesFrontendRegionBlockOnlyWhenBothSwitchesEnabled(t *testing.T) {
+	tests := []struct {
+		name   string
+		values map[string]string
+		want   bool
+	}{
+		{
+			name: "master switch alone does not expose frontend blocking",
+			values: map[string]string{
+				SettingKeyRegionBlockEnabled: "true",
+			},
+			want: false,
+		},
+		{
+			name: "frontend switch alone does not expose frontend blocking",
+			values: map[string]string{
+				SettingKeyRegionBlockFrontendEnabled: "true",
+			},
+			want: false,
+		},
+		{
+			name: "master and frontend switches expose frontend blocking",
+			values: map[string]string{
+				SettingKeyRegionBlockEnabled:         "true",
+				SettingKeyRegionBlockFrontendEnabled: "true",
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings, err := NewSettingService(&settingPublicRepoStub{values: tt.values}, &config.Config{}).GetPublicSettings(context.Background())
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, settings.RegionBlockFrontendEnabled)
+		})
+	}
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

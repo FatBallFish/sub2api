@@ -23,6 +23,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -582,6 +583,36 @@ func (_u *UserUpdate) AddPaymentOrders(v ...*PaymentOrder) *UserUpdate {
 	return _u.AddPaymentOrderIDs(ids...)
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *UserUpdate) AddGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdate) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
+// AddAssignedGlobalPlanSubscriptionIDs adds the "assigned_global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *UserUpdate) AddAssignedGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddAssignedGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddAssignedGlobalPlanSubscriptions adds the "assigned_global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdate) AddAssignedGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAssignedGlobalPlanSubscriptionIDs(ids...)
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
 func (_u *UserUpdate) AddAuthIdentityIDs(ids ...int64) *UserUpdate {
 	_u.mutation.AddAuthIdentityIDs(ids...)
@@ -840,6 +871,48 @@ func (_u *UserUpdate) RemovePaymentOrders(v ...*PaymentOrder) *UserUpdate {
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePaymentOrderIDs(ids...)
+}
+
+// ClearGlobalPlanSubscriptions clears all "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdate) ClearGlobalPlanSubscriptions() *UserUpdate {
+	_u.mutation.ClearGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptionIDs removes the "global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *UserUpdate) RemoveGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptions removes "global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *UserUpdate) RemoveGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGlobalPlanSubscriptionIDs(ids...)
+}
+
+// ClearAssignedGlobalPlanSubscriptions clears all "assigned_global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdate) ClearAssignedGlobalPlanSubscriptions() *UserUpdate {
+	_u.mutation.ClearAssignedGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveAssignedGlobalPlanSubscriptionIDs removes the "assigned_global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *UserUpdate) RemoveAssignedGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveAssignedGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveAssignedGlobalPlanSubscriptions removes "assigned_global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *UserUpdate) RemoveAssignedGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAssignedGlobalPlanSubscriptionIDs(ids...)
 }
 
 // ClearAuthIdentities clears all "auth_identities" edges to the AuthIdentity entity.
@@ -1561,6 +1634,96 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AssignedGlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAssignedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.AssignedGlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AssignedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _u.mutation.AuthIdentitiesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -2258,6 +2421,36 @@ func (_u *UserUpdateOne) AddPaymentOrders(v ...*PaymentOrder) *UserUpdateOne {
 	return _u.AddPaymentOrderIDs(ids...)
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *UserUpdateOne) AddGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdateOne) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
+// AddAssignedGlobalPlanSubscriptionIDs adds the "assigned_global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *UserUpdateOne) AddAssignedGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddAssignedGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddAssignedGlobalPlanSubscriptions adds the "assigned_global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdateOne) AddAssignedGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAssignedGlobalPlanSubscriptionIDs(ids...)
+}
+
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
 func (_u *UserUpdateOne) AddAuthIdentityIDs(ids ...int64) *UserUpdateOne {
 	_u.mutation.AddAuthIdentityIDs(ids...)
@@ -2516,6 +2709,48 @@ func (_u *UserUpdateOne) RemovePaymentOrders(v ...*PaymentOrder) *UserUpdateOne 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePaymentOrderIDs(ids...)
+}
+
+// ClearGlobalPlanSubscriptions clears all "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdateOne) ClearGlobalPlanSubscriptions() *UserUpdateOne {
+	_u.mutation.ClearGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptionIDs removes the "global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *UserUpdateOne) RemoveGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptions removes "global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *UserUpdateOne) RemoveGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGlobalPlanSubscriptionIDs(ids...)
+}
+
+// ClearAssignedGlobalPlanSubscriptions clears all "assigned_global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *UserUpdateOne) ClearAssignedGlobalPlanSubscriptions() *UserUpdateOne {
+	_u.mutation.ClearAssignedGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveAssignedGlobalPlanSubscriptionIDs removes the "assigned_global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *UserUpdateOne) RemoveAssignedGlobalPlanSubscriptionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveAssignedGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveAssignedGlobalPlanSubscriptions removes "assigned_global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *UserUpdateOne) RemoveAssignedGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAssignedGlobalPlanSubscriptionIDs(ids...)
 }
 
 // ClearAuthIdentities clears all "auth_identities" edges to the AuthIdentity entity.
@@ -3260,6 +3495,96 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(paymentorder.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AssignedGlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAssignedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.AssignedGlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AssignedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

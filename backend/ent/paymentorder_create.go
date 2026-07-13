@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 )
 
 // PaymentOrderCreate is the builder for creating a PaymentOrder entity.
@@ -169,6 +170,20 @@ func (_c *PaymentOrderCreate) SetNillableOrderType(v *string) *PaymentOrderCreat
 	return _c
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (_c *PaymentOrderCreate) SetPlanScope(v string) *PaymentOrderCreate {
+	_c.mutation.SetPlanScope(v)
+	return _c
+}
+
+// SetNillablePlanScope sets the "plan_scope" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillablePlanScope(v *string) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetPlanScope(*v)
+	}
+	return _c
+}
+
 // SetPlanID sets the "plan_id" field.
 func (_c *PaymentOrderCreate) SetPlanID(v int64) *PaymentOrderCreate {
 	_c.mutation.SetPlanID(v)
@@ -211,6 +226,46 @@ func (_c *PaymentOrderCreate) SetNillableSubscriptionDays(v *int) *PaymentOrderC
 	return _c
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (_c *PaymentOrderCreate) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderCreate {
+	_c.mutation.SetPlanSnapshot(v)
+	return _c
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (_c *PaymentOrderCreate) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderCreate {
+	_c.mutation.SetGlobalPlanSubscriptionID(v)
+	return _c
+}
+
+// SetNillableGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableGlobalPlanSubscriptionID(v *int64) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetGlobalPlanSubscriptionID(*v)
+	}
+	return _c
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (_c *PaymentOrderCreate) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderCreate {
+	_c.mutation.SetUpgradeFromSubscriptionID(v)
+	return _c
+}
+
+// SetNillableUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableUpgradeFromSubscriptionID(v *int64) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetUpgradeFromSubscriptionID(*v)
+	}
+	return _c
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (_c *PaymentOrderCreate) SetUpgradeProration(v map[string]interface{}) *PaymentOrderCreate {
+	_c.mutation.SetUpgradeProration(v)
+	return _c
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_c *PaymentOrderCreate) SetProviderInstanceID(v string) *PaymentOrderCreate {
 	_c.mutation.SetProviderInstanceID(v)
@@ -242,6 +297,12 @@ func (_c *PaymentOrderCreate) SetNillableProviderKey(v *string) *PaymentOrderCre
 // SetProviderSnapshot sets the "provider_snapshot" field.
 func (_c *PaymentOrderCreate) SetProviderSnapshot(v map[string]interface{}) *PaymentOrderCreate {
 	_c.mutation.SetProviderSnapshot(v)
+	return _c
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (_c *PaymentOrderCreate) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderCreate {
+	_c.mutation.SetRefundSnapshot(v)
 	return _c
 }
 
@@ -478,6 +539,21 @@ func (_c *PaymentOrderCreate) SetUser(v *User) *PaymentOrderCreate {
 	return _c.SetUserID(v.ID)
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_c *PaymentOrderCreate) AddGlobalPlanSubscriptionIDs(ids ...int64) *PaymentOrderCreate {
+	_c.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _c
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_c *PaymentOrderCreate) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *PaymentOrderCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
 // Mutation returns the PaymentOrderMutation object of the builder.
 func (_c *PaymentOrderCreate) Mutation() *PaymentOrderMutation {
 	return _c.mutation
@@ -615,6 +691,11 @@ func (_c *PaymentOrderCreate) check() error {
 	if v, ok := _c.mutation.OrderType(); ok {
 		if err := paymentorder.OrderTypeValidator(v); err != nil {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.PlanScope(); ok {
+		if err := paymentorder.PlanScopeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_scope": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.ProviderInstanceID(); ok {
@@ -757,6 +838,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 		_spec.SetField(paymentorder.FieldOrderType, field.TypeString, value)
 		_node.OrderType = value
 	}
+	if value, ok := _c.mutation.PlanScope(); ok {
+		_spec.SetField(paymentorder.FieldPlanScope, field.TypeString, value)
+		_node.PlanScope = &value
+	}
 	if value, ok := _c.mutation.PlanID(); ok {
 		_spec.SetField(paymentorder.FieldPlanID, field.TypeInt64, value)
 		_node.PlanID = &value
@@ -769,6 +854,22 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 		_spec.SetField(paymentorder.FieldSubscriptionDays, field.TypeInt, value)
 		_node.SubscriptionDays = &value
 	}
+	if value, ok := _c.mutation.PlanSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldPlanSnapshot, field.TypeJSON, value)
+		_node.PlanSnapshot = value
+	}
+	if value, ok := _c.mutation.GlobalPlanSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64, value)
+		_node.GlobalPlanSubscriptionID = &value
+	}
+	if value, ok := _c.mutation.UpgradeFromSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64, value)
+		_node.UpgradeFromSubscriptionID = &value
+	}
+	if value, ok := _c.mutation.UpgradeProration(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeProration, field.TypeJSON, value)
+		_node.UpgradeProration = value
+	}
 	if value, ok := _c.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
 		_node.ProviderInstanceID = &value
@@ -780,6 +881,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ProviderSnapshot(); ok {
 		_spec.SetField(paymentorder.FieldProviderSnapshot, field.TypeJSON, value)
 		_node.ProviderSnapshot = value
+	}
+	if value, ok := _c.mutation.RefundSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldRefundSnapshot, field.TypeJSON, value)
+		_node.RefundSnapshot = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
@@ -868,6 +973,22 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.UserID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
@@ -1144,6 +1265,24 @@ func (u *PaymentOrderUpsert) UpdateOrderType() *PaymentOrderUpsert {
 	return u
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (u *PaymentOrderUpsert) SetPlanScope(v string) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldPlanScope, v)
+	return u
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdatePlanScope() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldPlanScope)
+	return u
+}
+
+// ClearPlanScope clears the value of the "plan_scope" field.
+func (u *PaymentOrderUpsert) ClearPlanScope() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldPlanScope)
+	return u
+}
+
 // SetPlanID sets the "plan_id" field.
 func (u *PaymentOrderUpsert) SetPlanID(v int64) *PaymentOrderUpsert {
 	u.Set(paymentorder.FieldPlanID, v)
@@ -1216,6 +1355,90 @@ func (u *PaymentOrderUpsert) ClearSubscriptionDays() *PaymentOrderUpsert {
 	return u
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (u *PaymentOrderUpsert) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldPlanSnapshot, v)
+	return u
+}
+
+// UpdatePlanSnapshot sets the "plan_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdatePlanSnapshot() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldPlanSnapshot)
+	return u
+}
+
+// ClearPlanSnapshot clears the value of the "plan_snapshot" field.
+func (u *PaymentOrderUpsert) ClearPlanSnapshot() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldPlanSnapshot)
+	return u
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsert) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldGlobalPlanSubscriptionID, v)
+	return u
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateGlobalPlanSubscriptionID() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldGlobalPlanSubscriptionID)
+	return u
+}
+
+// AddGlobalPlanSubscriptionID adds v to the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsert) AddGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldGlobalPlanSubscriptionID, v)
+	return u
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsert) ClearGlobalPlanSubscriptionID() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldGlobalPlanSubscriptionID)
+	return u
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsert) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldUpgradeFromSubscriptionID, v)
+	return u
+}
+
+// UpdateUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateUpgradeFromSubscriptionID() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldUpgradeFromSubscriptionID)
+	return u
+}
+
+// AddUpgradeFromSubscriptionID adds v to the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsert) AddUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsert {
+	u.Add(paymentorder.FieldUpgradeFromSubscriptionID, v)
+	return u
+}
+
+// ClearUpgradeFromSubscriptionID clears the value of the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsert) ClearUpgradeFromSubscriptionID() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldUpgradeFromSubscriptionID)
+	return u
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (u *PaymentOrderUpsert) SetUpgradeProration(v map[string]interface{}) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldUpgradeProration, v)
+	return u
+}
+
+// UpdateUpgradeProration sets the "upgrade_proration" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateUpgradeProration() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldUpgradeProration)
+	return u
+}
+
+// ClearUpgradeProration clears the value of the "upgrade_proration" field.
+func (u *PaymentOrderUpsert) ClearUpgradeProration() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldUpgradeProration)
+	return u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (u *PaymentOrderUpsert) SetProviderInstanceID(v string) *PaymentOrderUpsert {
 	u.Set(paymentorder.FieldProviderInstanceID, v)
@@ -1267,6 +1490,24 @@ func (u *PaymentOrderUpsert) UpdateProviderSnapshot() *PaymentOrderUpsert {
 // ClearProviderSnapshot clears the value of the "provider_snapshot" field.
 func (u *PaymentOrderUpsert) ClearProviderSnapshot() *PaymentOrderUpsert {
 	u.SetNull(paymentorder.FieldProviderSnapshot)
+	return u
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (u *PaymentOrderUpsert) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldRefundSnapshot, v)
+	return u
+}
+
+// UpdateRefundSnapshot sets the "refund_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateRefundSnapshot() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldRefundSnapshot)
+	return u
+}
+
+// ClearRefundSnapshot clears the value of the "refund_snapshot" field.
+func (u *PaymentOrderUpsert) ClearRefundSnapshot() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldRefundSnapshot)
 	return u
 }
 
@@ -1844,6 +2085,27 @@ func (u *PaymentOrderUpsertOne) UpdateOrderType() *PaymentOrderUpsertOne {
 	})
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (u *PaymentOrderUpsertOne) SetPlanScope(v string) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanScope(v)
+	})
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdatePlanScope() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanScope()
+	})
+}
+
+// ClearPlanScope clears the value of the "plan_scope" field.
+func (u *PaymentOrderUpsertOne) ClearPlanScope() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanScope()
+	})
+}
+
 // SetPlanID sets the "plan_id" field.
 func (u *PaymentOrderUpsertOne) SetPlanID(v int64) *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
@@ -1928,6 +2190,104 @@ func (u *PaymentOrderUpsertOne) ClearSubscriptionDays() *PaymentOrderUpsertOne {
 	})
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (u *PaymentOrderUpsertOne) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanSnapshot(v)
+	})
+}
+
+// UpdatePlanSnapshot sets the "plan_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdatePlanSnapshot() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanSnapshot()
+	})
+}
+
+// ClearPlanSnapshot clears the value of the "plan_snapshot" field.
+func (u *PaymentOrderUpsertOne) ClearPlanSnapshot() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanSnapshot()
+	})
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertOne) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetGlobalPlanSubscriptionID(v)
+	})
+}
+
+// AddGlobalPlanSubscriptionID adds v to the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertOne) AddGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddGlobalPlanSubscriptionID(v)
+	})
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateGlobalPlanSubscriptionID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateGlobalPlanSubscriptionID()
+	})
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertOne) ClearGlobalPlanSubscriptionID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearGlobalPlanSubscriptionID()
+	})
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertOne) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetUpgradeFromSubscriptionID(v)
+	})
+}
+
+// AddUpgradeFromSubscriptionID adds v to the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertOne) AddUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddUpgradeFromSubscriptionID(v)
+	})
+}
+
+// UpdateUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateUpgradeFromSubscriptionID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateUpgradeFromSubscriptionID()
+	})
+}
+
+// ClearUpgradeFromSubscriptionID clears the value of the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertOne) ClearUpgradeFromSubscriptionID() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearUpgradeFromSubscriptionID()
+	})
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (u *PaymentOrderUpsertOne) SetUpgradeProration(v map[string]interface{}) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetUpgradeProration(v)
+	})
+}
+
+// UpdateUpgradeProration sets the "upgrade_proration" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateUpgradeProration() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateUpgradeProration()
+	})
+}
+
+// ClearUpgradeProration clears the value of the "upgrade_proration" field.
+func (u *PaymentOrderUpsertOne) ClearUpgradeProration() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearUpgradeProration()
+	})
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (u *PaymentOrderUpsertOne) SetProviderInstanceID(v string) *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
@@ -1988,6 +2348,27 @@ func (u *PaymentOrderUpsertOne) UpdateProviderSnapshot() *PaymentOrderUpsertOne 
 func (u *PaymentOrderUpsertOne) ClearProviderSnapshot() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearProviderSnapshot()
+	})
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (u *PaymentOrderUpsertOne) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetRefundSnapshot(v)
+	})
+}
+
+// UpdateRefundSnapshot sets the "refund_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateRefundSnapshot() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateRefundSnapshot()
+	})
+}
+
+// ClearRefundSnapshot clears the value of the "refund_snapshot" field.
+func (u *PaymentOrderUpsertOne) ClearRefundSnapshot() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearRefundSnapshot()
 	})
 }
 
@@ -2776,6 +3157,27 @@ func (u *PaymentOrderUpsertBulk) UpdateOrderType() *PaymentOrderUpsertBulk {
 	})
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (u *PaymentOrderUpsertBulk) SetPlanScope(v string) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanScope(v)
+	})
+}
+
+// UpdatePlanScope sets the "plan_scope" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdatePlanScope() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanScope()
+	})
+}
+
+// ClearPlanScope clears the value of the "plan_scope" field.
+func (u *PaymentOrderUpsertBulk) ClearPlanScope() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanScope()
+	})
+}
+
 // SetPlanID sets the "plan_id" field.
 func (u *PaymentOrderUpsertBulk) SetPlanID(v int64) *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
@@ -2860,6 +3262,104 @@ func (u *PaymentOrderUpsertBulk) ClearSubscriptionDays() *PaymentOrderUpsertBulk
 	})
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (u *PaymentOrderUpsertBulk) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetPlanSnapshot(v)
+	})
+}
+
+// UpdatePlanSnapshot sets the "plan_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdatePlanSnapshot() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdatePlanSnapshot()
+	})
+}
+
+// ClearPlanSnapshot clears the value of the "plan_snapshot" field.
+func (u *PaymentOrderUpsertBulk) ClearPlanSnapshot() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearPlanSnapshot()
+	})
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetGlobalPlanSubscriptionID(v)
+	})
+}
+
+// AddGlobalPlanSubscriptionID adds v to the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) AddGlobalPlanSubscriptionID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddGlobalPlanSubscriptionID(v)
+	})
+}
+
+// UpdateGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateGlobalPlanSubscriptionID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateGlobalPlanSubscriptionID()
+	})
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) ClearGlobalPlanSubscriptionID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearGlobalPlanSubscriptionID()
+	})
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetUpgradeFromSubscriptionID(v)
+	})
+}
+
+// AddUpgradeFromSubscriptionID adds v to the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) AddUpgradeFromSubscriptionID(v int64) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.AddUpgradeFromSubscriptionID(v)
+	})
+}
+
+// UpdateUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateUpgradeFromSubscriptionID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateUpgradeFromSubscriptionID()
+	})
+}
+
+// ClearUpgradeFromSubscriptionID clears the value of the "upgrade_from_subscription_id" field.
+func (u *PaymentOrderUpsertBulk) ClearUpgradeFromSubscriptionID() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearUpgradeFromSubscriptionID()
+	})
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (u *PaymentOrderUpsertBulk) SetUpgradeProration(v map[string]interface{}) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetUpgradeProration(v)
+	})
+}
+
+// UpdateUpgradeProration sets the "upgrade_proration" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateUpgradeProration() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateUpgradeProration()
+	})
+}
+
+// ClearUpgradeProration clears the value of the "upgrade_proration" field.
+func (u *PaymentOrderUpsertBulk) ClearUpgradeProration() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearUpgradeProration()
+	})
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (u *PaymentOrderUpsertBulk) SetProviderInstanceID(v string) *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
@@ -2920,6 +3420,27 @@ func (u *PaymentOrderUpsertBulk) UpdateProviderSnapshot() *PaymentOrderUpsertBul
 func (u *PaymentOrderUpsertBulk) ClearProviderSnapshot() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearProviderSnapshot()
+	})
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (u *PaymentOrderUpsertBulk) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetRefundSnapshot(v)
+	})
+}
+
+// UpdateRefundSnapshot sets the "refund_snapshot" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateRefundSnapshot() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateRefundSnapshot()
+	})
+}
+
+// ClearRefundSnapshot clears the value of the "refund_snapshot" field.
+func (u *PaymentOrderUpsertBulk) ClearRefundSnapshot() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearRefundSnapshot()
 	})
 }
 

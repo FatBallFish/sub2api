@@ -20,6 +20,13 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 			methodSet[method] = struct{}{}
 		}
 	}
+	addStandardMethod := func(method string) {
+		method = NormalizeVisibleMethod(method)
+		switch method {
+		case payment.TypeAlipay, payment.TypeWxpay, payment.TypePaypal:
+			methodSet[method] = struct{}{}
+		}
+	}
 
 	switch strings.TrimSpace(providerKey) {
 	case payment.TypeAlipay:
@@ -48,10 +55,14 @@ func enabledVisibleMethodsForProvider(providerKey, supportedTypes string) []stri
 		for _, supportedType := range splitTypes(supportedTypes) {
 			addMethod(supportedType)
 		}
+	case payment.TypeJeepay:
+		for _, supportedType := range splitTypes(supportedTypes) {
+			addStandardMethod(supportedType)
+		}
 	}
 
 	methods := make([]string, 0, len(methodSet))
-	for _, method := range []string{payment.TypeAlipay, payment.TypeWxpay} {
+	for _, method := range []string{payment.TypeAlipay, payment.TypeWxpay, payment.TypePaypal} {
 		if _, ok := methodSet[method]; ok {
 			methods = append(methods, method)
 			delete(methodSet, method)

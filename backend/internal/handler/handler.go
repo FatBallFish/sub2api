@@ -58,9 +58,11 @@ type Handlers struct {
 	Totp             *TotpHandler
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
+	ModelPricing     *ModelPricingHandler
 	AvailableChannel *AvailableChannelHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
+	Console          *ConsoleHandler
 }
 
 // BuildInfo contains build-time information

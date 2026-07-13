@@ -9,6 +9,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/enttest"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 
 	"entgo.io/ent/dialect"
@@ -224,6 +225,8 @@ func TestGetBasePaymentType(t *testing.T) {
 		expected string
 	}{
 		{payment.TypeEasyPay, payment.TypeEasyPay},
+		{payment.TypeJeepay, payment.TypeJeepay},
+		{payment.TypePaypal, payment.TypePaypal},
 		{payment.TypeStripe, payment.TypeStripe},
 		{payment.TypeCard, payment.TypeStripe},
 		{payment.TypeLink, payment.TypeStripe},
@@ -304,6 +307,7 @@ func TestBuildVisibleMethodSourceAvailability(t *testing.T) {
 		{ProviderKey: payment.TypeAlipay, SupportedTypes: "alipay"},
 		{ProviderKey: payment.TypeEasyPay, SupportedTypes: "wxpay_direct, alipay"},
 		{ProviderKey: payment.TypeWxpay, SupportedTypes: "wxpay_direct"},
+		{ProviderKey: payment.TypeJeepay, SupportedTypes: "alipay,wxpay,paypal"},
 	}
 
 	got := buildVisibleMethodSourceAvailability(instances)
@@ -318,6 +322,12 @@ func TestBuildVisibleMethodSourceAvailability(t *testing.T) {
 	}
 	if !got[VisibleMethodSourceEasyPayWechat] {
 		t.Fatalf("expected %q to be available", VisibleMethodSourceEasyPayWechat)
+	}
+	if !got[VisibleMethodSourceJeepayAlipay] {
+		t.Fatalf("expected %q to be available", VisibleMethodSourceJeepayAlipay)
+	}
+	if !got[VisibleMethodSourceJeepayWechat] {
+		t.Fatalf("expected %q to be available", VisibleMethodSourceJeepayWechat)
 	}
 }
 
@@ -358,6 +368,62 @@ func TestGetPaymentConfigKeepsStoredEnabledTypes(t *testing.T) {
 		if cfg.EnabledTypes[i] != want[i] {
 			t.Fatalf("EnabledTypes[%d] = %q, want %q (full=%v)", i, cfg.EnabledTypes[i], want[i], cfg.EnabledTypes)
 		}
+	}
+}
+
+func TestCreatePlanRejectsStandardGroupForGroupPlan(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	standardGroup := client.Group.Create().
+		SetName("standard-paygo").
+		SetPlatform(domain.PlatformAnthropic).
+		SetSubscriptionType(domain.SubscriptionTypeStandard).
+		SetStatus(domain.StatusActive).
+		SaveX(ctx)
+
+	svc := &PaymentConfigService{entClient: client}
+	plan, err := svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:      standardGroup.ID,
+		PlanScope:    PlanScopeGroup,
+		Name:         "Paygo Plan",
+		Price:        19,
+		ValidityDays: 30,
+		ValidityUnit: "days",
+	})
+
+	if err == nil {
+		t.Fatal("expected standard group to be rejected")
+	}
+	if plan != nil {
+		t.Fatalf("expected no plan, got %#v", plan)
+	}
+}
+
+func TestCreatePlanAllowsSubscriptionGroupForGroupPlan(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	subscriptionGroup := client.Group.Create().
+		SetName("subscription-platform").
+		SetPlatform(domain.PlatformAnthropic).
+		SetSubscriptionType(domain.SubscriptionTypeSubscription).
+		SetStatus(domain.StatusActive).
+		SaveX(ctx)
+
+	svc := &PaymentConfigService{entClient: client}
+	plan, err := svc.CreatePlan(ctx, CreatePlanRequest{
+		GroupID:      subscriptionGroup.ID,
+		PlanScope:    PlanScopeGroup,
+		Name:         "Subscription Plan",
+		Price:        29,
+		ValidityDays: 30,
+		ValidityUnit: "days",
+	})
+
+	if err != nil {
+		t.Fatalf("CreatePlan returned error: %v", err)
+	}
+	if plan.GroupID == nil || *plan.GroupID != subscriptionGroup.ID {
+		t.Fatalf("plan group_id = %v, want %d", plan.GroupID, subscriptionGroup.ID)
 	}
 }
 

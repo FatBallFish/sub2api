@@ -55,6 +55,7 @@ type RegisterRequest struct {
 	PromoCode      string `json:"promo_code"`      // 注册优惠码
 	InvitationCode string `json:"invitation_code"` // 邀请码
 	AffCode        string `json:"aff_code"`        // 邀请返利码
+	Ref            string `json:"ref"`             // 邀请链接 ref 参数，兼容新前端链接
 }
 
 // SendVerifyCodeRequest 发送验证码请求
@@ -178,7 +179,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		req.VerifyCode,
 		req.PromoCode,
 		req.InvitationCode,
-		req.AffCode,
+		req.affiliateCode(),
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -186,6 +187,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	h.respondWithTokenPair(c, user)
+}
+
+func (r RegisterRequest) affiliateCode() string {
+	if code := strings.TrimSpace(r.AffCode); code != "" {
+		return code
+	}
+	return strings.TrimSpace(r.Ref)
 }
 
 // SendVerifyCode 发送邮箱验证码

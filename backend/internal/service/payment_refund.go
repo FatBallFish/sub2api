@@ -233,11 +233,6 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 	if amt <= 0 {
 		amt = o.Amount
 	}
-	orderCurrency := PaymentOrderCurrency(o)
-	if amt-o.Amount > paymentAmountToleranceForCurrency(orderCurrency) {
-		return nil, nil, infraerrors.BadRequest("REFUND_AMOUNT_EXCEEDED", "refund amount exceeds recharge")
-	}
-	ga := calculateGatewayRefundAmount(o.Amount, o.PayAmount, amt, orderCurrency)
 	rr := strings.TrimSpace(reason)
 	if rr == "" && o.RefundRequestReason != nil {
 		rr = *o.RefundRequestReason
@@ -245,20 +240,237 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 	if rr == "" {
 		rr = fmt.Sprintf("refund order:%d", o.ID)
 	}
+	var subscriptionCalc *subscriptionRefundCalculation
+	if deduct {
+		var calcErr error
+		amt, rr, subscriptionCalc, calcErr = s.prepareRefundAmountForDeduction(ctx, o, amt, rr)
+		if calcErr != nil {
+			return nil, nil, calcErr
+		}
+	}
+	orderCurrency := PaymentOrderCurrency(o)
+	if amt-o.Amount > paymentAmountToleranceForCurrency(orderCurrency) {
+		return nil, nil, infraerrors.BadRequest("REFUND_AMOUNT_EXCEEDED", "refund amount exceeds recharge")
+	}
+	ga := calculateGatewayRefundAmount(o.Amount, o.PayAmount, amt, orderCurrency)
 	p := &RefundPlan{OrderID: oid, Order: o, RefundAmount: amt, GatewayAmount: ga, Reason: rr, Force: force, DeductBalance: deduct, DeductionType: payment.DeductionTypeNone}
+	if subscriptionCalc != nil {
+		p.SubDaysToDeduct = refundDaysFromRatio(o, subscriptionCalc)
+	}
 	if deduct {
 		if er := s.prepDeduct(ctx, o, p, force); er != nil {
 			return nil, er, nil
 		}
 	}
+	p.GatewayAmount = calculateRefundGatewayAmount(p, orderCurrency)
 	return p, nil, nil
 }
 
+func calculateRefundGatewayAmount(p *RefundPlan, orderCurrency string) float64 {
+	if p == nil || p.Order == nil {
+		return 0
+	}
+	if p.DeductBalance && p.Order.OrderType == payment.OrderTypeBalance {
+		snapshot := balanceRefundSnapshotFromMap(p.Order.RefundSnapshot, p.Order.PayAmount, p.Order.Amount)
+		return calculateBalanceRefundFromSnapshot(snapshot, p.BalanceToDeduct).RefundAmount
+	}
+	return calculateGatewayRefundAmount(p.Order.Amount, p.Order.PayAmount, p.RefundAmount, orderCurrency)
+}
+
+func (s *PaymentService) prepareRefundAmountForDeduction(ctx context.Context, o *dbent.PaymentOrder, amt float64, reason string) (float64, string, *subscriptionRefundCalculation, error) {
+	switch o.OrderType {
+	case payment.OrderTypeBalance:
+		snapshot := balanceRefundSnapshotFromMap(o.RefundSnapshot, o.PayAmount, o.Amount)
+		calc := calculateBalanceRefundFromSnapshot(snapshot, amt)
+		if calc.RefundAmount <= 0 {
+			return 0, reason, nil, infraerrors.BadRequest("REFUND_AMOUNT_EXCEEDED", "no refundable balance remains")
+		}
+		return calc.BalanceToDeduct, appendRefundReason(reason, fmt.Sprintf("balance deducted %.2f using original credit ratio %.6f; gateway refund %.2f", calc.BalanceToDeduct, snapshot.CreditPerPaidUnit, calc.RefundAmount)), nil, nil
+	case payment.OrderTypeSubscription:
+		calc, err := s.calculateGroupSubscriptionRefund(ctx, o)
+		if err != nil {
+			return 0, reason, nil, err
+		}
+		return calc.RefundAmount, appendRefundReason(reason, calc.ReasonSuffix), &calc, nil
+	case payment.OrderTypeGlobalPlan, payment.OrderTypeGlobalPlanUpgrade:
+		calc, err := s.calculateGlobalPlanRefund(ctx, o)
+		if err != nil {
+			return 0, reason, nil, err
+		}
+		return calc.RefundAmount, appendRefundReason(reason, calc.ReasonSuffix), &calc, nil
+	default:
+		return amt, reason, nil, nil
+	}
+}
+
+func appendRefundReason(reason, suffix string) string {
+	reason = strings.TrimSpace(reason)
+	suffix = strings.TrimSpace(suffix)
+	if suffix == "" {
+		return reason
+	}
+	if reason == "" {
+		return suffix
+	}
+	return reason + " | " + suffix
+}
+
+func (s *PaymentService) calculateGlobalPlanRefund(ctx context.Context, o *dbent.PaymentOrder) (subscriptionRefundCalculation, error) {
+	if o.GlobalPlanSubscriptionID == nil || *o.GlobalPlanSubscriptionID <= 0 {
+		return subscriptionRefundCalculation{}, infraerrors.BadRequest("INVALID_STATUS", "missing global plan subscription")
+	}
+	sub, err := s.entClient.UserGlobalPlanSubscription.Get(ctx, *o.GlobalPlanSubscriptionID)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return subscriptionRefundCalculation{}, infraerrors.NotFound("SUBSCRIPTION_NOT_FOUND", "global plan subscription not found")
+		}
+		return subscriptionRefundCalculation{}, err
+	}
+	now := time.Now().UTC()
+	totalQuota := calculateTotalPeriodQuotaUSD(sub.QuotaPeriod, sub.QuotaLimitUsd, sub.StartsAt, sub.ExpiresAt)
+	remainingQuota := calculateRemainingPeriodQuotaUSD(periodQuotaInput{
+		Period:         sub.QuotaPeriod,
+		PeriodLimitUSD: sub.QuotaLimitUsd,
+		CurrentUsedUSD: sub.QuotaUsedUsd,
+		CurrentEnd:     sub.CurrentPeriodEnd,
+		ExpiresAt:      sub.ExpiresAt,
+		Now:            now,
+	})
+	return calculateSubscriptionRefundAmount(subscriptionRefundInput{
+		Price:               o.Amount,
+		StartsAt:            sub.StartsAt,
+		ExpiresAt:           sub.ExpiresAt,
+		TotalQuotaUSD:       totalQuota,
+		RemainingQuotaUSD:   remainingQuota,
+		Now:                 now,
+		DurationBasisReason: "remaining duration",
+		QuotaBasisReason:    "remaining total quota",
+	}), nil
+}
+
+func (s *PaymentService) calculateGroupSubscriptionRefund(ctx context.Context, o *dbent.PaymentOrder) (subscriptionRefundCalculation, error) {
+	if o.SubscriptionGroupID == nil {
+		return subscriptionRefundCalculation{}, infraerrors.BadRequest("INVALID_STATUS", "missing subscription group")
+	}
+	sub, err := s.subscriptionSvc.GetActiveSubscription(ctx, o.UserID, *o.SubscriptionGroupID)
+	if err != nil || sub == nil {
+		return subscriptionRefundCalculation{}, infraerrors.NotFound("SUBSCRIPTION_NOT_FOUND", "subscription not found")
+	}
+	group := sub.Group
+	if group == nil {
+		group, err = s.groupRepo.GetByID(ctx, sub.GroupID)
+		if err != nil {
+			return subscriptionRefundCalculation{}, err
+		}
+	}
+	totalQuota, remainingQuota := groupSubscriptionTotalAndRemainingQuota(group, sub, time.Now().UTC())
+	return calculateSubscriptionRefundAmount(subscriptionRefundInput{
+		Price:               o.Amount,
+		StartsAt:            sub.StartsAt,
+		ExpiresAt:           sub.ExpiresAt,
+		TotalQuotaUSD:       totalQuota,
+		RemainingQuotaUSD:   remainingQuota,
+		Now:                 time.Now().UTC(),
+		DurationBasisReason: "remaining duration",
+		QuotaBasisReason:    "remaining total quota",
+	}), nil
+}
+
+func groupSubscriptionTotalAndRemainingQuota(group *Group, sub *UserSubscription, now time.Time) (float64, float64) {
+	if group == nil || sub == nil {
+		return 0, 0
+	}
+	type candidate struct {
+		total     float64
+		remaining float64
+	}
+	var candidates []candidate
+	if group.HasDailyLimit() {
+		candidates = append(candidates, candidate{
+			total: calculateTotalPeriodQuotaUSD("day", *group.DailyLimitUSD, sub.StartsAt, sub.ExpiresAt),
+			remaining: calculateRemainingPeriodQuotaUSD(periodQuotaInput{
+				Period: "day", PeriodLimitUSD: *group.DailyLimitUSD, CurrentUsedUSD: sub.DailyUsageUSD,
+				CurrentEnd: nillableWindowEnd(sub.DailyWindowStart, 24*time.Hour, now), ExpiresAt: sub.ExpiresAt, Now: now,
+			}),
+		})
+	}
+	if group.HasWeeklyLimit() {
+		candidates = append(candidates, candidate{
+			total: calculateTotalPeriodQuotaUSD(GlobalPlanQuotaPeriodWeek, *group.WeeklyLimitUSD, sub.StartsAt, sub.ExpiresAt),
+			remaining: calculateRemainingPeriodQuotaUSD(periodQuotaInput{
+				Period: GlobalPlanQuotaPeriodWeek, PeriodLimitUSD: *group.WeeklyLimitUSD, CurrentUsedUSD: sub.WeeklyUsageUSD,
+				CurrentEnd: nillableWindowEnd(sub.WeeklyWindowStart, 7*24*time.Hour, now), ExpiresAt: sub.ExpiresAt, Now: now,
+			}),
+		})
+	}
+	if group.HasMonthlyLimit() {
+		candidates = append(candidates, candidate{
+			total: calculateTotalPeriodQuotaUSD(GlobalPlanQuotaPeriodMonth, *group.MonthlyLimitUSD, sub.StartsAt, sub.ExpiresAt),
+			remaining: calculateRemainingPeriodQuotaUSD(periodQuotaInput{
+				Period: GlobalPlanQuotaPeriodMonth, PeriodLimitUSD: *group.MonthlyLimitUSD, CurrentUsedUSD: sub.MonthlyUsageUSD,
+				CurrentEnd: nillableWindowEnd(sub.MonthlyWindowStart, 30*24*time.Hour, now), ExpiresAt: sub.ExpiresAt, Now: now,
+			}),
+		})
+	}
+	if len(candidates) == 0 {
+		return 0, 0
+	}
+	selected := candidates[0]
+	selectedRatio := 1.0
+	if selected.total > 0 {
+		selectedRatio = selected.remaining / selected.total
+	}
+	for _, c := range candidates[1:] {
+		ratio := 1.0
+		if c.total > 0 {
+			ratio = c.remaining / c.total
+		}
+		if ratio < selectedRatio {
+			selected = c
+			selectedRatio = ratio
+		}
+	}
+	return selected.total, selected.remaining
+}
+
+func nillableWindowEnd(start *time.Time, duration time.Duration, now time.Time) time.Time {
+	if start == nil || start.IsZero() {
+		return now
+	}
+	return start.Add(duration)
+}
+
+func refundDaysFromRatio(o *dbent.PaymentOrder, calc *subscriptionRefundCalculation) int {
+	if o == nil || calc == nil || o.SubscriptionDays == nil || *o.SubscriptionDays <= 0 {
+		return 0
+	}
+	usedRatio := 1 - math.Min(calc.DurationRatio, calc.QuotaRatio)
+	days := int(math.Ceil(float64(*o.SubscriptionDays) * usedRatio))
+	if days < 0 {
+		return 0
+	}
+	if days > *o.SubscriptionDays {
+		return *o.SubscriptionDays
+	}
+	return days
+}
+
 func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, p *RefundPlan, force bool) *RefundResult {
+	if o.OrderType == payment.OrderTypeGlobalPlan || o.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		p.DeductionType = payment.DeductionTypeSubscription
+		if o.GlobalPlanSubscriptionID != nil {
+			p.SubscriptionID = *o.GlobalPlanSubscriptionID
+		} else if !force {
+			return &RefundResult{Success: false, Warning: "cannot find global plan subscription for deduction, use force", RequireForce: true}
+		}
+		return nil
+	}
 	if o.OrderType == payment.OrderTypeSubscription {
 		p.DeductionType = payment.DeductionTypeSubscription
 		if o.SubscriptionGroupID != nil && o.SubscriptionDays != nil {
-			p.SubDaysToDeduct = *o.SubscriptionDays
+			if p.SubDaysToDeduct <= 0 {
+				p.SubDaysToDeduct = *o.SubscriptionDays
+			}
 			sub, err := s.subscriptionSvc.GetActiveSubscription(ctx, o.UserID, *o.SubscriptionGroupID)
 			if err == nil && sub != nil {
 				p.SubscriptionID = sub.ID
@@ -276,6 +488,10 @@ func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, 
 		return nil
 	}
 	p.DeductionType = payment.DeductionTypeBalance
+	if o.OrderType == payment.OrderTypeBalance {
+		p.BalanceToDeduct = math.Min(math.Min(p.RefundAmount, o.Amount), u.Balance)
+		return nil
+	}
 	p.BalanceToDeduct = math.Min(p.RefundAmount, u.Balance)
 	return nil
 }
@@ -303,12 +519,12 @@ func (s *PaymentService) ExecuteRefund(ctx context.Context, p *RefundPlan) (*Ref
 	}
 	if p.DeductionType == payment.DeductionTypeSubscription && p.SubDaysToDeduct > 0 && p.SubscriptionID > 0 {
 		if !s.hasAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED") {
-			_, err := s.subscriptionSvc.ExtendSubscription(ctx, p.SubscriptionID, -p.SubDaysToDeduct)
+			err := s.deductSubscriptionEntitlement(ctx, p, -p.SubDaysToDeduct)
 			if err != nil {
 				if errors.Is(err, ErrAdjustWouldExpire) {
 					// Deduction would expire the subscription — revoke it entirely
 					slog.Info("subscription deduction would expire, revoking", "orderID", p.OrderID, "subID", p.SubscriptionID, "days", p.SubDaysToDeduct)
-					if revokeErr := s.subscriptionSvc.RevokeSubscription(ctx, p.SubscriptionID); revokeErr != nil {
+					if revokeErr := s.revokeSubscriptionEntitlement(ctx, p); revokeErr != nil {
 						s.restoreStatus(ctx, p)
 						return nil, fmt.Errorf("revoke subscription: %w", revokeErr)
 					}
@@ -328,6 +544,53 @@ func (s *PaymentService) ExecuteRefund(ctx context.Context, p *RefundPlan) (*Ref
 		return s.handleGwFail(ctx, p, err)
 	}
 	return s.finishRefund(ctx, p, resp)
+}
+
+func (s *PaymentService) deductSubscriptionEntitlement(ctx context.Context, p *RefundPlan, days int) error {
+	if p == nil || p.Order == nil {
+		return nil
+	}
+	if p.Order.OrderType == payment.OrderTypeGlobalPlan || p.Order.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		return s.adjustGlobalPlanSubscriptionDays(ctx, p.SubscriptionID, days)
+	}
+	_, err := s.subscriptionSvc.ExtendSubscription(ctx, p.SubscriptionID, days)
+	return err
+}
+
+func (s *PaymentService) revokeSubscriptionEntitlement(ctx context.Context, p *RefundPlan) error {
+	if p == nil || p.Order == nil {
+		return nil
+	}
+	if p.Order.OrderType == payment.OrderTypeGlobalPlan || p.Order.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		now := time.Now()
+		return s.entClient.UserGlobalPlanSubscription.UpdateOneID(p.SubscriptionID).
+			SetStatus(GlobalPlanStatusCancelled).
+			SetExpiresAt(now).
+			SetCurrentPeriodEnd(now).
+			Exec(ctx)
+	}
+	return s.subscriptionSvc.RevokeSubscription(ctx, p.SubscriptionID)
+}
+
+func (s *PaymentService) adjustGlobalPlanSubscriptionDays(ctx context.Context, subscriptionID int64, days int) error {
+	sub, err := s.entClient.UserGlobalPlanSubscription.Get(ctx, subscriptionID)
+	if err != nil {
+		if dbent.IsNotFound(err) {
+			return ErrSubscriptionNotFound
+		}
+		return err
+	}
+	now := time.Now()
+	newExpiresAt := sub.ExpiresAt.AddDate(0, 0, days)
+	if !newExpiresAt.After(now) {
+		return ErrAdjustWouldExpire
+	}
+	update := s.entClient.UserGlobalPlanSubscription.UpdateOneID(subscriptionID).SetExpiresAt(newExpiresAt)
+	if sub.CurrentPeriodEnd.After(newExpiresAt) {
+		update.SetCurrentPeriodEnd(newExpiresAt)
+	}
+	_, err = update.Save(ctx)
+	return err
 }
 
 func (s *PaymentService) gwRefund(ctx context.Context, p *RefundPlan) (*payment.RefundResponse, error) {
@@ -350,10 +613,12 @@ func (s *PaymentService) gwRefund(ctx context.Context, p *RefundPlan) (*payment.
 	}
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	resp, err := prov.Refund(ctx, payment.RefundRequest{
-		TradeNo: p.Order.PaymentTradeNo,
-		OrderID: p.Order.OutTradeNo,
-		Amount:  formatGatewayRefundAmount(p.GatewayAmount, p.Order),
-		Reason:  p.Reason,
+		TradeNo:  p.Order.PaymentTradeNo,
+		OrderID:  p.Order.OutTradeNo,
+		RefundID: gatewayRefundID(p),
+		Amount:   formatGatewayRefundAmount(p.GatewayAmount, p.Order),
+		Reason:   p.Reason,
+		ClientIP: p.Order.ClientIP,
 	})
 	finishProviderCall()
 	if err != nil {
@@ -370,6 +635,52 @@ func (s *PaymentService) gwRefund(ctx context.Context, p *RefundPlan) (*payment.
 
 func formatGatewayRefundAmount(amount float64, order *dbent.PaymentOrder) string {
 	return payment.FormatAmountForCurrency(amount, PaymentOrderCurrency(order))
+}
+
+func gatewayRefundID(p *RefundPlan) string {
+	if p == nil || p.Order == nil {
+		return ""
+	}
+	base := strings.TrimSpace(p.Order.OutTradeNo)
+	if base == "" {
+		base = fmt.Sprintf("order_%d", p.OrderID)
+	}
+	base = sanitizeGatewayRefundID(base)
+	if base == "" {
+		base = fmt.Sprintf("order_%d", p.OrderID)
+	}
+	if len(base) > 12 {
+		base = base[len(base)-12:]
+	}
+	suffix := fmt.Sprintf("%x", time.Now().UnixNano())
+	value := sanitizeGatewayRefundID(fmt.Sprintf("rf_%s_%s", base, suffix))
+	if len(value) > 30 {
+		value = value[:30]
+	}
+	return strings.Trim(value, "_-")
+}
+
+func sanitizeGatewayRefundID(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(value))
+	lastUnderscore := false
+	for _, r := range value {
+		allowed := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_'
+		if allowed {
+			_, _ = b.WriteRune(r)
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			_ = b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	return b.String()
 }
 
 func validateRefundProviderResponse(resp *payment.RefundResponse) error {
@@ -550,7 +861,7 @@ func (s *PaymentService) handleGwFail(ctx context.Context, p *RefundPlan, gErr e
 	if s.RollbackRefund(ctx, p, gErr) {
 		s.restoreStatus(ctx, p)
 		s.writeAuditLog(ctx, p.OrderID, "REFUND_GATEWAY_FAILED", "admin", map[string]any{"detail": psErrMsg(gErr)})
-		return &RefundResult{Success: false, Warning: "gateway failed: " + psErrMsg(gErr) + ", rolled back"}, nil
+		return nil, infraerrors.InternalServer("REFUND_FAILED", "gateway failed: "+psErrMsg(gErr)+", rolled back")
 	}
 	now := time.Now()
 	_, _ = s.entClient.PaymentOrder.UpdateOneID(p.OrderID).SetStatus(OrderStatusRefundFailed).SetFailedAt(now).SetFailedReason(psErrMsg(gErr)).Save(ctx)
@@ -630,7 +941,7 @@ func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr
 		}
 	}
 	if p.DeductionType == payment.DeductionTypeSubscription && p.SubDaysToDeduct > 0 && p.SubscriptionID > 0 {
-		if _, err := s.subscriptionSvc.ExtendSubscription(ctx, p.SubscriptionID, p.SubDaysToDeduct); err != nil {
+		if err := s.deductSubscriptionEntitlement(ctx, p, p.SubDaysToDeduct); err != nil {
 			slog.Error("[CRITICAL] subscription rollback failed", "orderID", p.OrderID, "subID", p.SubscriptionID, "days", p.SubDaysToDeduct, "error", err)
 			s.writeAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED", "admin", map[string]any{"gatewayError": psErrMsg(gErr), "rollbackError": psErrMsg(err), "subDaysDeducted": p.SubDaysToDeduct})
 			return false

@@ -22,6 +22,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -502,6 +503,36 @@ func (_c *UserCreate) AddPaymentOrders(v ...*PaymentOrder) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPaymentOrderIDs(ids...)
+}
+
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_c *UserCreate) AddGlobalPlanSubscriptionIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _c
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_c *UserCreate) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
+// AddAssignedGlobalPlanSubscriptionIDs adds the "assigned_global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_c *UserCreate) AddAssignedGlobalPlanSubscriptionIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddAssignedGlobalPlanSubscriptionIDs(ids...)
+	return _c
+}
+
+// AddAssignedGlobalPlanSubscriptions adds the "assigned_global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_c *UserCreate) AddAssignedGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddAssignedGlobalPlanSubscriptionIDs(ids...)
 }
 
 // AddAuthIdentityIDs adds the "auth_identities" edge to the AuthIdentity entity by IDs.
@@ -1025,6 +1056,38 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(paymentorder.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.GlobalPlanSubscriptionsTable,
+			Columns: []string{user.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.AssignedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AssignedGlobalPlanSubscriptionsTable,
+			Columns: []string{user.AssignedGlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

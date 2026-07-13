@@ -241,9 +241,15 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", user.ID, err)
 		}
 		if code := strings.TrimSpace(affiliateCode); code != "" {
-			if err := s.affiliateService.BindInviterByCode(ctx, user.ID, code); err != nil {
+			inviterID, err := s.affiliateService.BindInviterByCode(ctx, user.ID, code)
+			if err != nil {
 				// 邀请返利码绑定失败不影响注册，只记录日志
 				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", user.ID, err)
+			} else if inviterID != nil {
+				s.awardAffiliateSignupRewards(ctx, user.ID, *inviterID)
+				if updatedUser, err := s.userRepo.GetByID(ctx, user.ID); err == nil {
+					user = updatedUser
+				}
 			}
 		}
 	}
@@ -890,10 +896,87 @@ func (s *AuthService) bindOAuthAffiliate(ctx context.Context, userID int64, affi
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", userID, err)
 	}
 	if code := strings.TrimSpace(affiliateCode); code != "" {
-		if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
+		inviterID, err := s.affiliateService.BindInviterByCode(ctx, userID, code)
+		if err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
+		} else if inviterID != nil {
+			s.awardAffiliateSignupRewards(ctx, userID, *inviterID)
 		}
 	}
+}
+
+func (s *AuthService) awardAffiliateSignupRewards(ctx context.Context, inviteeID, inviterID int64) {
+	if s == nil || s.settingService == nil || s.userRepo == nil || s.redeemRepo == nil {
+		return
+	}
+	if inviteeID <= 0 || inviterID <= 0 || inviteeID == inviterID {
+		return
+	}
+
+	inviteeReward := s.settingService.GetAffiliateInviteeSignupReward(ctx)
+	if inviteeReward > 0 {
+		if err := s.applyAffiliateSignupReward(ctx, inviteeID, inviteeReward, RedeemTypeAffiliateInviteeSignupReward); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to apply invitee signup reward for user %d: %v", inviteeID, err)
+		}
+	}
+
+	inviterReward := s.settingService.GetAffiliateInviterSignupReward(ctx)
+	if inviterReward <= 0 {
+		return
+	}
+	if capValue := s.settingService.GetAffiliateInviterSignupRewardCap(ctx); capValue > 0 {
+		earned, err := s.redeemRepo.SumByUserAndType(ctx, inviterID, RedeemTypeAffiliateInviterSignupReward)
+		if err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to load inviter signup reward cap usage for user %d: %v", inviterID, err)
+			return
+		}
+		if earned >= capValue {
+			return
+		}
+		if remaining := capValue - earned; inviterReward > remaining {
+			inviterReward = remaining
+		}
+	}
+	if inviterReward > 0 {
+		if err := s.applyAffiliateSignupReward(ctx, inviterID, inviterReward, RedeemTypeAffiliateInviterSignupReward); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to apply inviter signup reward for user %d: %v", inviterID, err)
+		}
+	}
+}
+
+func (s *AuthService) applyAffiliateSignupReward(ctx context.Context, userID int64, amount float64, codeType string) error {
+	now := time.Now()
+	code, err := GenerateRedeemCode()
+	if err != nil {
+		return err
+	}
+	apply := func(txCtx context.Context) error {
+		if err := s.redeemRepo.Create(txCtx, &RedeemCode{
+			Code:   strings.ToUpper(code[:32]),
+			Type:   codeType,
+			Value:  amount,
+			Status: StatusUsed,
+			UsedBy: &userID,
+			UsedAt: &now,
+			Notes:  "affiliate signup reward",
+		}); err != nil {
+			return err
+		}
+		return s.userRepo.UpdateBalance(txCtx, userID, amount)
+	}
+	if s.entClient == nil {
+		return apply(ctx)
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := apply(txCtx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *AuthService) postAuthUserBootstrap(ctx context.Context, user *User, signupSource string, touchLogin bool) {

@@ -117,6 +117,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateRebateFreezeHours:                strconv.Itoa(AffiliateRebateFreezeHoursDefault),
 		SettingKeyAffiliateRebateDurationDays:               strconv.Itoa(AffiliateRebateDurationDaysDefault),
 		SettingKeyAffiliateRebatePerInviteeCap:              strconv.FormatFloat(AffiliateRebatePerInviteeCapDefault, 'f', 2, 64),
+		SettingKeyAffiliateInviterSignupReward:              strconv.FormatFloat(AffiliateInviterSignupRewardDefault, 'f', 2, 64),
+		SettingKeyAffiliateInviterSignupRewardCap:           strconv.FormatFloat(AffiliateInviterSignupRewardCapDefault, 'f', 2, 64),
+		SettingKeyAffiliateInviteeSignupReward:              strconv.FormatFloat(AffiliateInviteeSignupRewardDefault, 'f', 2, 64),
 		SettingKeyDefaultUserRPMLimit:                       "0",
 		SettingKeyDefaultSubscriptions:                      "[]",
 		SettingKeyAuthSourceDefaultEmailBalance:             "0",
@@ -183,6 +186,13 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
+
+		// Header-based region block (default disabled; configured by proxy country headers)
+		SettingKeyRegionBlockEnabled:         strconv.FormatBool(RegionBlockEnabledDefault),
+		SettingKeyRegionBlockFrontendEnabled: strconv.FormatBool(RegionBlockFrontendEnabledDefault),
+		SettingKeyRegionBlockAPIEnabled:      strconv.FormatBool(RegionBlockAPIEnabledDefault),
+		SettingKeyRegionBlockCodes:           RegionBlockCodesDefault,
+		SettingKeyRegionBlockHeaders:         RegionBlockHeadersDefault,
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
@@ -339,6 +349,20 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.AffiliateRebatePerInviteeCap = perInviteeCap
 	}
 	result.AdminRechargeRebateEnabled = settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
+	if inviterSignupReward, err := strconv.ParseFloat(settings[SettingKeyAffiliateInviterSignupReward], 64); err == nil && inviterSignupReward >= 0 {
+		result.AffiliateInviterSignupReward = inviterSignupReward
+	}
+	if inviterSignupRewardCap, err := strconv.ParseFloat(settings[SettingKeyAffiliateInviterSignupRewardCap], 64); err == nil && inviterSignupRewardCap >= 0 {
+		result.AffiliateInviterSignupRewardCap = inviterSignupRewardCap
+	}
+	if inviteeSignupReward, err := strconv.ParseFloat(settings[SettingKeyAffiliateInviteeSignupReward], 64); err == nil && inviteeSignupReward >= 0 {
+		result.AffiliateInviteeSignupReward = inviteeSignupReward
+	}
+	result.RegionBlockEnabled = settings[SettingKeyRegionBlockEnabled] == "true"
+	result.RegionBlockFrontendEnabled = settings[SettingKeyRegionBlockFrontendEnabled] == "true"
+	result.RegionBlockAPIEnabled = settings[SettingKeyRegionBlockAPIEnabled] == "true"
+	result.RegionBlockCodes = strings.Join(parseCSVSetting(settings[SettingKeyRegionBlockCodes]), ",")
+	result.RegionBlockHeaders = normalizeCSVSetting(settings[SettingKeyRegionBlockHeaders], RegionBlockHeadersDefault)
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
 
 	// 敏感信息直接返回，方便测试连接时使用
@@ -723,6 +747,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+
+	result.RegionBlockEnabled = settings[SettingKeyRegionBlockEnabled] == "true"
+	result.RegionBlockFrontendEnabled = settings[SettingKeyRegionBlockFrontendEnabled] == "true"
+	result.RegionBlockAPIEnabled = settings[SettingKeyRegionBlockAPIEnabled] == "true"
+	result.RegionBlockCodes = strings.Join(parseCSVSetting(settings[SettingKeyRegionBlockCodes]), ",")
+	result.RegionBlockHeaders = normalizeCSVSetting(settings[SettingKeyRegionBlockHeaders], RegionBlockHeadersDefault)
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"

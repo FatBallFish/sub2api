@@ -190,6 +190,31 @@ func LongContextBillingApplied(v bool) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldLongContextBillingApplied, v))
 }
 
+// FundingSource applies equality check predicate on the "funding_source" field. It's identical to FundingSourceEQ.
+func FundingSource(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFundingSource, v))
+}
+
+// GlobalPlanSubscriptionID applies equality check predicate on the "global_plan_subscription_id" field. It's identical to GlobalPlanSubscriptionIDEQ.
+func GlobalPlanSubscriptionID(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGlobalPlanSubscriptionID, v))
+}
+
+// GlobalPlanCost applies equality check predicate on the "global_plan_cost" field. It's identical to GlobalPlanCostEQ.
+func GlobalPlanCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGlobalPlanCost, v))
+}
+
+// BalanceCost applies equality check predicate on the "balance_cost" field. It's identical to BalanceCostEQ.
+func BalanceCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBalanceCost, v))
+}
+
+// GroupSubscriptionCost applies equality check predicate on the "group_subscription_cost" field. It's identical to GroupSubscriptionCostEQ.
+func GroupSubscriptionCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGroupSubscriptionCost, v))
+}
+
 // AccountRateMultiplier applies equality check predicate on the "account_rate_multiplier" field. It's identical to AccountRateMultiplierEQ.
 func AccountRateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
@@ -1480,6 +1505,221 @@ func LongContextBillingAppliedNEQ(v bool) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNEQ(FieldLongContextBillingApplied, v))
 }
 
+// FundingSourceEQ applies the EQ predicate on the "funding_source" field.
+func FundingSourceEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldFundingSource, v))
+}
+
+// FundingSourceNEQ applies the NEQ predicate on the "funding_source" field.
+func FundingSourceNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldFundingSource, v))
+}
+
+// FundingSourceIn applies the In predicate on the "funding_source" field.
+func FundingSourceIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldFundingSource, vs...))
+}
+
+// FundingSourceNotIn applies the NotIn predicate on the "funding_source" field.
+func FundingSourceNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldFundingSource, vs...))
+}
+
+// FundingSourceGT applies the GT predicate on the "funding_source" field.
+func FundingSourceGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldFundingSource, v))
+}
+
+// FundingSourceGTE applies the GTE predicate on the "funding_source" field.
+func FundingSourceGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldFundingSource, v))
+}
+
+// FundingSourceLT applies the LT predicate on the "funding_source" field.
+func FundingSourceLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldFundingSource, v))
+}
+
+// FundingSourceLTE applies the LTE predicate on the "funding_source" field.
+func FundingSourceLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldFundingSource, v))
+}
+
+// FundingSourceContains applies the Contains predicate on the "funding_source" field.
+func FundingSourceContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldFundingSource, v))
+}
+
+// FundingSourceHasPrefix applies the HasPrefix predicate on the "funding_source" field.
+func FundingSourceHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldFundingSource, v))
+}
+
+// FundingSourceHasSuffix applies the HasSuffix predicate on the "funding_source" field.
+func FundingSourceHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldFundingSource, v))
+}
+
+// FundingSourceEqualFold applies the EqualFold predicate on the "funding_source" field.
+func FundingSourceEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldFundingSource, v))
+}
+
+// FundingSourceContainsFold applies the ContainsFold predicate on the "funding_source" field.
+func FundingSourceContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldFundingSource, v))
+}
+
+// GlobalPlanSubscriptionIDEQ applies the EQ predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGlobalPlanSubscriptionID, v))
+}
+
+// GlobalPlanSubscriptionIDNEQ applies the NEQ predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDNEQ(v int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldGlobalPlanSubscriptionID, v))
+}
+
+// GlobalPlanSubscriptionIDIn applies the In predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldGlobalPlanSubscriptionID, vs...))
+}
+
+// GlobalPlanSubscriptionIDNotIn applies the NotIn predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDNotIn(vs ...int64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldGlobalPlanSubscriptionID, vs...))
+}
+
+// GlobalPlanSubscriptionIDIsNil applies the IsNil predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDIsNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIsNull(FieldGlobalPlanSubscriptionID))
+}
+
+// GlobalPlanSubscriptionIDNotNil applies the NotNil predicate on the "global_plan_subscription_id" field.
+func GlobalPlanSubscriptionIDNotNil() predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotNull(FieldGlobalPlanSubscriptionID))
+}
+
+// GlobalPlanCostEQ applies the EQ predicate on the "global_plan_cost" field.
+func GlobalPlanCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGlobalPlanCost, v))
+}
+
+// GlobalPlanCostNEQ applies the NEQ predicate on the "global_plan_cost" field.
+func GlobalPlanCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldGlobalPlanCost, v))
+}
+
+// GlobalPlanCostIn applies the In predicate on the "global_plan_cost" field.
+func GlobalPlanCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldGlobalPlanCost, vs...))
+}
+
+// GlobalPlanCostNotIn applies the NotIn predicate on the "global_plan_cost" field.
+func GlobalPlanCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldGlobalPlanCost, vs...))
+}
+
+// GlobalPlanCostGT applies the GT predicate on the "global_plan_cost" field.
+func GlobalPlanCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldGlobalPlanCost, v))
+}
+
+// GlobalPlanCostGTE applies the GTE predicate on the "global_plan_cost" field.
+func GlobalPlanCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldGlobalPlanCost, v))
+}
+
+// GlobalPlanCostLT applies the LT predicate on the "global_plan_cost" field.
+func GlobalPlanCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldGlobalPlanCost, v))
+}
+
+// GlobalPlanCostLTE applies the LTE predicate on the "global_plan_cost" field.
+func GlobalPlanCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldGlobalPlanCost, v))
+}
+
+// BalanceCostEQ applies the EQ predicate on the "balance_cost" field.
+func BalanceCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBalanceCost, v))
+}
+
+// BalanceCostNEQ applies the NEQ predicate on the "balance_cost" field.
+func BalanceCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBalanceCost, v))
+}
+
+// BalanceCostIn applies the In predicate on the "balance_cost" field.
+func BalanceCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBalanceCost, vs...))
+}
+
+// BalanceCostNotIn applies the NotIn predicate on the "balance_cost" field.
+func BalanceCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBalanceCost, vs...))
+}
+
+// BalanceCostGT applies the GT predicate on the "balance_cost" field.
+func BalanceCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBalanceCost, v))
+}
+
+// BalanceCostGTE applies the GTE predicate on the "balance_cost" field.
+func BalanceCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBalanceCost, v))
+}
+
+// BalanceCostLT applies the LT predicate on the "balance_cost" field.
+func BalanceCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBalanceCost, v))
+}
+
+// BalanceCostLTE applies the LTE predicate on the "balance_cost" field.
+func BalanceCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBalanceCost, v))
+}
+
+// GroupSubscriptionCostEQ applies the EQ predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldGroupSubscriptionCost, v))
+}
+
+// GroupSubscriptionCostNEQ applies the NEQ predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldGroupSubscriptionCost, v))
+}
+
+// GroupSubscriptionCostIn applies the In predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldGroupSubscriptionCost, vs...))
+}
+
+// GroupSubscriptionCostNotIn applies the NotIn predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldGroupSubscriptionCost, vs...))
+}
+
+// GroupSubscriptionCostGT applies the GT predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldGroupSubscriptionCost, v))
+}
+
+// GroupSubscriptionCostGTE applies the GTE predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldGroupSubscriptionCost, v))
+}
+
+// GroupSubscriptionCostLT applies the LT predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldGroupSubscriptionCost, v))
+}
+
+// GroupSubscriptionCostLTE applies the LTE predicate on the "group_subscription_cost" field.
+func GroupSubscriptionCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldGroupSubscriptionCost, v))
+}
+
 // AccountRateMultiplierEQ applies the EQ predicate on the "account_rate_multiplier" field.
 func AccountRateMultiplierEQ(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldAccountRateMultiplier, v))
@@ -2502,6 +2742,29 @@ func HasSubscription() predicate.UsageLog {
 func HasSubscriptionWith(preds ...predicate.UserSubscription) predicate.UsageLog {
 	return predicate.UsageLog(func(s *sql.Selector) {
 		step := newSubscriptionStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasGlobalPlanSubscription applies the HasEdge predicate on the "global_plan_subscription" edge.
+func HasGlobalPlanSubscription() predicate.UsageLog {
+	return predicate.UsageLog(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, GlobalPlanSubscriptionTable, GlobalPlanSubscriptionColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGlobalPlanSubscriptionWith applies the HasEdge predicate on the "global_plan_subscription" edge with a given conditions (other predicates).
+func HasGlobalPlanSubscriptionWith(preds ...predicate.UserGlobalPlanSubscription) predicate.UsageLog {
+	return predicate.UsageLog(func(s *sql.Selector) {
+		step := newGlobalPlanSubscriptionStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

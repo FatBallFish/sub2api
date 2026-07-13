@@ -53,6 +53,8 @@ export default {
       groupsUnit: 'groups',
       pricingUnit: 'pricing rules',
       noChannelsYet: 'No Channels Yet',
+      noGroupsSelected: 'No groups selected',
+      emptyModelsInPricing: 'No models configured for this pricing entry',
       createFirstChannel: 'Create your first channel to manage model pricing',
       loadError: 'Failed to load channels',
       createSuccess: 'Channel created',
@@ -185,6 +187,26 @@ export default {
          syncModelsError: 'Failed to sync models'
        }
      },
+
+    modelPricingDisplay: {
+      title: 'Model Pricing Display',
+      description: 'Configure the model categories and model list shown on public and console pricing pages.',
+      help: 'This page only controls display categories and model whitelist. Official prices still come from channel pricing first, then the built-in model price catalog.',
+      unnamedCategory: 'Unnamed category',
+      categoryId: 'Category ID',
+      categoryLabel: 'Category Label',
+      categoryDescription: 'Description',
+      modelScopes: 'Supported Model Scopes',
+      modelScopesHint: 'Used by console pricing to decide whether a selected group supports this category.',
+      models: 'Models',
+      addModel: 'Add Model',
+      modelLabelPlaceholder: 'Display label, optional',
+      noModels: 'No models configured.',
+      addCategory: 'Add Category',
+      loadFailed: 'Failed to load model pricing display config.',
+      saveSuccess: 'Model pricing display config saved.',
+      saveFailed: 'Failed to save model pricing display config.'
+    },
 
     riskControl: {
       title: 'Risk Control',
@@ -603,6 +625,9 @@ export default {
     subscriptions: {
       title: 'Subscription Management',
       description: 'Manage user subscriptions and quota limits',
+      groupSubscriptionsTitle: 'Group Subscriptions',
+      globalAssignmentsTitle: 'Global Plan Assignments',
+      globalAssignmentsDescription: 'Assign global subscription plans directly to users without binding a group.',
       assignSubscription: 'Assign Subscription',
       adjustSubscription: 'Adjust Subscription',
       revokeSubscription: 'Revoke Subscription',
@@ -635,6 +660,11 @@ export default {
       columns: {
         user: 'User',
         group: 'Group',
+        globalPlan: 'Global Plan',
+        globalQuota: 'Global Quota',
+        periodEnd: 'Period End',
+        usageWindow: 'Usage Window',
+        assignedBy: 'Assigned By',
         usage: 'Usage',
         expires: 'Expires',
         status: 'Status',
@@ -643,13 +673,23 @@ export default {
       form: {
         user: 'User',
         group: 'Subscription Group',
+        entitlementType: 'Entitlement Type',
+        globalPlan: 'Global Plan',
         validityDays: 'Validity (Days)',
         adjustDays: 'Adjust by (Days)'
       },
+      entitlementTypes: {
+        group: 'Group Subscription',
+        global: 'Global Plan'
+      },
       selectUser: 'Select a user',
       selectGroup: 'Select a subscription group',
+      selectGlobalPlan: 'Select a global plan',
       groupHint: 'Only groups with subscription billing type are shown',
+      globalPlanHint: 'Select an enabled global subscription plan',
+      globalPlanValidityHint: 'Leave empty to use the plan default validity',
       validityHint: 'Number of days the subscription will be valid',
+      remaining: 'Remaining',
       adjustingFor: 'Adjusting subscription for',
       currentExpiration: 'Current expiration',
       adjustDaysPlaceholder: 'Positive to extend, negative to shorten',
@@ -680,7 +720,9 @@ export default {
       adjustOutOfRange: 'Adjustment days must be between -36500 and 36500',
       pleaseSelectUser: 'Please select a user',
       pleaseSelectGroup: 'Please select a group',
+      pleaseSelectGlobalPlan: 'Please select a global plan',
       validityDaysRequired: 'Please enter a valid number of days (at least 1)',
+      noGlobalAssignments: 'No global plan assignments yet',
       revokeConfirm:
         "Are you sure you want to revoke the subscription for '{user}'? You can restore it later from the revoked list.",
       restoreConfirm:

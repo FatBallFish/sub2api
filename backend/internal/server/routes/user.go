@@ -65,6 +65,7 @@ func RegisterUserRoutes(
 		{
 			keys.GET("", h.APIKey.List)
 			keys.GET("/:id", h.APIKey.GetByID)
+			keys.POST("/:id/reveal", h.APIKey.Reveal)
 			keys.POST("", h.APIKey.Create)
 			keys.PUT("/:id", h.APIKey.Update)
 			keys.DELETE("/:id", h.APIKey.Delete)
@@ -76,6 +77,8 @@ func RegisterUserRoutes(
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
 		}
+
+		authenticated.GET("/model-pricing", h.ModelPricing.GetConsoleModelPricing)
 
 		// 用户可用渠道（非管理员接口）
 		channels := authenticated.Group("/channels")
@@ -120,6 +123,14 @@ func RegisterUserRoutes(
 			subscriptions.GET("/active", h.Subscription.GetActive)
 			subscriptions.GET("/progress", h.Subscription.GetProgress)
 			subscriptions.GET("/summary", h.Subscription.GetSummary)
+		}
+
+		console := authenticated.Group("/console")
+		{
+			console.GET("/bootstrap", h.Console.Bootstrap)
+			console.GET("/overview", h.Console.Overview)
+			console.GET("/billing", h.Console.Billing)
+			console.GET("/referral", h.Console.Referral)
 		}
 
 		// 渠道监控（用户只读）

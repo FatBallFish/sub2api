@@ -103,6 +103,21 @@ func (UsageLog) Fields() []ent.Field {
 		field.Bool("long_context_billing_applied").
 			Default(false).
 			Comment("Whether long-context pricing changed token prices for this request"),
+		field.String("funding_source").
+			MaxLen(30).
+			Default("balance"),
+		field.Int64("global_plan_subscription_id").
+			Optional().
+			Nillable(),
+		field.Float("global_plan_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("balance_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("group_subscription_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
 
 		// account_rate_multiplier: 账号计费倍率快照（NULL 表示按 1.0 处理）
 		field.Float("account_rate_multiplier").
@@ -204,6 +219,10 @@ func (UsageLog) Edges() []ent.Edge {
 			Ref("usage_logs").
 			Field("subscription_id").
 			Unique(),
+		edge.From("global_plan_subscription", UserGlobalPlanSubscription.Type).
+			Ref("usage_logs").
+			Field("global_plan_subscription_id").
+			Unique(),
 	}
 }
 
@@ -215,6 +234,8 @@ func (UsageLog) Indexes() []ent.Index {
 		index.Fields("account_id"),
 		index.Fields("group_id"),
 		index.Fields("subscription_id"),
+		index.Fields("global_plan_subscription_id"),
+		index.Fields("funding_source"),
 		index.Fields("created_at"),
 		index.Fields("model"),
 		index.Fields("requested_model"),

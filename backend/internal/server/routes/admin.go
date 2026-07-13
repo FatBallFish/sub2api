@@ -588,9 +588,14 @@ func registerSubscriptionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	subscriptions := admin.Group("/subscriptions")
 	{
 		subscriptions.GET("", h.Admin.Subscription.List)
+		subscriptions.GET("/global-plans", h.Admin.Subscription.ListGlobalPlans)
+		subscriptions.POST("/global-plans/:id/extend", h.Admin.Subscription.ExtendGlobalPlan)
+		subscriptions.POST("/global-plans/:id/reset-quota", h.Admin.Subscription.ResetGlobalPlanQuota)
+		subscriptions.DELETE("/global-plans/:id", h.Admin.Subscription.RevokeGlobalPlan)
 		subscriptions.GET("/:id", h.Admin.Subscription.GetByID)
 		subscriptions.GET("/:id/progress", h.Admin.Subscription.GetProgress)
 		subscriptions.POST("/assign", h.Admin.Subscription.Assign)
+		subscriptions.POST("/global-plan/assign", h.Admin.Subscription.AssignGlobalPlan)
 		subscriptions.POST("/bulk-assign", h.Admin.Subscription.BulkAssign)
 		subscriptions.POST("/:id/extend", h.Admin.Subscription.Extend)
 		subscriptions.POST("/:id/reset-quota", h.Admin.Subscription.ResetQuota)
@@ -670,6 +675,8 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		channels.GET("", h.Admin.Channel.List)
 		channels.GET("/model-pricing", h.Admin.Channel.GetModelDefaultPricing)
+		channels.GET("/model-pricing-display", h.Admin.Channel.GetModelPricingDisplayConfig)
+		channels.PUT("/model-pricing-display", h.Admin.Channel.UpdateModelPricingDisplayConfig)
 		channels.GET("/pricing/sync-models", h.Admin.Channel.SyncPricingModels)
 		channels.GET("/:id", h.Admin.Channel.GetByID)
 		channels.POST("", h.Admin.Channel.Create)

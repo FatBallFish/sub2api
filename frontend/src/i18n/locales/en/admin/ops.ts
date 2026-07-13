@@ -146,7 +146,7 @@ export default {
         '24h': 'Last 24 hours',
         '7d': 'Last 7 days',
         '30d': 'Last 30 days',
-        custom: 'Custom Range'
+        custom: 'Custom'
       },
       customTimeRange: {
         startTime: 'Start Time',
@@ -570,6 +570,16 @@ export default {
         alertTitle: 'Alert Evaluator',
         groupAvailabilityTitle: 'Group Availability Monitor',
         evalIntervalSeconds: 'Evaluation Interval (seconds)',
+        metricThresholds: 'Metric Thresholds',
+        metricThresholdsHint: 'Configure alert thresholds for metrics. Values exceeding thresholds are highlighted in red.',
+        slaMinPercent: 'SLA Minimum Percentage',
+        slaMinPercentHint: 'SLA below this value is highlighted in red (default: 99.5%).',
+        ttftP99MaxMs: 'TTFT P99 Maximum (ms)',
+        ttftP99MaxMsHint: 'TTFT P99 above this value is highlighted in red (default: 500ms).',
+        requestErrorRateMaxPercent: 'Request Error Rate Maximum',
+        requestErrorRateMaxPercentHint: 'Request error rate above this value is highlighted in red (default: 5%).',
+        upstreamErrorRateMaxPercent: 'Upstream Error Rate Maximum',
+        upstreamErrorRateMaxPercentHint: 'Upstream error rate above this value is highlighted in red (default: 5%).',
         silencing: {
           title: 'Alert Silencing (Maintenance Mode)',
           enabled: 'Enable silencing',

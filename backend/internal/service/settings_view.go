@@ -144,19 +144,27 @@ type SystemSettings struct {
 	CustomMenuItems             string // JSON array of custom menu items
 	CustomEndpoints             string // JSON array of custom endpoints
 
-	DefaultConcurrency           int
-	DefaultBalance               float64
-	RiskControlEnabled           bool
-	CyberSessionBlockEnabled     bool
-	CyberSessionBlockTTLSeconds  int
-	AffiliateEnabled             bool
-	AffiliateRebateRate          float64
-	AffiliateRebateFreezeHours   int
-	AffiliateRebateDurationDays  int
-	AffiliateRebatePerInviteeCap float64
-	AdminRechargeRebateEnabled   bool
-	DefaultUserRPMLimit          int
-	DefaultSubscriptions         []DefaultSubscriptionSetting
+	DefaultConcurrency              int
+	DefaultBalance                  float64
+	RiskControlEnabled              bool
+	CyberSessionBlockEnabled        bool
+	CyberSessionBlockTTLSeconds     int
+	AffiliateEnabled                bool
+	AffiliateRebateRate             float64
+	AffiliateRebateFreezeHours      int
+	AffiliateRebateDurationDays     int
+	AffiliateRebatePerInviteeCap    float64
+	AdminRechargeRebateEnabled      bool
+	AffiliateInviterSignupReward    float64
+	AffiliateInviterSignupRewardCap float64
+	AffiliateInviteeSignupReward    float64
+	RegionBlockEnabled              bool
+	RegionBlockFrontendEnabled      bool
+	RegionBlockAPIEnabled           bool
+	RegionBlockCodes                string
+	RegionBlockHeaders              string
+	DefaultUserRPMLimit             int
+	DefaultSubscriptions            []DefaultSubscriptionSetting
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -339,6 +347,10 @@ type PublicSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+
+	RegionBlockFrontendEnabled bool   `json:"region_block_frontend_enabled"`
+	RegionBlockFrontendBlocked bool   `json:"region_block_frontend_blocked"`
+	RegionBlockCurrentRegion   string `json:"region_block_current_region"`
 }
 
 type LoginAgreementDocument struct {

@@ -278,6 +278,36 @@ func TestComputeValidityDaysSupportsSingularAndPluralUnits(t *testing.T) {
 	}
 }
 
+func TestConvertBillingAmountUsesConfiguredExchangeRate(t *testing.T) {
+	t.Parallel()
+
+	converted, rate, err := convertPaymentBillingAmount(10, "USD", "CNY", map[string]float64{"USD:CNY": 7.2})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if converted != 72 {
+		t.Fatalf("converted = %v, want 72", converted)
+	}
+	if rate != 7.2 {
+		t.Fatalf("rate = %v, want 7.2", rate)
+	}
+}
+
+func TestConvertBillingAmountUsesSameCurrencyRateOne(t *testing.T) {
+	t.Parallel()
+
+	converted, rate, err := convertPaymentBillingAmount(10, "USD", "USD", map[string]float64{"USD:CNY": 7.2})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if converted != 10 {
+		t.Fatalf("converted = %v, want 10", converted)
+	}
+	if rate != 1 {
+		t.Fatalf("rate = %v, want 1", rate)
+	}
+}
+
 func TestBuildPaymentSubjectAppliesAffixToSubscriptionPlanProductName(t *testing.T) {
 	t.Parallel()
 

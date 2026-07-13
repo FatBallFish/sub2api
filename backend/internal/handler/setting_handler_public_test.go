@@ -24,7 +24,10 @@ func (s *settingHandlerPublicRepoStub) Get(ctx context.Context, key string) (*se
 }
 
 func (s *settingHandlerPublicRepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	panic("unexpected GetValue call")
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
+	return "", service.ErrSettingNotFound
 }
 
 func (s *settingHandlerPublicRepoStub) Set(ctx context.Context, key, value string) error {
@@ -119,4 +122,66 @@ func TestSettingHandler_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *
 	require.True(t, resp.Data.WeChatOAuthEnabled)
 	require.True(t, resp.Data.WeChatOAuthOpenEnabled)
 	require.True(t, resp.Data.WeChatOAuthMPEnabled)
+}
+
+func TestSettingHandler_GetPublicSettings_EvaluatesFrontendRegionBlockOnlyWhenFrontendSwitchEnabled(t *testing.T) {
+	tests := []struct {
+		name        string
+		values      map[string]string
+		wantEnabled bool
+		wantBlocked bool
+	}{
+		{
+			name: "master switch alone does not block frontend",
+			values: map[string]string{
+				service.SettingKeyRegionBlockEnabled: "true",
+				service.SettingKeyRegionBlockCodes:   "CN",
+			},
+			wantEnabled: false,
+			wantBlocked: false,
+		},
+		{
+			name: "frontend switch blocks matching region",
+			values: map[string]string{
+				service.SettingKeyRegionBlockEnabled:         "true",
+				service.SettingKeyRegionBlockFrontendEnabled: "true",
+				service.SettingKeyRegionBlockCodes:           "CN",
+				service.SettingKeyRegionBlockHeaders:         "CF-IPCountry",
+			},
+			wantEnabled: true,
+			wantBlocked: true,
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{values: tt.values}, &config.Config{}), "test-version")
+
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+			c.Request.Header.Set("CF-IPCountry", "CN")
+
+			h.GetPublicSettings(c)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+
+			var resp struct {
+				Code int `json:"code"`
+				Data struct {
+					RegionBlockFrontendEnabled bool   `json:"region_block_frontend_enabled"`
+					RegionBlockFrontendBlocked bool   `json:"region_block_frontend_blocked"`
+					RegionBlockCurrentRegion   string `json:"region_block_current_region"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+			require.Equal(t, 0, resp.Code)
+			require.Equal(t, tt.wantEnabled, resp.Data.RegionBlockFrontendEnabled)
+			require.Equal(t, tt.wantBlocked, resp.Data.RegionBlockFrontendBlocked)
+			if tt.wantBlocked {
+				require.Equal(t, "CN", resp.Data.RegionBlockCurrentRegion)
+			}
+		})
+	}
 }

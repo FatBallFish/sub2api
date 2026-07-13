@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
 
@@ -77,6 +78,16 @@ type UsageLog struct {
 	RateMultiplier float64 `json:"rate_multiplier,omitempty"`
 	// Whether long-context pricing changed token prices for this request
 	LongContextBillingApplied bool `json:"long_context_billing_applied,omitempty"`
+	// FundingSource holds the value of the "funding_source" field.
+	FundingSource string `json:"funding_source,omitempty"`
+	// GlobalPlanSubscriptionID holds the value of the "global_plan_subscription_id" field.
+	GlobalPlanSubscriptionID *int64 `json:"global_plan_subscription_id,omitempty"`
+	// GlobalPlanCost holds the value of the "global_plan_cost" field.
+	GlobalPlanCost float64 `json:"global_plan_cost,omitempty"`
+	// BalanceCost holds the value of the "balance_cost" field.
+	BalanceCost float64 `json:"balance_cost,omitempty"`
+	// GroupSubscriptionCost holds the value of the "group_subscription_cost" field.
+	GroupSubscriptionCost float64 `json:"group_subscription_cost,omitempty"`
 	// AccountRateMultiplier holds the value of the "account_rate_multiplier" field.
 	AccountRateMultiplier *float64 `json:"account_rate_multiplier,omitempty"`
 	// BillingType holds the value of the "billing_type" field.
@@ -131,9 +142,11 @@ type UsageLogEdges struct {
 	Group *Group `json:"group,omitempty"`
 	// Subscription holds the value of the subscription edge.
 	Subscription *UserSubscription `json:"subscription,omitempty"`
+	// GlobalPlanSubscription holds the value of the global_plan_subscription edge.
+	GlobalPlanSubscription *UserGlobalPlanSubscription `json:"global_plan_subscription,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [5]bool
+	loadedTypes [6]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -191,6 +204,17 @@ func (e UsageLogEdges) SubscriptionOrErr() (*UserSubscription, error) {
 	return nil, &NotLoadedError{edge: "subscription"}
 }
 
+// GlobalPlanSubscriptionOrErr returns the GlobalPlanSubscription value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UsageLogEdges) GlobalPlanSubscriptionOrErr() (*UserGlobalPlanSubscription, error) {
+	if e.GlobalPlanSubscription != nil {
+		return e.GlobalPlanSubscription, nil
+	} else if e.loadedTypes[5] {
+		return nil, &NotFoundError{label: userglobalplansubscription.Label}
+	}
+	return nil, &NotLoadedError{edge: "global_plan_subscription"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*UsageLog) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -200,11 +224,11 @@ func (*UsageLog) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case usagelog.FieldLongContextBillingApplied, usagelog.FieldStream, usagelog.FieldCacheTTLOverridden:
 			values[i] = new(sql.NullBool)
-		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldAccountRateMultiplier:
+		case usagelog.FieldInputCost, usagelog.FieldOutputCost, usagelog.FieldCacheCreationCost, usagelog.FieldCacheReadCost, usagelog.FieldTotalCost, usagelog.FieldActualCost, usagelog.FieldRateMultiplier, usagelog.FieldGlobalPlanCost, usagelog.FieldBalanceCost, usagelog.FieldGroupSubscriptionCost, usagelog.FieldAccountRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
+		case usagelog.FieldID, usagelog.FieldUserID, usagelog.FieldAPIKeyID, usagelog.FieldAccountID, usagelog.FieldChannelID, usagelog.FieldGroupID, usagelog.FieldSubscriptionID, usagelog.FieldInputTokens, usagelog.FieldOutputTokens, usagelog.FieldCacheCreationTokens, usagelog.FieldCacheReadTokens, usagelog.FieldCacheCreation5mTokens, usagelog.FieldCacheCreation1hTokens, usagelog.FieldGlobalPlanSubscriptionID, usagelog.FieldBillingType, usagelog.FieldDurationMs, usagelog.FieldFirstTokenMs, usagelog.FieldImageCount, usagelog.FieldVideoCount, usagelog.FieldVideoDurationSeconds:
 			values[i] = new(sql.NullInt64)
-		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
+		case usagelog.FieldRequestID, usagelog.FieldModel, usagelog.FieldRequestedModel, usagelog.FieldUpstreamModel, usagelog.FieldModelMappingChain, usagelog.FieldBillingTier, usagelog.FieldBillingMode, usagelog.FieldFundingSource, usagelog.FieldUserAgent, usagelog.FieldIPAddress, usagelog.FieldImageSize, usagelog.FieldImageInputSize, usagelog.FieldImageOutputSize, usagelog.FieldImageSizeSource, usagelog.FieldVideoResolution:
 			values[i] = new(sql.NullString)
 		case usagelog.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -399,6 +423,37 @@ func (_m *UsageLog) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LongContextBillingApplied = value.Bool
 			}
+		case usagelog.FieldFundingSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field funding_source", values[i])
+			} else if value.Valid {
+				_m.FundingSource = value.String
+			}
+		case usagelog.FieldGlobalPlanSubscriptionID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field global_plan_subscription_id", values[i])
+			} else if value.Valid {
+				_m.GlobalPlanSubscriptionID = new(int64)
+				*_m.GlobalPlanSubscriptionID = value.Int64
+			}
+		case usagelog.FieldGlobalPlanCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field global_plan_cost", values[i])
+			} else if value.Valid {
+				_m.GlobalPlanCost = value.Float64
+			}
+		case usagelog.FieldBalanceCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_cost", values[i])
+			} else if value.Valid {
+				_m.BalanceCost = value.Float64
+			}
+		case usagelog.FieldGroupSubscriptionCost:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field group_subscription_cost", values[i])
+			} else if value.Valid {
+				_m.GroupSubscriptionCost = value.Float64
+			}
 		case usagelog.FieldAccountRateMultiplier:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field account_rate_multiplier", values[i])
@@ -558,6 +613,11 @@ func (_m *UsageLog) QuerySubscription() *UserSubscriptionQuery {
 	return NewUsageLogClient(_m.config).QuerySubscription(_m)
 }
 
+// QueryGlobalPlanSubscription queries the "global_plan_subscription" edge of the UsageLog entity.
+func (_m *UsageLog) QueryGlobalPlanSubscription() *UserGlobalPlanSubscriptionQuery {
+	return NewUsageLogClient(_m.config).QueryGlobalPlanSubscription(_m)
+}
+
 // Update returns a builder for updating this UsageLog.
 // Note that you need to call UsageLog.Unwrap() before calling this method if this UsageLog
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -677,6 +737,23 @@ func (_m *UsageLog) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("long_context_billing_applied=")
 	builder.WriteString(fmt.Sprintf("%v", _m.LongContextBillingApplied))
+	builder.WriteString(", ")
+	builder.WriteString("funding_source=")
+	builder.WriteString(_m.FundingSource)
+	builder.WriteString(", ")
+	if v := _m.GlobalPlanSubscriptionID; v != nil {
+		builder.WriteString("global_plan_subscription_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("global_plan_cost=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GlobalPlanCost))
+	builder.WriteString(", ")
+	builder.WriteString("balance_cost=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BalanceCost))
+	builder.WriteString(", ")
+	builder.WriteString("group_subscription_cost=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GroupSubscriptionCost))
 	builder.WriteString(", ")
 	if v := _m.AccountRateMultiplier; v != nil {
 		builder.WriteString("account_rate_multiplier=")

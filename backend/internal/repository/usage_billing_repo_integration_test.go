@@ -128,6 +128,419 @@ func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.
 	require.InDelta(t, 2.5, dailyUsage, 0.000001)
 }
 
+func TestUsageBillingRepositoryApply_AppliesGlobalPlanBeforeBalance(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+	now := time.Now().UTC()
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-global-plan-user-%d@example.com", now.UnixNano()),
+		PasswordHash: "hash",
+		Balance:      5,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-global-plan-" + uuid.NewString(),
+		Name:   "billing-global-plan",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-global-plan-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetMonthlyMaxUsd(40).
+		SetTierRank(20).
+		Save(ctx)
+	require.NoError(t, err)
+	globalSub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(8).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Pro").
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:           uuid.NewString(),
+		APIKeyID:            apiKey.ID,
+		UserID:              user.ID,
+		AccountID:           account.ID,
+		AccountType:         service.AccountTypeAPIKey,
+		BalanceCost:         3,
+		APIKeyQuotaCost:     3,
+		APIKeyRateLimitCost: 3,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.NotNil(t, result.GlobalPlanSubscriptionID)
+	require.Equal(t, globalSub.ID, *result.GlobalPlanSubscriptionID)
+	require.Equal(t, service.UsageFundingSourceMixed, result.FundingSource)
+	require.InDelta(t, 2, result.GlobalPlanCost, 0.000001)
+	require.InDelta(t, 1, result.BalanceCost, 0.000001)
+	require.InDelta(t, 0, result.SubscriptionCost, 0.000001)
+	require.NotNil(t, result.NewBalance)
+	require.InDelta(t, 4, *result.NewBalance, 0.000001)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 4, balance, 0.000001)
+
+	var quotaUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", globalSub.ID).Scan(&quotaUsed))
+	require.InDelta(t, 10, quotaUsed, 0.000001)
+
+	var apiKeyQuotaUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used FROM api_keys WHERE id = $1", apiKey.ID).Scan(&apiKeyQuotaUsed))
+	require.InDelta(t, 3, apiKeyQuotaUsed, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_GlobalPlanWhitelistRequiresMatchingGroup(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+	now := time.Now().UTC()
+
+	allowedGroup := mustCreateGroup(t, client, &service.Group{
+		Name:     "usage-billing-global-whitelist-allowed-" + uuid.NewString(),
+		Platform: service.PlatformAnthropic,
+	})
+	blockedGroup := mustCreateGroup(t, client, &service.Group{
+		Name:     "usage-billing-global-whitelist-blocked-" + uuid.NewString(),
+		Platform: service.PlatformAnthropic,
+	})
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-global-whitelist-user-%d@example.com", now.UnixNano()),
+		PasswordHash: "hash",
+		Balance:      10,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID:  user.ID,
+		GroupID: &blockedGroup.ID,
+		Key:     "sk-usage-billing-global-whitelist-" + uuid.NewString(),
+		Name:    "billing-global-whitelist",
+	})
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetName("Whitelist Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetTierRank(20).
+		SetApplicableGroupMode(service.PlanApplicableGroupModeWhitelist).
+		SetApplicableGroupIds([]int64{allowedGroup.ID}).
+		Save(ctx)
+	require.NoError(t, err)
+	globalSub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(0).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Whitelist Pro").
+		SetApplicableGroupMode(service.PlanApplicableGroupModeWhitelist).
+		SetApplicableGroupIds([]int64{allowedGroup.ID}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   uuid.NewString(),
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		GroupID:     blockedGroup.ID,
+		BalanceCost: 3,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.Nil(t, result.GlobalPlanSubscriptionID)
+	require.Equal(t, service.UsageFundingSourceBalance, result.FundingSource)
+	require.InDelta(t, 3, result.BalanceCost, 0.000001)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 7, balance, 0.000001)
+
+	var quotaUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", globalSub.ID).Scan(&quotaUsed))
+	require.InDelta(t, 0, quotaUsed, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_GlobalPlanBlacklistExcludesMatchingGroup(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+	now := time.Now().UTC()
+
+	blockedGroup := mustCreateGroup(t, client, &service.Group{
+		Name:     "usage-billing-global-blacklist-blocked-" + uuid.NewString(),
+		Platform: service.PlatformOpenAI,
+	})
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-global-blacklist-user-%d@example.com", now.UnixNano()),
+		PasswordHash: "hash",
+		Balance:      10,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID:  user.ID,
+		GroupID: &blockedGroup.ID,
+		Key:     "sk-usage-billing-global-blacklist-" + uuid.NewString(),
+		Name:    "billing-global-blacklist",
+	})
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetName("Blacklist Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetTierRank(20).
+		SetApplicableGroupMode(service.PlanApplicableGroupModeBlacklist).
+		SetApplicableGroupIds([]int64{blockedGroup.ID}).
+		Save(ctx)
+	require.NoError(t, err)
+	globalSub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(0).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Blacklist Pro").
+		SetApplicableGroupMode(service.PlanApplicableGroupModeBlacklist).
+		SetApplicableGroupIds([]int64{blockedGroup.ID}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   uuid.NewString(),
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		GroupID:     blockedGroup.ID,
+		BalanceCost: 3,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.Nil(t, result.GlobalPlanSubscriptionID)
+	require.Equal(t, service.UsageFundingSourceBalance, result.FundingSource)
+	require.InDelta(t, 3, result.BalanceCost, 0.000001)
+	require.InDelta(t, 0, result.GlobalPlanCost, 0.000001)
+
+	var balance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
+	require.InDelta(t, 7, balance, 0.000001)
+
+	var quotaUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", globalSub.ID).Scan(&quotaUsed))
+	require.InDelta(t, 0, quotaUsed, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_GlobalPlanMultipleMatchesConsumesEarliestCreated(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+	now := time.Now().UTC()
+
+	group := mustCreateGroup(t, client, &service.Group{
+		Name:     "usage-billing-global-earliest-group-" + uuid.NewString(),
+		Platform: service.PlatformAnthropic,
+	})
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-global-earliest-user-%d@example.com", now.UnixNano()),
+		PasswordHash: "hash",
+		Balance:      10,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID:  user.ID,
+		GroupID: &group.ID,
+		Key:     "sk-usage-billing-global-earliest-" + uuid.NewString(),
+		Name:    "billing-global-earliest",
+	})
+	planA, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetPlanCategory("default").
+		SetName("Default Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetTierRank(20).
+		Save(ctx)
+	require.NoError(t, err)
+	planB, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetPlanCategory("image").
+		SetName("Image Pro").
+		SetPrice(19).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetTierRank(5).
+		Save(ctx)
+	require.NoError(t, err)
+	earliest, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(planA.ID).
+		SetPlanCategory("default").
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-2 * time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-2 * time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(0).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Default Pro").
+		SetCreatedAt(now.Add(-2 * time.Hour)).
+		Save(ctx)
+	require.NoError(t, err)
+	later, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(planB.ID).
+		SetPlanCategory("image").
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(0).
+		SetTierRank(5).
+		SetPlanNameSnapshot("Image Pro").
+		SetCreatedAt(now.Add(-time.Hour)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   uuid.NewString(),
+		APIKeyID:    apiKey.ID,
+		UserID:      user.ID,
+		GroupID:     group.ID,
+		BalanceCost: 3,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.NotNil(t, result.GlobalPlanSubscriptionID)
+	require.Equal(t, earliest.ID, *result.GlobalPlanSubscriptionID)
+	require.InDelta(t, 3, result.GlobalPlanCost, 0.000001)
+	require.InDelta(t, 0, result.BalanceCost, 0.000001)
+
+	var earliestUsed, laterUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", earliest.ID).Scan(&earliestUsed))
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", later.ID).Scan(&laterUsed))
+	require.InDelta(t, 3, earliestUsed, 0.000001)
+	require.InDelta(t, 0, laterUsed, 0.000001)
+}
+
+func TestUsageBillingRepositoryApply_SubscriptionBillingDoesNotConsumeGlobalPlan(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+	now := time.Now().UTC()
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-sub-global-plan-user-%d@example.com", now.UnixNano()),
+		PasswordHash: "hash",
+	})
+	group := mustCreateGroup(t, client, &service.Group{
+		Name:             "usage-billing-sub-global-plan-group-" + uuid.NewString(),
+		Platform:         service.PlatformAnthropic,
+		SubscriptionType: service.SubscriptionTypeSubscription,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID:  user.ID,
+		GroupID: &group.ID,
+		Key:     "sk-usage-billing-sub-global-plan-" + uuid.NewString(),
+		Name:    "billing-sub-global-plan",
+	})
+	subscription := mustCreateSubscription(t, client, &service.UserSubscription{
+		UserID:  user.ID,
+		GroupID: group.ID,
+	})
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetMonthlyMaxUsd(40).
+		SetTierRank(20).
+		Save(ctx)
+	require.NoError(t, err)
+	globalSub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(8).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Pro").
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:        uuid.NewString(),
+		APIKeyID:         apiKey.ID,
+		UserID:           user.ID,
+		SubscriptionID:   &subscription.ID,
+		SubscriptionCost: 3,
+	})
+	require.NoError(t, err)
+	require.True(t, result.Applied)
+	require.Nil(t, result.GlobalPlanSubscriptionID)
+	require.Equal(t, service.UsageFundingSourceSubscription, result.FundingSource)
+	require.InDelta(t, 0, result.GlobalPlanCost, 0.000001)
+	require.InDelta(t, 0, result.BalanceCost, 0.000001)
+	require.InDelta(t, 3, result.SubscriptionCost, 0.000001)
+
+	var quotaUsed float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT quota_used_usd FROM user_global_plan_subscriptions WHERE id = $1", globalSub.ID).Scan(&quotaUsed))
+	require.InDelta(t, 8, quotaUsed, 0.000001)
+
+	var dailyUsage float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT daily_usage_usd FROM user_subscriptions WHERE id = $1", subscription.ID).Scan(&dailyUsage))
+	require.InDelta(t, 3, dailyUsage, 0.000001)
+}
+
 func TestUsageBillingRepositoryApply_RequestFingerprintConflict(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

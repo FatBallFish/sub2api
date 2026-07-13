@@ -42,6 +42,11 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	regionFrontendEnabled := settings.RegionBlockFrontendEnabled
+	regionEvaluation := service.RegionBlockEvaluation{}
+	if regionFrontendEnabled {
+		regionEvaluation = h.settingService.EvaluateRegionBlock(c.Request.Context(), publicRegionBlockHeaders(c.Request.Header))
+	}
 
 	response.Success(c, dto.PublicSettings{
 		RegistrationEnabled:              settings.RegistrationEnabled,
@@ -103,7 +108,20 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		RiskControlEnabled: settings.RiskControlEnabled,
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
+		RegionBlockFrontendEnabled: regionFrontendEnabled,
+		RegionBlockFrontendBlocked: regionFrontendEnabled && regionEvaluation.Blocked,
+		RegionBlockCurrentRegion:   regionEvaluation.Region,
 	})
+}
+
+func publicRegionBlockHeaders(header http.Header) map[string]string {
+	out := make(map[string]string, len(header))
+	for key, values := range header {
+		if len(values) > 0 {
+			out[strings.ToLower(strings.TrimSpace(key))] = values[0]
+		}
+	}
+	return out
 }
 
 // UnsubscribeNotificationEmail handles optional notification email opt-outs.

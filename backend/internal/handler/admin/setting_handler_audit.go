@@ -311,6 +311,30 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.AdminRechargeRebateEnabled != after.AdminRechargeRebateEnabled {
 		changed = append(changed, "affiliate_admin_recharge_enabled")
 	}
+	if before.AffiliateInviterSignupReward != after.AffiliateInviterSignupReward {
+		changed = append(changed, "affiliate_inviter_signup_reward")
+	}
+	if before.AffiliateInviterSignupRewardCap != after.AffiliateInviterSignupRewardCap {
+		changed = append(changed, "affiliate_inviter_signup_reward_cap")
+	}
+	if before.AffiliateInviteeSignupReward != after.AffiliateInviteeSignupReward {
+		changed = append(changed, "affiliate_invitee_signup_reward")
+	}
+	if before.RegionBlockEnabled != after.RegionBlockEnabled {
+		changed = append(changed, "region_block_enabled")
+	}
+	if before.RegionBlockFrontendEnabled != after.RegionBlockFrontendEnabled {
+		changed = append(changed, "region_block_frontend_enabled")
+	}
+	if before.RegionBlockAPIEnabled != after.RegionBlockAPIEnabled {
+		changed = append(changed, "region_block_api_enabled")
+	}
+	if before.RegionBlockCodes != after.RegionBlockCodes {
+		changed = append(changed, "region_block_codes")
+	}
+	if before.RegionBlockHeaders != after.RegionBlockHeaders {
+		changed = append(changed, "region_block_headers")
+	}
 	if !equalDefaultSubscriptions(before.DefaultSubscriptions, after.DefaultSubscriptions) {
 		changed = append(changed, "default_subscriptions")
 	}

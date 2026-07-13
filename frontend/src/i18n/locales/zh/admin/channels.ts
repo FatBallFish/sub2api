@@ -53,6 +53,8 @@ export default {
       groupsUnit: '个分组',
       pricingUnit: '条定价',
       noChannelsYet: '暂无渠道',
+      noGroupsSelected: '未选择分组',
+      emptyModelsInPricing: '该定价项未配置模型',
       createFirstChannel: '创建第一个渠道来管理模型定价',
       loadError: '加载渠道列表失败',
       createSuccess: '渠道创建成功',
@@ -184,6 +186,26 @@ export default {
         syncModelsAlreadyUpToDate: '模型列表已是最新',
         syncModelsError: '同步模型失败'
       }
+    },
+
+    modelPricingDisplay: {
+      title: '模型定价展示',
+      description: '配置公开定价页和控制台定价页展示的模型分类与模型列表。',
+      help: '本页面仅控制展示分类和模型白名单。官方价格仍优先来自渠道定价，其次使用内置模型价格目录。',
+      unnamedCategory: '未命名分类',
+      categoryId: '分类 ID',
+      categoryLabel: '分类名称',
+      categoryDescription: '描述',
+      modelScopes: '支持的模型范围',
+      modelScopesHint: '用于控制台定价页判断当前分组是否支持该分类。',
+      models: '模型',
+      addModel: '添加模型',
+      modelLabelPlaceholder: '展示名称，可选',
+      noModels: '未配置模型。',
+      addCategory: '添加分类',
+      loadFailed: '加载模型定价展示配置失败',
+      saveSuccess: '模型定价展示配置已保存',
+      saveFailed: '保存模型定价展示配置失败'
     },
 
     riskControl: {
@@ -603,6 +625,9 @@ export default {
     subscriptions: {
       title: '订阅管理',
       description: '管理用户订阅和配额限制',
+      groupSubscriptionsTitle: '分组订阅',
+      globalAssignmentsTitle: '全局套餐分配',
+      globalAssignmentsDescription: '将全局订阅套餐直接分配给用户，不绑定具体分组。',
       assignSubscription: '分配订阅',
       adjustSubscription: '调整订阅',
       revokeSubscription: '撤销订阅',
@@ -635,6 +660,11 @@ export default {
       columns: {
         user: '用户',
         group: '分组',
+        globalPlan: '全局套餐',
+        globalQuota: '全局额度',
+        periodEnd: '周期结束',
+        usageWindow: '用量窗口',
+        assignedBy: '分配人',
         usage: '用量',
         expires: '到期时间',
         status: '状态',
@@ -643,13 +673,23 @@ export default {
       form: {
         user: '用户',
         group: '订阅分组',
+        entitlementType: '权益类型',
+        globalPlan: '全局套餐',
         validityDays: '有效期（天）',
         adjustDays: '调整天数'
       },
+      entitlementTypes: {
+        group: '分组订阅',
+        global: '全局套餐'
+      },
       selectUser: '选择用户',
       selectGroup: '选择订阅分组',
+      selectGlobalPlan: '选择全局套餐',
       groupHint: '仅显示订阅计费类型的分组',
+      globalPlanHint: '选择一个已启用的全局订阅套餐',
+      globalPlanValidityHint: '留空时使用套餐默认有效期',
       validityHint: '订阅的有效天数',
+      remaining: '剩余',
       adjustingFor: '为以下用户调整订阅',
       currentExpiration: '当前到期时间',
       adjustDaysPlaceholder: '正数延长，负数缩短',
@@ -680,7 +720,9 @@ export default {
       adjustOutOfRange: '调整天数必须在 -36500 到 36500 之间',
       pleaseSelectUser: '请选择用户',
       pleaseSelectGroup: '请选择分组',
+      pleaseSelectGlobalPlan: '请选择全局套餐',
       validityDaysRequired: '请输入有效的天数（至少1天）',
+      noGlobalAssignments: '暂无全局套餐分配记录',
       revokeConfirm: "确定要撤销 '{user}' 的订阅吗？可稍后在已撤销列表中恢复。",
       restoreConfirm: "确定要恢复 '{user}' 的订阅吗？如果原订阅已过期，恢复后将显示为已过期。",
       guide: {

@@ -67,6 +67,12 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 	h.handleNotify(c, payment.TypeAirwallex)
 }
 
+// JeepayNotify handles Jeepay payment notifications.
+// POST /api/v1/payment/webhook/jeepay
+func (h *PaymentWebhookHandler) JeepayNotify(c *gin.Context) {
+	h.handleNotify(c, payment.TypeJeepay)
+}
+
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
 	var rawBody string
@@ -152,6 +158,19 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		values, err := url.ParseQuery(rawBody)
 		if err == nil {
 			return values.Get("out_trade_no")
+		}
+	case payment.TypeJeepay:
+		values, err := url.ParseQuery(rawBody)
+		if err == nil {
+			if outTradeNo := strings.TrimSpace(values.Get("mchOrderNo")); outTradeNo != "" {
+				return outTradeNo
+			}
+		}
+		var payload struct {
+			MchOrderNo string `json:"mchOrderNo"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			return strings.TrimSpace(payload.MchOrderNo)
 		}
 	case payment.TypeAirwallex:
 		var payload struct {

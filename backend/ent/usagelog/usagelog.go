@@ -68,6 +68,16 @@ const (
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldLongContextBillingApplied holds the string denoting the long_context_billing_applied field in the database.
 	FieldLongContextBillingApplied = "long_context_billing_applied"
+	// FieldFundingSource holds the string denoting the funding_source field in the database.
+	FieldFundingSource = "funding_source"
+	// FieldGlobalPlanSubscriptionID holds the string denoting the global_plan_subscription_id field in the database.
+	FieldGlobalPlanSubscriptionID = "global_plan_subscription_id"
+	// FieldGlobalPlanCost holds the string denoting the global_plan_cost field in the database.
+	FieldGlobalPlanCost = "global_plan_cost"
+	// FieldBalanceCost holds the string denoting the balance_cost field in the database.
+	FieldBalanceCost = "balance_cost"
+	// FieldGroupSubscriptionCost holds the string denoting the group_subscription_cost field in the database.
+	FieldGroupSubscriptionCost = "group_subscription_cost"
 	// FieldAccountRateMultiplier holds the string denoting the account_rate_multiplier field in the database.
 	FieldAccountRateMultiplier = "account_rate_multiplier"
 	// FieldBillingType holds the string denoting the billing_type field in the database.
@@ -114,6 +124,8 @@ const (
 	EdgeGroup = "group"
 	// EdgeSubscription holds the string denoting the subscription edge name in mutations.
 	EdgeSubscription = "subscription"
+	// EdgeGlobalPlanSubscription holds the string denoting the global_plan_subscription edge name in mutations.
+	EdgeGlobalPlanSubscription = "global_plan_subscription"
 	// Table holds the table name of the usagelog in the database.
 	Table = "usage_logs"
 	// UserTable is the table that holds the user relation/edge.
@@ -151,6 +163,13 @@ const (
 	SubscriptionInverseTable = "user_subscriptions"
 	// SubscriptionColumn is the table column denoting the subscription relation/edge.
 	SubscriptionColumn = "subscription_id"
+	// GlobalPlanSubscriptionTable is the table that holds the global_plan_subscription relation/edge.
+	GlobalPlanSubscriptionTable = "usage_logs"
+	// GlobalPlanSubscriptionInverseTable is the table name for the UserGlobalPlanSubscription entity.
+	// It exists in this package in order to avoid circular dependency with the "userglobalplansubscription" package.
+	GlobalPlanSubscriptionInverseTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionColumn is the table column denoting the global_plan_subscription relation/edge.
+	GlobalPlanSubscriptionColumn = "global_plan_subscription_id"
 )
 
 // Columns holds all SQL columns for usagelog fields.
@@ -183,6 +202,11 @@ var Columns = []string{
 	FieldActualCost,
 	FieldRateMultiplier,
 	FieldLongContextBillingApplied,
+	FieldFundingSource,
+	FieldGlobalPlanSubscriptionID,
+	FieldGlobalPlanCost,
+	FieldBalanceCost,
+	FieldGroupSubscriptionCost,
 	FieldAccountRateMultiplier,
 	FieldBillingType,
 	FieldStream,
@@ -256,6 +280,16 @@ var (
 	DefaultRateMultiplier float64
 	// DefaultLongContextBillingApplied holds the default value on creation for the "long_context_billing_applied" field.
 	DefaultLongContextBillingApplied bool
+	// DefaultFundingSource holds the default value on creation for the "funding_source" field.
+	DefaultFundingSource string
+	// FundingSourceValidator is a validator for the "funding_source" field. It is called by the builders before save.
+	FundingSourceValidator func(string) error
+	// DefaultGlobalPlanCost holds the default value on creation for the "global_plan_cost" field.
+	DefaultGlobalPlanCost float64
+	// DefaultBalanceCost holds the default value on creation for the "balance_cost" field.
+	DefaultBalanceCost float64
+	// DefaultGroupSubscriptionCost holds the default value on creation for the "group_subscription_cost" field.
+	DefaultGroupSubscriptionCost float64
 	// DefaultBillingType holds the default value on creation for the "billing_type" field.
 	DefaultBillingType int8
 	// DefaultStream holds the default value on creation for the "stream" field.
@@ -427,6 +461,31 @@ func ByLongContextBillingApplied(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLongContextBillingApplied, opts...).ToFunc()
 }
 
+// ByFundingSource orders the results by the funding_source field.
+func ByFundingSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFundingSource, opts...).ToFunc()
+}
+
+// ByGlobalPlanSubscriptionID orders the results by the global_plan_subscription_id field.
+func ByGlobalPlanSubscriptionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalPlanSubscriptionID, opts...).ToFunc()
+}
+
+// ByGlobalPlanCost orders the results by the global_plan_cost field.
+func ByGlobalPlanCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalPlanCost, opts...).ToFunc()
+}
+
+// ByBalanceCost orders the results by the balance_cost field.
+func ByBalanceCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceCost, opts...).ToFunc()
+}
+
+// ByGroupSubscriptionCost orders the results by the group_subscription_cost field.
+func ByGroupSubscriptionCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupSubscriptionCost, opts...).ToFunc()
+}
+
 // ByAccountRateMultiplier orders the results by the account_rate_multiplier field.
 func ByAccountRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountRateMultiplier, opts...).ToFunc()
@@ -546,6 +605,13 @@ func BySubscriptionField(field string, opts ...sql.OrderTermOption) OrderOption 
 		sqlgraph.OrderByNeighborTerms(s, newSubscriptionStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByGlobalPlanSubscriptionField orders the results by global_plan_subscription field.
+func ByGlobalPlanSubscriptionField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGlobalPlanSubscriptionStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
@@ -579,5 +645,12 @@ func newSubscriptionStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(SubscriptionInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, SubscriptionTable, SubscriptionColumn),
+	)
+}
+func newGlobalPlanSubscriptionStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GlobalPlanSubscriptionInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, GlobalPlanSubscriptionTable, GlobalPlanSubscriptionColumn),
 	)
 }

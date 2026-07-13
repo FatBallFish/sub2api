@@ -106,6 +106,10 @@ func (s *redeemCodeRepoStub) SumPositiveBalanceByUser(context.Context, int64) (f
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
+func (s *redeemCodeRepoStub) SumByUserAndType(context.Context, int64, string) (float64, error) {
+	panic("unexpected SumByUserAndType call")
+}
+
 func newOAuthEmailFlowAuthService(
 	userRepo UserRepository,
 	redeemRepo RedeemCodeRepository,

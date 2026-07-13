@@ -1,0 +1,9 @@
+packages:
+  - .
+
+allowBuilds:
+  esbuild: true
+  vue-demi: true
+overrides:
+  form-data@<4.0.6: '>=4.0.6'
+  js-cookie: 3.0.7

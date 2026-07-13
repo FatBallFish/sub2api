@@ -83,6 +83,10 @@ const (
 	EdgePromoCodeUsages = "promo_code_usages"
 	// EdgePaymentOrders holds the string denoting the payment_orders edge name in mutations.
 	EdgePaymentOrders = "payment_orders"
+	// EdgeGlobalPlanSubscriptions holds the string denoting the global_plan_subscriptions edge name in mutations.
+	EdgeGlobalPlanSubscriptions = "global_plan_subscriptions"
+	// EdgeAssignedGlobalPlanSubscriptions holds the string denoting the assigned_global_plan_subscriptions edge name in mutations.
+	EdgeAssignedGlobalPlanSubscriptions = "assigned_global_plan_subscriptions"
 	// EdgeAuthIdentities holds the string denoting the auth_identities edge name in mutations.
 	EdgeAuthIdentities = "auth_identities"
 	// EdgePendingAuthSessions holds the string denoting the pending_auth_sessions edge name in mutations.
@@ -161,6 +165,20 @@ const (
 	PaymentOrdersInverseTable = "payment_orders"
 	// PaymentOrdersColumn is the table column denoting the payment_orders relation/edge.
 	PaymentOrdersColumn = "user_id"
+	// GlobalPlanSubscriptionsTable is the table that holds the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsInverseTable is the table name for the UserGlobalPlanSubscription entity.
+	// It exists in this package in order to avoid circular dependency with the "userglobalplansubscription" package.
+	GlobalPlanSubscriptionsInverseTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsColumn is the table column denoting the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsColumn = "user_id"
+	// AssignedGlobalPlanSubscriptionsTable is the table that holds the assigned_global_plan_subscriptions relation/edge.
+	AssignedGlobalPlanSubscriptionsTable = "user_global_plan_subscriptions"
+	// AssignedGlobalPlanSubscriptionsInverseTable is the table name for the UserGlobalPlanSubscription entity.
+	// It exists in this package in order to avoid circular dependency with the "userglobalplansubscription" package.
+	AssignedGlobalPlanSubscriptionsInverseTable = "user_global_plan_subscriptions"
+	// AssignedGlobalPlanSubscriptionsColumn is the table column denoting the assigned_global_plan_subscriptions relation/edge.
+	AssignedGlobalPlanSubscriptionsColumn = "assigned_by"
 	// AuthIdentitiesTable is the table that holds the auth_identities relation/edge.
 	AuthIdentitiesTable = "auth_identities"
 	// AuthIdentitiesInverseTable is the table name for the AuthIdentity entity.
@@ -560,6 +578,34 @@ func ByPaymentOrders(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByGlobalPlanSubscriptionsCount orders the results by global_plan_subscriptions count.
+func ByGlobalPlanSubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newGlobalPlanSubscriptionsStep(), opts...)
+	}
+}
+
+// ByGlobalPlanSubscriptions orders the results by global_plan_subscriptions terms.
+func ByGlobalPlanSubscriptions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGlobalPlanSubscriptionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
+// ByAssignedGlobalPlanSubscriptionsCount orders the results by assigned_global_plan_subscriptions count.
+func ByAssignedGlobalPlanSubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newAssignedGlobalPlanSubscriptionsStep(), opts...)
+	}
+}
+
+// ByAssignedGlobalPlanSubscriptions orders the results by assigned_global_plan_subscriptions terms.
+func ByAssignedGlobalPlanSubscriptions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newAssignedGlobalPlanSubscriptionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByAuthIdentitiesCount orders the results by auth_identities count.
 func ByAuthIdentitiesCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -683,6 +729,20 @@ func newPaymentOrdersStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PaymentOrdersInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PaymentOrdersTable, PaymentOrdersColumn),
+	)
+}
+func newGlobalPlanSubscriptionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GlobalPlanSubscriptionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, GlobalPlanSubscriptionsTable, GlobalPlanSubscriptionsColumn),
+	)
+}
+func newAssignedGlobalPlanSubscriptionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(AssignedGlobalPlanSubscriptionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, AssignedGlobalPlanSubscriptionsTable, AssignedGlobalPlanSubscriptionsColumn),
 	)
 }
 func newAuthIdentitiesStep() *sqlgraph.Step {

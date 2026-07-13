@@ -14,8 +14,9 @@
         <template #cell-name="{ value, row }">
           <span class="text-sm font-medium" :class="getPlanNameClass(row.group_id)">{{ value }}</span>
         </template>
-        <template #cell-group_id="{ value }">
-          <span v-if="isGroupMissing(value)" class="text-sm">
+        <template #cell-group_id="{ value, row }">
+          <span v-if="row.plan_scope === 'global' || !value" class="badge badge-info">{{ t('payment.admin.globalPlan') }}</span>
+          <span v-else-if="isGroupMissing(value)" class="text-sm">
             <span class="text-gray-400">#{{ value }}</span>
             <span class="ml-1 badge badge-danger">{{ t('payment.admin.groupMissing') }}</span>
           </span>
@@ -100,11 +101,17 @@ const appStore = useAppStore()
 
 const groups = ref<AdminGroup[]>([])
 const paymentConfig = ref<AdminPaymentConfig | null>(null)
+const groupsLoading = ref(false)
 
 async function loadGroups() {
+  groupsLoading.value = true
   try {
     groups.value = await adminAPI.groups.getAll()
-  } catch { /* ignore */ }
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.admin.failedToLoadGroups')))
+  } finally {
+    groupsLoading.value = false
+  }
 }
 
 async function loadPaymentConfig() {
@@ -118,11 +125,13 @@ function getGroup(id: number): AdminGroup | undefined {
   return groups.value.find(g => g.id === id)
 }
 
-function isGroupMissing(id: number): boolean {
+function isGroupMissing(id: number | null): boolean {
+  if (!id) return false
   return id > 0 && !groups.value.find(g => g.id === id)
 }
 
-function getPlanNameClass(groupId: number): string {
+function getPlanNameClass(groupId: number | null): string {
+  if (!groupId) return 'text-gray-900 dark:text-white'
   const group = getGroup(groupId)
   return group ? platformTextClass(group.platform) : 'text-gray-900 dark:text-white'
 }
@@ -141,6 +150,7 @@ const planColumns = computed((): Column[] => [
   { key: 'id', label: 'ID' },
   { key: 'name', label: t('payment.admin.planName') },
   { key: 'group_id', label: t('payment.admin.group') },
+  { key: 'tier_rank', label: t('payment.admin.tierRank') },
   { key: 'price', label: t('payment.admin.price') },
   { key: 'validity_days', label: t('payment.admin.validityDays') },
   { key: 'for_sale', label: t('payment.admin.forSale') },
@@ -164,7 +174,8 @@ async function loadPlans() {
   finally { plansLoading.value = false }
 }
 
-function openPlanEdit(plan: SubscriptionPlan | null) {
+async function openPlanEdit(plan: SubscriptionPlan | null) {
+  await loadGroups()
   editingPlan.value = plan
   showPlanDialog.value = true
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,6 +77,126 @@ type refreshTokenCacheStub struct{}
 type userPlatformQuotaRepoStub struct {
 	bulkInsertCalls [][]UserPlatformQuotaRecord
 	bulkInsertErr   error
+}
+
+type authRegisterAffiliateRepoStub struct {
+	byCode map[string]int64
+}
+
+func (s *authRegisterAffiliateRepoStub) EnsureUserAffiliate(ctx context.Context, userID int64) (*AffiliateSummary, error) {
+	return &AffiliateSummary{UserID: userID, AffCode: "SELF"}, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) GetAffiliateByCode(ctx context.Context, code string) (*AffiliateSummary, error) {
+	if id, ok := s.byCode[code]; ok {
+		return &AffiliateSummary{UserID: id, AffCode: code}, nil
+	}
+	return nil, ErrAffiliateProfileNotFound
+}
+
+func (s *authRegisterAffiliateRepoStub) BindInviter(ctx context.Context, userID, inviterID int64) (bool, error) {
+	return true, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) AccrueQuota(context.Context, int64, int64, float64, int, *int64) (bool, error) {
+	panic("unexpected AccrueQuota call")
+}
+
+func (s *authRegisterAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, int64, int64) (float64, error) {
+	panic("unexpected GetAccruedRebateFromInvitee call")
+}
+
+func (s *authRegisterAffiliateRepoStub) ThawFrozenQuota(context.Context, int64) (float64, error) {
+	return 0, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) TransferQuotaToBalance(context.Context, int64) (float64, float64, error) {
+	panic("unexpected TransferQuotaToBalance call")
+}
+
+func (s *authRegisterAffiliateRepoStub) ListInvitees(context.Context, int64, int) ([]AffiliateInvitee, error) {
+	return nil, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) UpdateUserAffCode(context.Context, int64, string) error {
+	panic("unexpected UpdateUserAffCode call")
+}
+
+func (s *authRegisterAffiliateRepoStub) ResetUserAffCode(context.Context, int64) (string, error) {
+	panic("unexpected ResetUserAffCode call")
+}
+
+func (s *authRegisterAffiliateRepoStub) SetUserRebateRate(context.Context, int64, *float64) error {
+	panic("unexpected SetUserRebateRate call")
+}
+
+func (s *authRegisterAffiliateRepoStub) BatchSetUserRebateRate(context.Context, []int64, *float64) error {
+	panic("unexpected BatchSetUserRebateRate call")
+}
+
+func (s *authRegisterAffiliateRepoStub) ListUsersWithCustomSettings(context.Context, AffiliateAdminFilter) ([]AffiliateAdminEntry, int64, error) {
+	return nil, 0, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) ListAffiliateInviteRecords(context.Context, AffiliateRecordFilter) ([]AffiliateInviteRecord, int64, error) {
+	return nil, 0, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) ListAffiliateRebateRecords(context.Context, AffiliateRecordFilter) ([]AffiliateRebateRecord, int64, error) {
+	return nil, 0, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) ListAffiliateTransferRecords(context.Context, AffiliateRecordFilter) ([]AffiliateTransferRecord, int64, error) {
+	return nil, 0, nil
+}
+
+func (s *authRegisterAffiliateRepoStub) GetAffiliateUserOverview(context.Context, int64) (*AffiliateUserOverview, error) {
+	return nil, nil
+}
+
+type authRegisterRedeemRepoStub struct {
+	created []RedeemCode
+	sums    map[string]float64
+}
+
+func (s *authRegisterRedeemRepoStub) Create(ctx context.Context, code *RedeemCode) error {
+	s.created = append(s.created, *code)
+	return nil
+}
+
+func (s *authRegisterRedeemRepoStub) CreateBatch(context.Context, []RedeemCode) error { return nil }
+func (s *authRegisterRedeemRepoStub) GetByID(context.Context, int64) (*RedeemCode, error) {
+	return nil, ErrRedeemCodeNotFound
+}
+func (s *authRegisterRedeemRepoStub) GetByCode(context.Context, string) (*RedeemCode, error) {
+	return nil, ErrRedeemCodeNotFound
+}
+func (s *authRegisterRedeemRepoStub) Update(context.Context, *RedeemCode) error { return nil }
+func (s *authRegisterRedeemRepoStub) BatchUpdate(context.Context, []int64, RedeemCodeBatchUpdateFields) (int64, error) {
+	return 0, nil
+}
+func (s *authRegisterRedeemRepoStub) Delete(context.Context, int64) error     { return nil }
+func (s *authRegisterRedeemRepoStub) Use(context.Context, int64, int64) error { return nil }
+func (s *authRegisterRedeemRepoStub) List(context.Context, pagination.PaginationParams) ([]RedeemCode, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (s *authRegisterRedeemRepoStub) ListWithFilters(context.Context, pagination.PaginationParams, string, string, string) ([]RedeemCode, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (s *authRegisterRedeemRepoStub) ListByUser(context.Context, int64, int) ([]RedeemCode, error) {
+	return nil, nil
+}
+func (s *authRegisterRedeemRepoStub) ListByUserPaginated(context.Context, int64, pagination.PaginationParams, string) ([]RedeemCode, *pagination.PaginationResult, error) {
+	return nil, nil, nil
+}
+func (s *authRegisterRedeemRepoStub) SumPositiveBalanceByUser(context.Context, int64) (float64, error) {
+	return 0, nil
+}
+func (s *authRegisterRedeemRepoStub) SumByUserAndType(ctx context.Context, userID int64, codeType string) (float64, error) {
+	if s.sums == nil {
+		return 0, nil
+	}
+	return s.sums[codeType], nil
 }
 
 func (s *userPlatformQuotaRepoStub) BulkInsertInitial(_ context.Context, records []UserPlatformQuotaRecord) error {
@@ -470,6 +591,40 @@ func TestAuthService_Register_Success(t *testing.T) {
 	require.Equal(t, 2, user.Concurrency)
 	require.Len(t, repo.created, 1)
 	require.True(t, user.CheckPassword("password"))
+}
+
+func TestAuthService_Register_AffiliateSignupRewardsStackWithDefaultBalance(t *testing.T) {
+	repo := &userRepoStub{
+		nextID: 42,
+		usersByEmail: map[string]*User{
+			"inviter@test.com": {ID: 7, Email: "inviter@test.com", Balance: 1, Status: StatusActive},
+		},
+	}
+	redeemRepo := &authRegisterRedeemRepoStub{}
+	settings := map[string]string{
+		SettingKeyRegistrationEnabled:                 "true",
+		SettingKeyAffiliateEnabled:                    "true",
+		SettingKeyAffiliateInviteeSignupReward:        "2.25",
+		SettingKeyAffiliateInviterSignupReward:        "3.5",
+		SettingKeyAffiliateInviterSignupRewardCap:     "10",
+		SettingKeyAuthSourceDefaultEmailGrantOnSignup: "false",
+	}
+	service := newAuthService(repo, settings, nil, nil)
+	service.redeemRepo = redeemRepo
+	service.affiliateService = NewAffiliateService(&authRegisterAffiliateRepoStub{byCode: map[string]int64{"AFF123": 7}}, service.settingService, nil, nil)
+
+	_, user, err := service.RegisterWithVerification(context.Background(), "invitee@test.com", "password", "", "", "", "AFF123")
+	require.NoError(t, err)
+	require.NotNil(t, user)
+	require.InDelta(t, 5.75, user.Balance, 0.0001)
+	require.InDelta(t, 2.25, repo.balanceUpdates[42], 0.0001)
+	require.InDelta(t, 3.5, repo.balanceUpdates[7], 0.0001)
+	require.Len(t, redeemRepo.created, 2)
+	require.Equal(t, RedeemTypeAffiliateInviteeSignupReward, redeemRepo.created[0].Type)
+	require.Equal(t, RedeemTypeAffiliateInviterSignupReward, redeemRepo.created[1].Type)
+	require.Equal(t, StatusUsed, redeemRepo.created[0].Status)
+	require.Equal(t, int64(42), *redeemRepo.created[0].UsedBy)
+	require.Equal(t, int64(7), *redeemRepo.created[1].UsedBy)
 }
 
 func TestAuthService_ValidateToken_ExpiredReturnsClaimsWithError(t *testing.T) {

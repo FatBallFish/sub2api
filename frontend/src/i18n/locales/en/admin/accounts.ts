@@ -742,6 +742,8 @@ export default {
       mixedSchedulingHint: 'Enable to participate in Anthropic/Gemini group scheduling',
       mixedSchedulingTooltip:
         '!! WARNING !! Antigravity Claude and Anthropic Claude cannot be used in the same context. If you have both Anthropic and Antigravity accounts, enabling this option will cause frequent 400 errors. When enabled, please use the group feature to isolate Antigravity accounts from Anthropic accounts. Make sure you understand this before enabling!!',
+      fromModel: 'Source model',
+      toModel: 'Target model',
       aiCreditsBalance: 'AI Credits',
       allowOverages: 'Allow Overages (AI Credits)',
       allowOveragesTooltip:
@@ -752,6 +754,9 @@ export default {
       accountUpdated: 'Account updated successfully',
       failedToCreate: 'Failed to create account',
       failedToUpdate: 'Failed to update account',
+      messages: {
+        accountCreated: 'Account created successfully'
+      },
       pleaseSelectStatus: 'Please select a valid account status',
       mixedChannelWarningTitle: 'Mixed Channel Warning',
       mixedChannelWarning: 'Warning: Group "{groupName}" contains both {currentPlatform} and {otherPlatform} accounts. Mixing different channels may cause thinking block signature validation issues, which will fallback to non-thinking mode. Are you sure you want to continue?',
@@ -865,6 +870,8 @@ export default {
               'No proxy is configured and this server could not reach OpenAI directly, so the OpenAI OAuth request failed. Select a proxy that can access OpenAI and retry; if the authorization code has expired, regenerate the authorization URL.'
           },
           // Refresh Token auth
+          mobileRefreshTokenAuth: 'Mobile Refresh Token',
+          accessTokenAuth: 'Access Token',
           refreshTokenAuth: 'Manual RT Input',
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',

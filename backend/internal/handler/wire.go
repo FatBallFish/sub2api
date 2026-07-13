@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -101,6 +102,31 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 	return h
 }
 
+// ProvideAdminSubscriptionHandler creates admin.SubscriptionHandler with global plan support.
+func ProvideAdminSubscriptionHandler(subscriptionService *service.SubscriptionService, entClient *ent.Client) *admin.SubscriptionHandler {
+	return admin.NewSubscriptionHandler(subscriptionService, service.NewGlobalPlanService(entClient))
+}
+
+// ProvideGlobalPlanService creates user global plan service.
+func ProvideGlobalPlanService(entClient *ent.Client) *service.GlobalPlanService {
+	return service.NewGlobalPlanService(entClient)
+}
+
+// ProvidePaymentHandler creates user-facing PaymentHandler with optional dependencies.
+func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, channelService *service.ChannelService, billingService *service.BillingService, modelPricingDisplay *service.ModelPricingDisplayService) *PaymentHandler {
+	return NewPaymentHandler(paymentService, configService, channelService, billingService, modelPricingDisplay)
+}
+
+// ProvideAdminChannelHandler creates admin.ChannelHandler with optional display pricing support.
+func ProvideAdminChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService, modelPricingDisplay *service.ModelPricingDisplayService) *admin.ChannelHandler {
+	return admin.NewChannelHandler(channelService, billingService, pricingService, modelPricingDisplay)
+}
+
+// ProvideConsoleHandler creates ConsoleHandler with optional console dependencies wired explicitly.
+func ProvideConsoleHandler(userService *service.UserService, paymentConfig *service.PaymentConfigService, affiliateService *service.AffiliateService, usageService *service.UsageService, apiKeyService *service.APIKeyService, announcementService *service.AnnouncementService, globalPlanService *service.GlobalPlanService, paymentService *service.PaymentService, settingService *service.SettingService) *ConsoleHandler {
+	return NewConsoleHandler(userService, paymentConfig, affiliateService, usageService, apiKeyService, announcementService, globalPlanService, paymentService, settingService)
+}
+
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
 	authHandler *AuthHandler,
@@ -118,9 +144,11 @@ func ProvideHandlers(
 	totpHandler *TotpHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
+	modelPricingHandler *ModelPricingHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	consoleHandler *ConsoleHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -140,9 +168,11 @@ func ProvideHandlers(
 		Totp:             totpHandler,
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
+		ModelPricing:     modelPricingHandler,
 		AvailableChannel: availableChannelHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Console:          consoleHandler,
 	}
 }
 
@@ -161,11 +191,14 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayHandler,
 	NewTotpHandler,
 	ProvideSettingHandler,
-	NewPaymentHandler,
+	ProvidePaymentHandler,
 	NewPaymentWebhookHandler,
+	NewModelPricingHandler,
 	NewAvailableChannelHandler,
 	NewAsyncImageHandler,
 	NewBatchImageHandler,
+	ProvideGlobalPlanService,
+	ProvideConsoleHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -186,14 +219,14 @@ var ProviderSet = wire.NewSet(
 	ProvideAdminSettingHandler,
 	admin.NewOpsHandler,
 	ProvideSystemHandler,
-	admin.NewSubscriptionHandler,
+	ProvideAdminSubscriptionHandler,
 	admin.NewUsageHandler,
 	admin.NewUserAttributeHandler,
 	admin.NewErrorPassthroughHandler,
 	admin.NewTLSFingerprintProfileHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,
-	admin.NewChannelHandler,
+	ProvideAdminChannelHandler,
 	admin.NewChannelMonitorHandler,
 	admin.NewChannelMonitorRequestTemplateHandler,
 	admin.NewContentModerationHandler,

@@ -491,6 +491,12 @@ type UsageLog struct {
 	RateMultiplier            float64 `json:"rate_multiplier"`
 	LongContextBillingApplied bool    `json:"long_context_billing_applied"`
 
+	FundingSource            string  `json:"funding_source"`
+	GlobalPlanSubscriptionID *int64  `json:"global_plan_subscription_id"`
+	GlobalPlanCost           float64 `json:"global_plan_cost"`
+	BalanceCost              float64 `json:"balance_cost"`
+	GroupSubscriptionCost    float64 `json:"group_subscription_cost"`
+
 	BillingType  int8   `json:"billing_type"`
 	RequestType  string `json:"request_type"`
 	Stream       bool   `json:"stream"`

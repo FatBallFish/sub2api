@@ -1,5 +1,6 @@
 docs/claude-relay-service/
 .codex
+.playwright-mcp/
 
 # ===================
 # Go 后端
@@ -143,3 +144,6 @@ docs/*
 frontend/coverage/
 aicodex
 output/
+
+# Mikiko Pool has moved to the standalone account_pool_console repository.
+/mikiko-pool/

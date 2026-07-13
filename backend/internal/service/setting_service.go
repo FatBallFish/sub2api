@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -252,6 +255,134 @@ func (s *SettingService) SetOnUpdateCallback(callback func()) {
 // SetVersion sets the application version for injection into public settings
 func (s *SettingService) SetVersion(version string) {
 	s.version = version
+}
+
+func (s *SettingService) GetAffiliateInviterSignupReward(ctx context.Context) float64 {
+	return s.getNonNegativeFloatSetting(ctx, SettingKeyAffiliateInviterSignupReward, AffiliateInviterSignupRewardDefault)
+}
+
+func (s *SettingService) GetAffiliateInviterSignupRewardCap(ctx context.Context) float64 {
+	return s.getNonNegativeFloatSetting(ctx, SettingKeyAffiliateInviterSignupRewardCap, AffiliateInviterSignupRewardCapDefault)
+}
+
+func (s *SettingService) GetAffiliateInviteeSignupReward(ctx context.Context) float64 {
+	return s.getNonNegativeFloatSetting(ctx, SettingKeyAffiliateInviteeSignupReward, AffiliateInviteeSignupRewardDefault)
+}
+
+func (s *SettingService) IsRegionBlockEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegionBlockEnabled)
+	if err != nil {
+		return RegionBlockEnabledDefault
+	}
+	return strings.TrimSpace(value) == "true"
+}
+
+func (s *SettingService) IsRegionBlockFrontendEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegionBlockFrontendEnabled)
+	if err != nil {
+		return RegionBlockFrontendEnabledDefault
+	}
+	return strings.TrimSpace(value) == "true"
+}
+
+func (s *SettingService) IsRegionBlockAPIEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegionBlockAPIEnabled)
+	if err != nil {
+		return RegionBlockAPIEnabledDefault
+	}
+	return strings.TrimSpace(value) == "true"
+}
+
+func (s *SettingService) GetRegionBlockCodes(ctx context.Context) []string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegionBlockCodes)
+	if err != nil {
+		value = RegionBlockCodesDefault
+	}
+	return parseCSVSetting(value)
+}
+
+func (s *SettingService) GetRegionBlockHeaders(ctx context.Context) []string {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyRegionBlockHeaders)
+	if err != nil || strings.TrimSpace(value) == "" {
+		value = RegionBlockHeadersDefault
+	}
+	return parseCSVSetting(value)
+}
+
+type RegionBlockEvaluation struct {
+	Enabled bool
+	Blocked bool
+	Region  string
+}
+
+func (s *SettingService) EvaluateRegionBlock(ctx context.Context, headers map[string]string) RegionBlockEvaluation {
+	result := RegionBlockEvaluation{Enabled: s != nil && s.IsRegionBlockEnabled(ctx)}
+	if !result.Enabled || s == nil {
+		return result
+	}
+
+	blocked := make(map[string]struct{})
+	for _, code := range s.GetRegionBlockCodes(ctx) {
+		code = strings.ToUpper(strings.TrimSpace(code))
+		if code != "" {
+			blocked[code] = struct{}{}
+		}
+	}
+	if len(blocked) == 0 {
+		return result
+	}
+
+	for _, header := range s.GetRegionBlockHeaders(ctx) {
+		region := strings.ToUpper(strings.TrimSpace(headers[strings.ToLower(strings.TrimSpace(header))]))
+		if region == "" {
+			continue
+		}
+		result.Region = region
+		if _, ok := blocked[region]; ok {
+			result.Blocked = true
+		}
+		return result
+	}
+	return result
+}
+
+func (s *SettingService) getNonNegativeFloatSetting(ctx context.Context, key string, fallback float64) float64 {
+	raw, err := s.settingRepo.GetValue(ctx, key)
+	if err != nil {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return fallback
+	}
+	return value
+}
+
+func parseCSVSetting(raw string) []string {
+	parts := strings.Split(raw, ",")
+	values := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		value := strings.TrimSpace(part)
+		if value == "" {
+			continue
+		}
+		key := strings.ToUpper(value)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		values = append(values, value)
+	}
+	return values
+}
+
+func normalizeCSVSetting(raw, fallback string) string {
+	values := parseCSVSetting(raw)
+	if len(values) == 0 {
+		values = parseCSVSetting(fallback)
+	}
+	return strings.Join(values, ",")
 }
 
 // getStringOrDefault 获取字符串值或默认值

@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -29,12 +30,20 @@ func toResponsePagination(p *pagination.PaginationResult) *response.PaginationRe
 // SubscriptionHandler handles admin subscription management
 type SubscriptionHandler struct {
 	subscriptionService *service.SubscriptionService
+	globalPlanService   *service.GlobalPlanService
 }
 
 // NewSubscriptionHandler creates a new admin subscription handler
-func NewSubscriptionHandler(subscriptionService *service.SubscriptionService) *SubscriptionHandler {
+func NewSubscriptionHandler(subscriptionService *service.SubscriptionService, optionalDeps ...any) *SubscriptionHandler {
+	var globalPlanService *service.GlobalPlanService
+	for _, dep := range optionalDeps {
+		if typed, ok := dep.(*service.GlobalPlanService); ok {
+			globalPlanService = typed
+		}
+	}
 	return &SubscriptionHandler{
 		subscriptionService: subscriptionService,
+		globalPlanService:   globalPlanService,
 	}
 }
 
@@ -44,6 +53,13 @@ type AssignSubscriptionRequest struct {
 	GroupID      int64  `json:"group_id" binding:"required"`
 	ValidityDays int    `json:"validity_days" binding:"omitempty,max=36500"` // max 100 years
 	Notes        string `json:"notes"`
+}
+
+// AssignGlobalPlanRequest represents assign global plan request.
+type AssignGlobalPlanRequest struct {
+	UserID int64  `json:"user_id" binding:"required"`
+	PlanID int64  `json:"plan_id" binding:"required"`
+	Notes  string `json:"notes"`
 }
 
 // BulkAssignSubscriptionRequest represents bulk assign subscription request
@@ -94,6 +110,33 @@ func (h *SubscriptionHandler) List(c *gin.Context) {
 		out = append(out, *dto.UserSubscriptionFromServiceAdmin(&subscriptions[i]))
 	}
 	response.PaginatedWithResult(c, out, toResponsePagination(pagination))
+}
+
+// ListGlobalPlans handles listing user global plan assignments.
+// GET /api/v1/admin/subscriptions/global-plans
+func (h *SubscriptionHandler) ListGlobalPlans(c *gin.Context) {
+	if h.globalPlanService == nil {
+		response.BadRequest(c, "Global plan service is not available")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	var userID *int64
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if id, err := strconv.ParseInt(userIDStr, 10, 64); err == nil {
+			userID = &id
+		}
+	}
+	rows, paginationResult, err := h.globalPlanService.ListAdminAssignments(
+		c.Request.Context(),
+		pagination.PaginationParams{Page: page, PageSize: pageSize},
+		userID,
+		c.Query("status"),
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.PaginatedWithResult(c, rows, toResponsePagination(paginationResult))
 }
 
 // GetByID handles getting a subscription by ID
@@ -157,6 +200,96 @@ func (h *SubscriptionHandler) Assign(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserSubscriptionFromServiceAdmin(subscription))
+}
+
+// AssignGlobalPlan handles assigning a global plan to a user.
+// POST /api/v1/admin/subscriptions/global-plan/assign
+func (h *SubscriptionHandler) AssignGlobalPlan(c *gin.Context) {
+	if h.globalPlanService == nil {
+		response.BadRequest(c, "Global plan service is not available")
+		return
+	}
+	var req AssignGlobalPlanRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	adminID := getAdminIDFromContext(c)
+	subscription, err := h.globalPlanService.Assign(c.Request.Context(), service.AssignGlobalPlanInput{
+		UserID:     req.UserID,
+		PlanID:     req.PlanID,
+		AssignedBy: adminID,
+		Notes:      req.Notes,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, subscription)
+}
+
+// ExtendGlobalPlan handles adjusting a global plan assignment.
+// POST /api/v1/admin/subscriptions/global-plans/:id/extend
+func (h *SubscriptionHandler) ExtendGlobalPlan(c *gin.Context) {
+	if h.globalPlanService == nil {
+		response.BadRequest(c, "Global plan service is not available")
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	var req AdjustSubscriptionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	subscription, err := h.globalPlanService.Adjust(c.Request.Context(), subscriptionID, req.Days, time.Now().UTC())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, subscription)
+}
+
+// ResetGlobalPlanQuota resets the current global plan quota window usage.
+// POST /api/v1/admin/subscriptions/global-plans/:id/reset-quota
+func (h *SubscriptionHandler) ResetGlobalPlanQuota(c *gin.Context) {
+	if h.globalPlanService == nil {
+		response.BadRequest(c, "Global plan service is not available")
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	subscription, err := h.globalPlanService.ResetQuota(c.Request.Context(), subscriptionID, time.Now().UTC())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, subscription)
+}
+
+// RevokeGlobalPlan handles revoking a global plan assignment.
+// DELETE /api/v1/admin/subscriptions/global-plans/:id
+func (h *SubscriptionHandler) RevokeGlobalPlan(c *gin.Context) {
+	if h.globalPlanService == nil {
+		response.BadRequest(c, "Global plan service is not available")
+		return
+	}
+	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid subscription ID")
+		return
+	}
+	if err := h.globalPlanService.Revoke(c.Request.Context(), subscriptionID, time.Now().UTC()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "Global plan assignment revoked successfully"})
 }
 
 // BulkAssign handles bulk assigning subscriptions to multiple users

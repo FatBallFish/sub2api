@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --color-brand-primary: #000000;
+  --color-brand-secondary: #666666;
+}
+
+@layer base {
+  * {
+    @apply border-zinc-200 outline-zinc-500;
+  }
+  body {
+    @apply bg-white text-zinc-900 antialiased;
+    font-family: var(--font-sans);
+  }
+
+  .markdown-content h1 {
+    @apply mb-4 mt-8 text-3xl font-bold text-zinc-900;
+  }
+
+  .markdown-content h2 {
+    @apply mb-3 mt-7 text-2xl font-bold text-zinc-900;
+  }
+
+  .markdown-content h3 {
+    @apply mb-2 mt-6 text-xl font-semibold text-zinc-900;
+  }
+
+  .markdown-content h4 {
+    @apply mb-2 mt-5 text-lg font-semibold text-zinc-900;
+  }
+
+  .markdown-content p {
+    @apply mb-4;
+  }
+
+  .markdown-content ul {
+    @apply mb-4 list-disc pl-6;
+  }
+
+  .markdown-content li {
+    @apply mb-1;
+  }
+
+  .markdown-content strong {
+    @apply font-semibold text-zinc-900;
+  }
+
+  .markdown-content code {
+    @apply rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs text-zinc-900;
+  }
+}
+
+@layer components {
+  .console-shell.console-theme-dark {
+    color-scheme: dark;
+    background-color: #09090b;
+    color: #e4e4e7;
+  }
+
+  .console-shell .console-main {
+    background-color: #fafafa;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .console-shell.console-theme-dark .console-main {
+    background-color: #09090b !important;
+  }
+
+  .console-shell.console-theme-dark .console-page {
+    background-color: #09090b;
+    min-height: calc(100vh - 4rem);
+  }
+
+  .console-theme-dark .bg-white,
+  .console-theme-dark .bg-white\/80 {
+    background-color: #18181b !important;
+  }
+
+  .console-theme-dark .bg-zinc-50,
+  .console-theme-dark .bg-zinc-50\/50,
+  .console-theme-dark .hover\:bg-zinc-50:hover {
+    background-color: #09090b !important;
+  }
+
+  .console-theme-dark .bg-zinc-100,
+  .console-theme-dark .hover\:bg-zinc-100:hover,
+  .console-theme-dark .hover\:bg-zinc-200:hover {
+    background-color: #27272a !important;
+  }
+
+  .console-theme-dark .bg-zinc-900 {
+    background-color: #f4f4f5 !important;
+    color: #18181b !important;
+  }
+
+  .console-shell.console-theme-dark .console-credit-card .console-credit-balance {
+    color: #18181b !important;
+  }
+
+  .console-shell.console-theme-dark .console-credit-card .console-credit-unit,
+  .console-shell.console-theme-dark .console-credit-card .text-zinc-400,
+  .console-shell.console-theme-dark .console-credit-card .text-zinc-500,
+  .console-shell.console-theme-dark .console-credit-card .text-zinc-600 {
+    color: #52525b !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-panel {
+    background-color: #f4f4f5 !important;
+    border-color: #d4d4d8 !important;
+    color: #18181b !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-panel .text-white,
+  .console-shell.console-theme-dark .console-inverted-panel .text-zinc-200,
+  .console-shell.console-theme-dark .console-inverted-panel .text-zinc-300,
+  .console-shell.console-theme-dark .console-inverted-panel .text-zinc-400,
+  .console-shell.console-theme-dark .console-inverted-panel .console-inverted-code,
+  .console-shell.console-theme-dark .console-inverted-panel .console-inverted-copy,
+  .console-shell.console-theme-dark .console-inverted-panel .console-inverted-strong {
+    color: #18181b !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-panel .text-zinc-500,
+  .console-shell.console-theme-dark .console-inverted-panel .console-inverted-copy p,
+  .console-shell.console-theme-dark .console-inverted-panel .console-inverted-copy li {
+    color: #52525b !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-subtle,
+  .console-shell.console-theme-dark .console-inverted-label {
+    background-color: #e4e4e7 !important;
+    border-color: #c4c4c7 !important;
+    color: #27272a !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-action {
+    background-color: #18181b !important;
+    color: #f4f4f5 !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-action:hover:not(:disabled) {
+    background-color: #27272a !important;
+  }
+
+  .console-shell.console-theme-dark .console-inverted-action:disabled {
+    background-color: #a1a1aa !important;
+    color: #52525b !important;
+  }
+
+  .console-shell.console-theme-dark .console-announcement-copy,
+  .console-shell.console-theme-dark .console-announcement-copy h1,
+  .console-shell.console-theme-dark .console-announcement-copy h2,
+  .console-shell.console-theme-dark .console-announcement-copy h3,
+  .console-shell.console-theme-dark .console-announcement-copy h4,
+  .console-shell.console-theme-dark .console-announcement-copy p,
+  .console-shell.console-theme-dark .console-announcement-copy li,
+  .console-shell.console-theme-dark .console-announcement-copy em,
+  .console-shell.console-theme-dark .console-announcement-copy strong {
+    color: #a1a1aa !important;
+  }
+
+  .console-shell.console-theme-dark .console-announcement-copy code {
+    background-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+
+  .console-shell.console-theme-dark .console-formula-note {
+    background-color: #18181b !important;
+    border-color: #3f3f46 !important;
+  }
+
+  .console-shell.console-theme-dark .console-formula-code {
+    background-color: #27272a !important;
+    color: #f4f4f5 !important;
+  }
+
+  .console-theme-dark .bg-zinc-800 {
+    background-color: #27272a !important;
+  }
+
+  .console-theme-dark .border-zinc-100,
+  .console-theme-dark .border-zinc-200,
+  .console-theme-dark .border-zinc-200\/50,
+  .console-theme-dark .border-zinc-300 {
+    border-color: #3f3f46 !important;
+  }
+
+  .console-theme-dark .divide-zinc-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #27272a !important;
+  }
+
+  .console-theme-dark .text-zinc-900,
+  .console-theme-dark .hover\:text-zinc-900:hover {
+    color: #f4f4f5 !important;
+  }
+
+  .console-theme-dark .text-zinc-700 {
+    color: #d4d4d8 !important;
+  }
+
+  .console-theme-dark .text-zinc-600,
+  .console-theme-dark .text-zinc-500,
+  .console-theme-dark .text-zinc-400,
+  .console-theme-dark .hover\:text-zinc-400:hover {
+    color: #a1a1aa !important;
+  }
+
+  .console-theme-dark .text-zinc-300 {
+    color: #71717a !important;
+  }
+
+  .console-theme-dark input,
+  .console-theme-dark select,
+  .console-theme-dark textarea {
+    background-color: #09090b !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+  }
+
+  .console-theme-dark input::placeholder,
+  .console-theme-dark textarea::placeholder {
+    color: #71717a !important;
+  }
+
+  .console-theme-dark .shadow-sm,
+  .console-theme-dark .shadow-lg,
+  .console-theme-dark .shadow-xl {
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35) !important;
+  }
+}

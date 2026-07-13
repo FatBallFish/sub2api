@@ -309,8 +309,23 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		}
 	}
 
+	applyUsageBillingResultToLog(usageLog, result)
 	finalizePostUsageBilling(billingCtx, p, deps, result)
 	return true, nil
+}
+
+func applyUsageBillingResultToLog(usageLog *UsageLog, result *UsageBillingApplyResult) {
+	if usageLog == nil || result == nil {
+		return
+	}
+	usageLog.FundingSource = result.FundingSource
+	if result.GlobalPlanSubscriptionID != nil {
+		globalPlanSubscriptionID := *result.GlobalPlanSubscriptionID
+		usageLog.GlobalPlanSubscriptionID = &globalPlanSubscriptionID
+	}
+	usageLog.GlobalPlanCost = result.GlobalPlanCost
+	usageLog.BalanceCost = result.BalanceCost
+	usageLog.GroupSubscriptionCost = result.GroupSubscriptionCost
 }
 
 func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
@@ -322,7 +337,7 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 		if p.Cost.ActualCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
 			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, p.Cost.ActualCost)
 		}
-	} else if p.Cost.ActualCost > 0 && p.User != nil {
+	} else if balanceDeductionCost(p, result) > 0 && p.User != nil {
 		syncBalanceCacheAfterDeduction(ctx, p, deps, result)
 	}
 
@@ -387,7 +402,7 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 		}
 		return
 	}
-	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+	deps.billingCacheService.QueueDeductBalance(p.User.ID, balanceDeductionCost(p, result))
 }
 
 // notifyBalanceLow sends balance low notification after deduction.
@@ -399,10 +414,12 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 			slog.Error("panic in notifyBalanceLow", "recover", r)
 		}
 	}()
-	if p.IsSubscriptionBill || p.Cost.ActualCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
+	balanceCost := balanceDeductionCost(p, result)
+	if balanceCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
 		slog.Debug("notifyBalanceLow: skipped",
 			"is_subscription", p.IsSubscriptionBill,
 			"actual_cost", p.Cost.ActualCost,
+			"balance_cost", balanceCost,
 			"user_nil", p.User == nil,
 			"service_nil", deps.balanceNotifyService == nil,
 		)
@@ -413,22 +430,42 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 	slog.Debug("notifyBalanceLow: calling CheckBalanceAfterDeduction",
 		"user_id", p.User.ID,
 		"old_balance", oldBalance,
-		"cost", p.Cost.ActualCost,
+		"cost", balanceCost,
 		"notify_enabled", p.User.BalanceNotifyEnabled,
 		"threshold", p.User.BalanceNotifyThreshold,
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
-	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, p.Cost.ActualCost)
+	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, balanceCost)
 }
 
 // resolveOldBalance returns the pre-deduction balance.
 // Prefers the DB transaction result (newBalance + cost) over snapshot.
 func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
 	if result != nil && result.NewBalance != nil {
-		return *result.NewBalance + p.Cost.ActualCost
+		return *result.NewBalance + balanceDeductionCost(p, result)
 	}
 	// Legacy fallback: snapshot balance from request context
 	return p.User.Balance
+}
+
+func balanceDeductionCost(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
+	if p == nil || p.Cost == nil || p.IsSubscriptionBill {
+		return 0
+	}
+	if result == nil {
+		return p.Cost.ActualCost
+	}
+	if result.BalanceCost > 0 {
+		return result.BalanceCost
+	}
+	switch result.FundingSource {
+	case "":
+		return p.Cost.ActualCost
+	case UsageFundingSourceBalance:
+		return p.Cost.ActualCost
+	default:
+		return 0
+	}
 }
 
 // notifyAccountQuota sends account quota threshold notification after increment.
