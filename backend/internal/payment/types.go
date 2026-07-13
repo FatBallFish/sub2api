@@ -20,6 +20,7 @@ const (
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
 	TypeJeepay       PaymentType = "jeepay"
+	TypeCreem        PaymentType = "creem"
 )
 
 // Order status constants shared across payment and service layers.
@@ -65,6 +66,11 @@ const (
 	NotificationStatusPaid    = "paid"
 )
 
+const (
+	NotificationTypePayment = "payment"
+	NotificationTypeRefund  = "refund"
+)
+
 // Provider-level status constants returned by provider implementations
 // to the service layer (lowercase, distinct from OrderStatus uppercase constants).
 const (
@@ -92,6 +98,8 @@ func GetBasePaymentType(t string) string {
 		return TypeAirwallex
 	case t == TypeJeepay:
 		return TypeJeepay
+	case t == TypeCreem:
+		return TypeCreem
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
 	case t == TypePaypal:
@@ -117,6 +125,9 @@ type CreatePaymentRequest struct {
 	ClientIP           string // Payer's IP address
 	IsMobile           bool   // Whether the request comes from a mobile device
 	InstanceSubMethods string // Comma-separated sub-methods from instance supported_types (for Stripe)
+	ProductID          string // Fixed upstream product ID (Creem)
+	CustomerEmail      string // Customer email to pre-fill hosted checkout
+	Metadata           map[string]string
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.
@@ -174,12 +185,18 @@ type QueryOrderResponse struct {
 
 // PaymentNotification is the parsed result of a webhook/notify callback.
 type PaymentNotification struct {
-	TradeNo  string
-	OrderID  string
-	Amount   float64
-	Status   string // "success" or "failed"
-	RawData  string // Raw notification body for audit
-	Metadata map[string]string
+	Type                       string
+	EventID                    string
+	TradeNo                    string
+	OrderID                    string
+	Amount                     float64
+	Status                     string // "success" or "failed"
+	RawData                    string // Raw notification body for audit
+	Metadata                   map[string]string
+	RefundID                   string
+	RefundAmountMinor          int64
+	CumulativeRefundedMinor    int64
+	TransactionAmountPaidMinor int64
 }
 
 // RefundRequest contains the parameters for requesting a refund.

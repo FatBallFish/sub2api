@@ -9,7 +9,8 @@ import type {
   PaymentOrder,
   PaymentChannel,
   SubscriptionPlan,
-  ProviderInstance
+  ProviderInstance,
+	CreemProductBinding
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -191,7 +192,27 @@ export const adminPaymentAPI = {
   /** Delete a provider instance */
   deleteProvider(id: number) {
     return apiClient.delete(`/admin/payment/providers/${id}`)
-  }
+	},
+
+	getCreemProducts(providerId: number) {
+		return apiClient.get<CreemProductBinding[]>(`/admin/payment/providers/${providerId}/creem-products`)
+	},
+
+	createCreemProduct(providerId: number, data: Record<string, unknown>) {
+		return apiClient.post<CreemProductBinding>(`/admin/payment/providers/${providerId}/creem-products`, data)
+	},
+
+	updateCreemProduct(providerId: number, bindingId: number, data: Record<string, unknown>) {
+		return apiClient.put<CreemProductBinding>(`/admin/payment/providers/${providerId}/creem-products/${bindingId}`, data)
+	},
+
+	deleteCreemProduct(providerId: number, bindingId: number) {
+		return apiClient.delete(`/admin/payment/providers/${providerId}/creem-products/${bindingId}`)
+	},
+
+	syncCreemProduct(providerId: number, bindingId: number) {
+		return apiClient.post<CreemProductBinding>(`/admin/payment/providers/${providerId}/creem-products/${bindingId}/sync`)
+	}
 }
 
 export default adminPaymentAPI

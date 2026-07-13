@@ -22,6 +22,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/creemproductbinding"
+	"github.com/Wei-Shaw/sub2api/ent/creemrefundevent"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -482,6 +484,60 @@ func (f TraverseChannelMonitorRequestTemplate) Traverse(ctx context.Context, q e
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.ChannelMonitorRequestTemplateQuery", q)
+}
+
+// The CreemProductBindingFunc type is an adapter to allow the use of ordinary function as a Querier.
+type CreemProductBindingFunc func(context.Context, *ent.CreemProductBindingQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f CreemProductBindingFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.CreemProductBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.CreemProductBindingQuery", q)
+}
+
+// The TraverseCreemProductBinding type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseCreemProductBinding func(context.Context, *ent.CreemProductBindingQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseCreemProductBinding) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseCreemProductBinding) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CreemProductBindingQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.CreemProductBindingQuery", q)
+}
+
+// The CreemRefundEventFunc type is an adapter to allow the use of ordinary function as a Querier.
+type CreemRefundEventFunc func(context.Context, *ent.CreemRefundEventQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f CreemRefundEventFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.CreemRefundEventQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.CreemRefundEventQuery", q)
+}
+
+// The TraverseCreemRefundEvent type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseCreemRefundEvent func(context.Context, *ent.CreemRefundEventQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseCreemRefundEvent) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseCreemRefundEvent) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CreemRefundEventQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.CreemRefundEventQuery", q)
 }
 
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1190,6 +1246,10 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ChannelMonitorHistoryQuery, predicate.ChannelMonitorHistory, channelmonitorhistory.OrderOption]{typ: ent.TypeChannelMonitorHistory, tq: q}, nil
 	case *ent.ChannelMonitorRequestTemplateQuery:
 		return &query[*ent.ChannelMonitorRequestTemplateQuery, predicate.ChannelMonitorRequestTemplate, channelmonitorrequesttemplate.OrderOption]{typ: ent.TypeChannelMonitorRequestTemplate, tq: q}, nil
+	case *ent.CreemProductBindingQuery:
+		return &query[*ent.CreemProductBindingQuery, predicate.CreemProductBinding, creemproductbinding.OrderOption]{typ: ent.TypeCreemProductBinding, tq: q}, nil
+	case *ent.CreemRefundEventQuery:
+		return &query[*ent.CreemRefundEventQuery, predicate.CreemRefundEvent, creemrefundevent.OrderOption]{typ: ent.TypeCreemRefundEvent, tq: q}, nil
 	case *ent.ErrorPassthroughRuleQuery:
 		return &query[*ent.ErrorPassthroughRuleQuery, predicate.ErrorPassthroughRule, errorpassthroughrule.OrderOption]{typ: ent.TypeErrorPassthroughRule, tq: q}, nil
 	case *ent.GroupQuery:

@@ -363,7 +363,12 @@ func (h *PaymentHandler) CreateProvider(c *gin.Context) {
 		return
 	}
 	h.paymentService.RefreshProviders(c.Request.Context())
-	response.Created(c, inst)
+	masked, err := h.configService.GetProviderInstanceWithConfig(c.Request.Context(), inst.ID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Created(c, masked)
 }
 
 // UpdateProvider updates an existing payment provider instance.
@@ -384,7 +389,12 @@ func (h *PaymentHandler) UpdateProvider(c *gin.Context) {
 		return
 	}
 	h.paymentService.RefreshProviders(c.Request.Context())
-	response.Success(c, inst)
+	masked, err := h.configService.GetProviderInstanceWithConfig(c.Request.Context(), inst.ID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, masked)
 }
 
 // DeleteProvider deletes a payment provider instance.
@@ -400,6 +410,92 @@ func (h *PaymentHandler) DeleteProvider(c *gin.Context) {
 	}
 	h.paymentService.RefreshProviders(c.Request.Context())
 	response.Success(c, gin.H{"message": "deleted"})
+}
+
+func (h *PaymentHandler) ListCreemProducts(c *gin.Context) {
+	providerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	bindings, err := h.configService.ListCreemBindings(c.Request.Context(), providerID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, bindings)
+}
+
+func (h *PaymentHandler) CreateCreemProduct(c *gin.Context) {
+	providerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	var req service.CreateCreemBindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	binding, err := h.configService.CreateCreemBinding(c.Request.Context(), providerID, req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Created(c, binding)
+}
+
+func (h *PaymentHandler) UpdateCreemProduct(c *gin.Context) {
+	providerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	bindingID, ok := parseIDParam(c, "binding_id")
+	if !ok {
+		return
+	}
+	var req service.UpdateCreemBindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	binding, err := h.configService.UpdateCreemBinding(c.Request.Context(), providerID, bindingID, req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, binding)
+}
+
+func (h *PaymentHandler) DeleteCreemProduct(c *gin.Context) {
+	providerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	bindingID, ok := parseIDParam(c, "binding_id")
+	if !ok {
+		return
+	}
+	if err := h.configService.DeleteCreemBinding(c.Request.Context(), providerID, bindingID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"message": "deleted"})
+}
+
+func (h *PaymentHandler) SyncCreemProduct(c *gin.Context) {
+	providerID, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+	bindingID, ok := parseIDParam(c, "binding_id")
+	if !ok {
+		return
+	}
+	binding, err := h.configService.SyncCreemBinding(c.Request.Context(), providerID, bindingID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, binding)
 }
 
 // parseIDParam parses an int64 path parameter.

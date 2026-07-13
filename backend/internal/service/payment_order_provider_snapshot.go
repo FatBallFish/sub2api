@@ -248,6 +248,24 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 				return fmt.Errorf("jeepay currency mismatch: expected %s, got %s", expected, actual)
 			}
 		}
+	case payment.TypeCreem:
+		expectedProduct := psSnapshotStringValue(order.ProviderSnapshot["creem_product_id"])
+		actualProduct := strings.TrimSpace(metadata["product_id"])
+		if expectedProduct == "" || actualProduct == "" || expectedProduct != actualProduct {
+			return fmt.Errorf("creem product mismatch: expected %s, got %s", expectedProduct, actualProduct)
+		}
+		if expected := strings.TrimSpace(snapshot.ProviderInstanceID); expected != "" {
+			actual := strings.TrimSpace(metadata["provider_instance_id"])
+			if actual == "" || expected != actual {
+				return fmt.Errorf("creem provider instance mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.Currency); expected != "" {
+			actual := strings.ToUpper(strings.TrimSpace(metadata["currency"]))
+			if actual == "" || !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("creem currency mismatch: expected %s, got %s", expected, actual)
+			}
+		}
 	}
 
 	return nil

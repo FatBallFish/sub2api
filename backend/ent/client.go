@@ -29,6 +29,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/creemproductbinding"
+	"github.com/Wei-Shaw/sub2api/ent/creemrefundevent"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -91,6 +93,10 @@ type Client struct {
 	ChannelMonitorHistory *ChannelMonitorHistoryClient
 	// ChannelMonitorRequestTemplate is the client for interacting with the ChannelMonitorRequestTemplate builders.
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
+	// CreemProductBinding is the client for interacting with the CreemProductBinding builders.
+	CreemProductBinding *CreemProductBindingClient
+	// CreemRefundEvent is the client for interacting with the CreemRefundEvent builders.
+	CreemRefundEvent *CreemRefundEventClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -166,6 +172,8 @@ func (c *Client) init() {
 	c.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(c.config)
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
 	c.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(c.config)
+	c.CreemProductBinding = NewCreemProductBindingClient(c.config)
+	c.CreemRefundEvent = NewCreemRefundEventClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -297,6 +305,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		CreemProductBinding:           NewCreemProductBindingClient(cfg),
+		CreemRefundEvent:              NewCreemRefundEventClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -355,6 +365,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		CreemProductBinding:           NewCreemProductBindingClient(cfg),
+		CreemRefundEvent:              NewCreemRefundEventClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -413,12 +425,12 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.CreemProductBinding, c.CreemRefundEvent, c.ErrorPassthroughRule, c.Group,
+		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
+		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserGlobalPlanSubscription, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
@@ -433,12 +445,12 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.CreemProductBinding, c.CreemRefundEvent, c.ErrorPassthroughRule, c.Group,
+		c.IdempotencyRecord, c.IdentityAdoptionDecision, c.PaymentAuditLog,
+		c.PaymentOrder, c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode,
+		c.PromoCodeUsage, c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting,
+		c.SubscriptionPlan, c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog,
+		c.User, c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
 		c.UserGlobalPlanSubscription, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
@@ -476,6 +488,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelMonitorHistory.mutate(ctx, m)
 	case *ChannelMonitorRequestTemplateMutation:
 		return c.ChannelMonitorRequestTemplate.mutate(ctx, m)
+	case *CreemProductBindingMutation:
+		return c.CreemProductBinding.mutate(ctx, m)
+	case *CreemRefundEventMutation:
+		return c.CreemRefundEvent.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -2729,6 +2745,272 @@ func (c *ChannelMonitorRequestTemplateClient) mutate(ctx context.Context, m *Cha
 		return (&ChannelMonitorRequestTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown ChannelMonitorRequestTemplate mutation op: %q", m.Op())
+	}
+}
+
+// CreemProductBindingClient is a client for the CreemProductBinding schema.
+type CreemProductBindingClient struct {
+	config
+}
+
+// NewCreemProductBindingClient returns a client for the CreemProductBinding from the given config.
+func NewCreemProductBindingClient(c config) *CreemProductBindingClient {
+	return &CreemProductBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creemproductbinding.Hooks(f(g(h())))`.
+func (c *CreemProductBindingClient) Use(hooks ...Hook) {
+	c.hooks.CreemProductBinding = append(c.hooks.CreemProductBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creemproductbinding.Intercept(f(g(h())))`.
+func (c *CreemProductBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreemProductBinding = append(c.inters.CreemProductBinding, interceptors...)
+}
+
+// Create returns a builder for creating a CreemProductBinding entity.
+func (c *CreemProductBindingClient) Create() *CreemProductBindingCreate {
+	mutation := newCreemProductBindingMutation(c.config, OpCreate)
+	return &CreemProductBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreemProductBinding entities.
+func (c *CreemProductBindingClient) CreateBulk(builders ...*CreemProductBindingCreate) *CreemProductBindingCreateBulk {
+	return &CreemProductBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreemProductBindingClient) MapCreateBulk(slice any, setFunc func(*CreemProductBindingCreate, int)) *CreemProductBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreemProductBindingCreateBulk{err: fmt.Errorf("calling to CreemProductBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreemProductBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreemProductBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Update() *CreemProductBindingUpdate {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdate)
+	return &CreemProductBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreemProductBindingClient) UpdateOne(_m *CreemProductBinding) *CreemProductBindingUpdateOne {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdateOne, withCreemProductBinding(_m))
+	return &CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreemProductBindingClient) UpdateOneID(id int64) *CreemProductBindingUpdateOne {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdateOne, withCreemProductBindingID(id))
+	return &CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Delete() *CreemProductBindingDelete {
+	mutation := newCreemProductBindingMutation(c.config, OpDelete)
+	return &CreemProductBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreemProductBindingClient) DeleteOne(_m *CreemProductBinding) *CreemProductBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreemProductBindingClient) DeleteOneID(id int64) *CreemProductBindingDeleteOne {
+	builder := c.Delete().Where(creemproductbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreemProductBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Query() *CreemProductBindingQuery {
+	return &CreemProductBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreemProductBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreemProductBinding entity by its id.
+func (c *CreemProductBindingClient) Get(ctx context.Context, id int64) (*CreemProductBinding, error) {
+	return c.Query().Where(creemproductbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreemProductBindingClient) GetX(ctx context.Context, id int64) *CreemProductBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CreemProductBindingClient) Hooks() []Hook {
+	return c.hooks.CreemProductBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreemProductBindingClient) Interceptors() []Interceptor {
+	return c.inters.CreemProductBinding
+}
+
+func (c *CreemProductBindingClient) mutate(ctx context.Context, m *CreemProductBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreemProductBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreemProductBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreemProductBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreemProductBinding mutation op: %q", m.Op())
+	}
+}
+
+// CreemRefundEventClient is a client for the CreemRefundEvent schema.
+type CreemRefundEventClient struct {
+	config
+}
+
+// NewCreemRefundEventClient returns a client for the CreemRefundEvent from the given config.
+func NewCreemRefundEventClient(c config) *CreemRefundEventClient {
+	return &CreemRefundEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creemrefundevent.Hooks(f(g(h())))`.
+func (c *CreemRefundEventClient) Use(hooks ...Hook) {
+	c.hooks.CreemRefundEvent = append(c.hooks.CreemRefundEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creemrefundevent.Intercept(f(g(h())))`.
+func (c *CreemRefundEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreemRefundEvent = append(c.inters.CreemRefundEvent, interceptors...)
+}
+
+// Create returns a builder for creating a CreemRefundEvent entity.
+func (c *CreemRefundEventClient) Create() *CreemRefundEventCreate {
+	mutation := newCreemRefundEventMutation(c.config, OpCreate)
+	return &CreemRefundEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreemRefundEvent entities.
+func (c *CreemRefundEventClient) CreateBulk(builders ...*CreemRefundEventCreate) *CreemRefundEventCreateBulk {
+	return &CreemRefundEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreemRefundEventClient) MapCreateBulk(slice any, setFunc func(*CreemRefundEventCreate, int)) *CreemRefundEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreemRefundEventCreateBulk{err: fmt.Errorf("calling to CreemRefundEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreemRefundEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreemRefundEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Update() *CreemRefundEventUpdate {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdate)
+	return &CreemRefundEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreemRefundEventClient) UpdateOne(_m *CreemRefundEvent) *CreemRefundEventUpdateOne {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdateOne, withCreemRefundEvent(_m))
+	return &CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreemRefundEventClient) UpdateOneID(id int64) *CreemRefundEventUpdateOne {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdateOne, withCreemRefundEventID(id))
+	return &CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Delete() *CreemRefundEventDelete {
+	mutation := newCreemRefundEventMutation(c.config, OpDelete)
+	return &CreemRefundEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreemRefundEventClient) DeleteOne(_m *CreemRefundEvent) *CreemRefundEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreemRefundEventClient) DeleteOneID(id int64) *CreemRefundEventDeleteOne {
+	builder := c.Delete().Where(creemrefundevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreemRefundEventDeleteOne{builder}
+}
+
+// Query returns a query builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Query() *CreemRefundEventQuery {
+	return &CreemRefundEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreemRefundEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreemRefundEvent entity by its id.
+func (c *CreemRefundEventClient) Get(ctx context.Context, id int64) (*CreemRefundEvent, error) {
+	return c.Query().Where(creemrefundevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreemRefundEventClient) GetX(ctx context.Context, id int64) *CreemRefundEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CreemRefundEventClient) Hooks() []Hook {
+	return c.hooks.CreemRefundEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreemRefundEventClient) Interceptors() []Interceptor {
+	return c.inters.CreemRefundEvent
+}
+
+func (c *CreemRefundEventClient) mutate(ctx context.Context, m *CreemRefundEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreemRefundEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreemRefundEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreemRefundEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreemRefundEvent mutation op: %q", m.Op())
 	}
 }
 
@@ -6972,24 +7254,25 @@ type (
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
-		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserGlobalPlanSubscription, UserPlatformQuota,
-		UserSubscription []ent.Hook
+		ChannelMonitorRequestTemplate, CreemProductBinding, CreemRefundEvent,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserGlobalPlanSubscription, UserPlatformQuota, UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
-		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserGlobalPlanSubscription, UserPlatformQuota,
+		ChannelMonitorRequestTemplate, CreemProductBinding, CreemRefundEvent,
+		ErrorPassthroughRule, Group, IdempotencyRecord, IdentityAdoptionDecision,
+		PaymentAuditLog, PaymentOrder, PaymentProviderInstance, PendingAuthSession,
+		PromoCode, PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting,
+		SubscriptionPlan, TLSFingerprintProfile, UsageCleanupTask, UsageLog, User,
+		UserAllowedGroup, UserAttributeDefinition, UserAttributeValue,
+		UserGlobalPlanSubscription, UserPlatformQuota,
 		UserSubscription []ent.Interceptor
 	}
 )

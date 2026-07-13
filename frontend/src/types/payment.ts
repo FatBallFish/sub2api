@@ -19,7 +19,7 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'jeepay' | 'paypal'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'jeepay' | 'paypal' | 'creem'
 
 export type OrderType = 'balance' | 'subscription' | 'global_plan' | 'global_plan_upgrade'
 
@@ -78,6 +78,20 @@ export interface CheckoutInfoResponse {
   stripe_publishable_key: string
   /** When true, Alipay payments on mobile always show the QR code instead of redirecting */
   alipay_force_qrcode?: boolean
+	fixed_offers?: FixedPaymentOffer[]
+}
+
+export interface FixedPaymentOffer {
+	offer_id: number
+	payment_type: 'creem'
+	target_type: 'balance' | 'group_plan' | 'global_plan'
+	plan_id?: number
+	title: string
+	pay_amount: number
+	payment_currency: string
+	credited_amount?: number
+	tax_mode: 'inclusive' | 'exclusive'
+	sort_order: number
 }
 
 // ==================== Orders ====================
@@ -103,6 +117,7 @@ export interface PaymentOrder {
   refund_requested_by?: number
   refund_request_reason?: string
   plan_id?: number
+	offer_id?: number
   provider_instance_id?: string
 }
 
@@ -173,6 +188,27 @@ export interface ProviderInstance {
   sort_order: number
 }
 
+export interface CreemProductBinding {
+	id: number
+	provider_instance_id: number
+	external_product_id: string
+	target_type: 'balance' | 'group_plan' | 'global_plan'
+	plan_id?: number
+	credited_balance?: number
+	product_name: string
+	price_minor: number
+	currency: string
+	billing_type: 'onetime'
+	product_status: string
+	tax_mode: string
+	environment: 'test' | 'prod'
+	enabled: boolean
+	health_status: string
+	health_reason: string
+	sort_order: number
+	last_synced_at?: string
+}
+
 // ==================== Request / Response ====================
 
 export interface CreateOrderRequest {
@@ -181,6 +217,7 @@ export interface CreateOrderRequest {
   payment_type: string
   order_type: string
   plan_id?: number
+	offer_id?: number
   return_url?: string
   payment_source?: string
   openid?: string

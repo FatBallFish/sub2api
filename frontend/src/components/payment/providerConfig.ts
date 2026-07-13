@@ -43,13 +43,14 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   stripe: ['card', 'alipay', 'wxpay', 'link'],
   airwallex: ['airwallex'],
   jeepay: ['alipay', 'wxpay', 'paypal'],
+  creem: ['creem'],
 }
 
 /** Available payment modes for EasyPay providers. */
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 
 /** Fixed display order for user-facing payment methods */
-export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'paypal'] as const
+export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'paypal', 'creem'] as const
 
 export function isBuiltInAlipayMethod(type: string): boolean {
   return type === 'alipay' || type === 'alipay_direct'
@@ -112,6 +113,7 @@ export const WEBHOOK_PATHS: Record<string, string> = {
   stripe: '/api/v1/payment/webhook/stripe',
   airwallex: '/api/v1/payment/webhook/airwallex',
   jeepay: '/api/v1/payment/webhook/jeepay',
+  creem: '/api/v1/payment/webhook/creem',
 }
 
 export const RETURN_PATH = '/payment/result'
@@ -122,6 +124,7 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
   jeepay: { notifyUrl: WEBHOOK_PATHS.jeepay, returnUrl: RETURN_PATH },
+  creem: { notifyUrl: WEBHOOK_PATHS.creem, returnUrl: RETURN_PATH },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
   // airwallex: 不需要回调 URL 配置，Webhook 在空中云汇后台配置。
 }
@@ -173,6 +176,14 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'alipayWayCode', label: '', sensitive: false, optional: true, defaultValue: 'ALI_PC', hintKey: 'admin.settings.payment.field_jeepayAlipayWayCodeHint' },
     { key: 'wxpayWayCode', label: '', sensitive: false, optional: true, defaultValue: 'WX_NATIVE', hintKey: 'admin.settings.payment.field_jeepayWxpayWayCodeHint' },
     { key: 'paypalWayCode', label: '', sensitive: false, optional: true, defaultValue: 'PP_PC', hintKey: 'admin.settings.payment.field_jeepayPaypalWayCodeHint' },
+  ],
+  creem: [
+    { key: 'apiKey', label: 'API Key', sensitive: true },
+    { key: 'webhookSecret', label: 'Webhook Secret', sensitive: true },
+    { key: 'environment', label: 'Environment', sensitive: false, defaultValue: 'test', options: [
+      { value: 'test', label: 'Test' },
+      { value: 'prod', label: 'Production' },
+    ] },
   ],
 }
 

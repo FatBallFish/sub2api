@@ -19,6 +19,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/creemproductbinding"
+	"github.com/Wei-Shaw/sub2api/ent/creemrefundevent"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -866,6 +868,234 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	creemproductbindingFields := schema.CreemProductBinding{}.Fields()
+	_ = creemproductbindingFields
+	// creemproductbindingDescExternalProductID is the schema descriptor for external_product_id field.
+	creemproductbindingDescExternalProductID := creemproductbindingFields[1].Descriptor()
+	// creemproductbinding.ExternalProductIDValidator is a validator for the "external_product_id" field. It is called by the builders before save.
+	creemproductbinding.ExternalProductIDValidator = func() func(string) error {
+		validators := creemproductbindingDescExternalProductID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(external_product_id string) error {
+			for _, fn := range fns {
+				if err := fn(external_product_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemproductbindingDescTargetType is the schema descriptor for target_type field.
+	creemproductbindingDescTargetType := creemproductbindingFields[2].Descriptor()
+	// creemproductbinding.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	creemproductbinding.TargetTypeValidator = func() func(string) error {
+		validators := creemproductbindingDescTargetType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(target_type string) error {
+			for _, fn := range fns {
+				if err := fn(target_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemproductbindingDescProductName is the schema descriptor for product_name field.
+	creemproductbindingDescProductName := creemproductbindingFields[5].Descriptor()
+	// creemproductbinding.DefaultProductName holds the default value on creation for the product_name field.
+	creemproductbinding.DefaultProductName = creemproductbindingDescProductName.Default.(string)
+	// creemproductbinding.ProductNameValidator is a validator for the "product_name" field. It is called by the builders before save.
+	creemproductbinding.ProductNameValidator = creemproductbindingDescProductName.Validators[0].(func(string) error)
+	// creemproductbindingDescCurrency is the schema descriptor for currency field.
+	creemproductbindingDescCurrency := creemproductbindingFields[7].Descriptor()
+	// creemproductbinding.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	creemproductbinding.CurrencyValidator = func() func(string) error {
+		validators := creemproductbindingDescCurrency.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(currency string) error {
+			for _, fn := range fns {
+				if err := fn(currency); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemproductbindingDescBillingType is the schema descriptor for billing_type field.
+	creemproductbindingDescBillingType := creemproductbindingFields[8].Descriptor()
+	// creemproductbinding.DefaultBillingType holds the default value on creation for the billing_type field.
+	creemproductbinding.DefaultBillingType = creemproductbindingDescBillingType.Default.(string)
+	// creemproductbinding.BillingTypeValidator is a validator for the "billing_type" field. It is called by the builders before save.
+	creemproductbinding.BillingTypeValidator = creemproductbindingDescBillingType.Validators[0].(func(string) error)
+	// creemproductbindingDescProductStatus is the schema descriptor for product_status field.
+	creemproductbindingDescProductStatus := creemproductbindingFields[9].Descriptor()
+	// creemproductbinding.DefaultProductStatus holds the default value on creation for the product_status field.
+	creemproductbinding.DefaultProductStatus = creemproductbindingDescProductStatus.Default.(string)
+	// creemproductbinding.ProductStatusValidator is a validator for the "product_status" field. It is called by the builders before save.
+	creemproductbinding.ProductStatusValidator = creemproductbindingDescProductStatus.Validators[0].(func(string) error)
+	// creemproductbindingDescTaxMode is the schema descriptor for tax_mode field.
+	creemproductbindingDescTaxMode := creemproductbindingFields[10].Descriptor()
+	// creemproductbinding.DefaultTaxMode holds the default value on creation for the tax_mode field.
+	creemproductbinding.DefaultTaxMode = creemproductbindingDescTaxMode.Default.(string)
+	// creemproductbinding.TaxModeValidator is a validator for the "tax_mode" field. It is called by the builders before save.
+	creemproductbinding.TaxModeValidator = creemproductbindingDescTaxMode.Validators[0].(func(string) error)
+	// creemproductbindingDescEnvironment is the schema descriptor for environment field.
+	creemproductbindingDescEnvironment := creemproductbindingFields[11].Descriptor()
+	// creemproductbinding.EnvironmentValidator is a validator for the "environment" field. It is called by the builders before save.
+	creemproductbinding.EnvironmentValidator = func() func(string) error {
+		validators := creemproductbindingDescEnvironment.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(environment string) error {
+			for _, fn := range fns {
+				if err := fn(environment); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemproductbindingDescEnabled is the schema descriptor for enabled field.
+	creemproductbindingDescEnabled := creemproductbindingFields[12].Descriptor()
+	// creemproductbinding.DefaultEnabled holds the default value on creation for the enabled field.
+	creemproductbinding.DefaultEnabled = creemproductbindingDescEnabled.Default.(bool)
+	// creemproductbindingDescHealthStatus is the schema descriptor for health_status field.
+	creemproductbindingDescHealthStatus := creemproductbindingFields[13].Descriptor()
+	// creemproductbinding.DefaultHealthStatus holds the default value on creation for the health_status field.
+	creemproductbinding.DefaultHealthStatus = creemproductbindingDescHealthStatus.Default.(string)
+	// creemproductbinding.HealthStatusValidator is a validator for the "health_status" field. It is called by the builders before save.
+	creemproductbinding.HealthStatusValidator = creemproductbindingDescHealthStatus.Validators[0].(func(string) error)
+	// creemproductbindingDescHealthReason is the schema descriptor for health_reason field.
+	creemproductbindingDescHealthReason := creemproductbindingFields[14].Descriptor()
+	// creemproductbinding.DefaultHealthReason holds the default value on creation for the health_reason field.
+	creemproductbinding.DefaultHealthReason = creemproductbindingDescHealthReason.Default.(string)
+	// creemproductbindingDescSortOrder is the schema descriptor for sort_order field.
+	creemproductbindingDescSortOrder := creemproductbindingFields[15].Descriptor()
+	// creemproductbinding.DefaultSortOrder holds the default value on creation for the sort_order field.
+	creemproductbinding.DefaultSortOrder = creemproductbindingDescSortOrder.Default.(int)
+	// creemproductbindingDescCreatedAt is the schema descriptor for created_at field.
+	creemproductbindingDescCreatedAt := creemproductbindingFields[17].Descriptor()
+	// creemproductbinding.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creemproductbinding.DefaultCreatedAt = creemproductbindingDescCreatedAt.Default.(func() time.Time)
+	// creemproductbindingDescUpdatedAt is the schema descriptor for updated_at field.
+	creemproductbindingDescUpdatedAt := creemproductbindingFields[18].Descriptor()
+	// creemproductbinding.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	creemproductbinding.DefaultUpdatedAt = creemproductbindingDescUpdatedAt.Default.(func() time.Time)
+	// creemproductbinding.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	creemproductbinding.UpdateDefaultUpdatedAt = creemproductbindingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	creemrefundeventFields := schema.CreemRefundEvent{}.Fields()
+	_ = creemrefundeventFields
+	// creemrefundeventDescEventID is the schema descriptor for event_id field.
+	creemrefundeventDescEventID := creemrefundeventFields[0].Descriptor()
+	// creemrefundevent.EventIDValidator is a validator for the "event_id" field. It is called by the builders before save.
+	creemrefundevent.EventIDValidator = func() func(string) error {
+		validators := creemrefundeventDescEventID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(event_id string) error {
+			for _, fn := range fns {
+				if err := fn(event_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemrefundeventDescProviderRefundID is the schema descriptor for provider_refund_id field.
+	creemrefundeventDescProviderRefundID := creemrefundeventFields[1].Descriptor()
+	// creemrefundevent.ProviderRefundIDValidator is a validator for the "provider_refund_id" field. It is called by the builders before save.
+	creemrefundevent.ProviderRefundIDValidator = func() func(string) error {
+		validators := creemrefundeventDescProviderRefundID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider_refund_id string) error {
+			for _, fn := range fns {
+				if err := fn(provider_refund_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemrefundeventDescTransactionID is the schema descriptor for transaction_id field.
+	creemrefundeventDescTransactionID := creemrefundeventFields[4].Descriptor()
+	// creemrefundevent.TransactionIDValidator is a validator for the "transaction_id" field. It is called by the builders before save.
+	creemrefundevent.TransactionIDValidator = func() func(string) error {
+		validators := creemrefundeventDescTransactionID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(transaction_id string) error {
+			for _, fn := range fns {
+				if err := fn(transaction_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemrefundeventDescCurrency is the schema descriptor for currency field.
+	creemrefundeventDescCurrency := creemrefundeventFields[8].Descriptor()
+	// creemrefundevent.CurrencyValidator is a validator for the "currency" field. It is called by the builders before save.
+	creemrefundevent.CurrencyValidator = func() func(string) error {
+		validators := creemrefundeventDescCurrency.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(currency string) error {
+			for _, fn := range fns {
+				if err := fn(currency); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// creemrefundeventDescRefundRatio is the schema descriptor for refund_ratio field.
+	creemrefundeventDescRefundRatio := creemrefundeventFields[9].Descriptor()
+	// creemrefundevent.DefaultRefundRatio holds the default value on creation for the refund_ratio field.
+	creemrefundevent.DefaultRefundRatio = creemrefundeventDescRefundRatio.Default.(float64)
+	// creemrefundeventDescStatus is the schema descriptor for status field.
+	creemrefundeventDescStatus := creemrefundeventFields[10].Descriptor()
+	// creemrefundevent.DefaultStatus holds the default value on creation for the status field.
+	creemrefundevent.DefaultStatus = creemrefundeventDescStatus.Default.(string)
+	// creemrefundevent.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	creemrefundevent.StatusValidator = creemrefundeventDescStatus.Validators[0].(func(string) error)
+	// creemrefundeventDescAttempts is the schema descriptor for attempts field.
+	creemrefundeventDescAttempts := creemrefundeventFields[13].Descriptor()
+	// creemrefundevent.DefaultAttempts holds the default value on creation for the attempts field.
+	creemrefundevent.DefaultAttempts = creemrefundeventDescAttempts.Default.(int)
+	// creemrefundeventDescLastError is the schema descriptor for last_error field.
+	creemrefundeventDescLastError := creemrefundeventFields[14].Descriptor()
+	// creemrefundevent.DefaultLastError holds the default value on creation for the last_error field.
+	creemrefundevent.DefaultLastError = creemrefundeventDescLastError.Default.(string)
+	// creemrefundeventDescCreatedAt is the schema descriptor for created_at field.
+	creemrefundeventDescCreatedAt := creemrefundeventFields[16].Descriptor()
+	// creemrefundevent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	creemrefundevent.DefaultCreatedAt = creemrefundeventDescCreatedAt.Default.(func() time.Time)
+	// creemrefundeventDescUpdatedAt is the schema descriptor for updated_at field.
+	creemrefundeventDescUpdatedAt := creemrefundeventFields[17].Descriptor()
+	// creemrefundevent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	creemrefundevent.DefaultUpdatedAt = creemrefundeventDescUpdatedAt.Default.(func() time.Time)
+	// creemrefundevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	creemrefundevent.UpdateDefaultUpdatedAt = creemrefundeventDescUpdatedAt.UpdateDefault.(func() time.Time)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0

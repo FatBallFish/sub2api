@@ -224,6 +224,9 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 		// Legacy order without provider_instance_id — block refund
 		return nil, nil, infraerrors.Forbidden("REFUND_DISABLED", "refund is not available for this order")
 	}
+	if inst.ProviderKey == payment.TypeCreem {
+		return nil, nil, infraerrors.Conflict("CREEM_OUTBOUND_REFUND_UNSUPPORTED", "initiate Creem refunds in the Creem Dashboard")
+	}
 	if !inst.RefundEnabled {
 		return nil, nil, infraerrors.Forbidden("REFUND_DISABLED", "refund is not enabled for this provider")
 	}
@@ -563,7 +566,11 @@ func (s *PaymentService) revokeSubscriptionEntitlement(ctx context.Context, p *R
 	}
 	if p.Order.OrderType == payment.OrderTypeGlobalPlan || p.Order.OrderType == payment.OrderTypeGlobalPlanUpgrade {
 		now := time.Now()
-		return s.entClient.UserGlobalPlanSubscription.UpdateOneID(p.SubscriptionID).
+		client := s.entClient
+		if tx := dbent.TxFromContext(ctx); tx != nil {
+			client = tx.Client()
+		}
+		return client.UserGlobalPlanSubscription.UpdateOneID(p.SubscriptionID).
 			SetStatus(GlobalPlanStatusCancelled).
 			SetExpiresAt(now).
 			SetCurrentPeriodEnd(now).
@@ -573,7 +580,11 @@ func (s *PaymentService) revokeSubscriptionEntitlement(ctx context.Context, p *R
 }
 
 func (s *PaymentService) adjustGlobalPlanSubscriptionDays(ctx context.Context, subscriptionID int64, days int) error {
-	sub, err := s.entClient.UserGlobalPlanSubscription.Get(ctx, subscriptionID)
+	client := s.entClient
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	sub, err := client.UserGlobalPlanSubscription.Get(ctx, subscriptionID)
 	if err != nil {
 		if dbent.IsNotFound(err) {
 			return ErrSubscriptionNotFound
@@ -585,7 +596,7 @@ func (s *PaymentService) adjustGlobalPlanSubscriptionDays(ctx context.Context, s
 	if !newExpiresAt.After(now) {
 		return ErrAdjustWouldExpire
 	}
-	update := s.entClient.UserGlobalPlanSubscription.UpdateOneID(subscriptionID).SetExpiresAt(newExpiresAt)
+	update := client.UserGlobalPlanSubscription.UpdateOneID(subscriptionID).SetExpiresAt(newExpiresAt)
 	if sub.CurrentPeriodEnd.After(newExpiresAt) {
 		update.SetCurrentPeriodEnd(newExpiresAt)
 	}

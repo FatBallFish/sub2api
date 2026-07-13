@@ -10675,6 +10675,7 @@ const providerKeyOptions = computed(() => [
   { value: "stripe", label: t("admin.settings.payment.providerStripe") },
   { value: "airwallex", label: t("admin.settings.payment.providerAirwallex") },
   { value: "jeepay", label: t("admin.settings.payment.providerJeepay") },
+	{ value: "creem", label: t("admin.settings.payment.providerCreem") },
 ]);
 
 const enabledProviderKeyOptions = computed(() => {

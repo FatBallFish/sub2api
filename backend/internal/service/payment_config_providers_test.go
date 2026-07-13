@@ -121,6 +121,42 @@ func TestValidateProviderRequest(t *testing.T) {
 	}
 }
 
+func TestCreemProviderInstanceForcesRefundFlagsOffAndMasksSecrets(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := NewPaymentConfigService(client, nil, nil)
+
+	instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+		ProviderKey:     payment.TypeCreem,
+		Name:            "Creem test",
+		Config:          map[string]string{"apiKey": "creem_secret", "webhookSecret": "whsec_secret", "environment": "test"},
+		SupportedTypes:  []string{payment.TypeCreem, payment.TypeAlipay},
+		Enabled:         true,
+		RefundEnabled:   true,
+		AllowUserRefund: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, payment.TypeCreem, instance.SupportedTypes)
+	require.False(t, instance.RefundEnabled)
+	require.False(t, instance.AllowUserRefund)
+
+	turnOn := true
+	updated, err := svc.UpdateProviderInstance(ctx, instance.ID, UpdateProviderInstanceRequest{
+		RefundEnabled:   &turnOn,
+		AllowUserRefund: &turnOn,
+	})
+	require.NoError(t, err)
+	require.False(t, updated.RefundEnabled)
+	require.False(t, updated.AllowUserRefund)
+
+	items, err := svc.ListProviderInstancesWithConfig(ctx)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.NotContains(t, items[0].Config, "apiKey")
+	require.NotContains(t, items[0].Config, "webhookSecret")
+	require.Equal(t, "test", items[0].Config["environment"])
+}
+
 func TestValidateEasyPayCustomMethods(t *testing.T) {
 	t.Parallel()
 

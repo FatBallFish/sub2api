@@ -71,6 +71,7 @@ func RegisterPaymentRoutes(
 		webhook.POST("/stripe", webhookHandler.StripeWebhook)
 		webhook.POST("/airwallex", webhookHandler.AirwallexWebhook)
 		webhook.POST("/jeepay", webhookHandler.JeepayNotify)
+		webhook.POST("/creem", webhookHandler.CreemWebhook)
 	}
 
 	// --- Admin payment endpoints (admin auth) ---
@@ -113,6 +114,11 @@ func RegisterPaymentRoutes(
 			providers.POST("", adminPaymentHandler.CreateProvider)
 			providers.PUT("/:id", adminPaymentHandler.UpdateProvider)
 			providers.DELETE("/:id", adminPaymentHandler.DeleteProvider)
+			providers.GET("/:id/creem-products", adminPaymentHandler.ListCreemProducts)
+			providers.POST("/:id/creem-products", adminPaymentHandler.CreateCreemProduct)
+			providers.PUT("/:id/creem-products/:binding_id", adminPaymentHandler.UpdateCreemProduct)
+			providers.DELETE("/:id/creem-products/:binding_id", adminPaymentHandler.DeleteCreemProduct)
+			providers.POST("/:id/creem-products/:binding_id/sync", adminPaymentHandler.SyncCreemProduct)
 		}
 	}
 }

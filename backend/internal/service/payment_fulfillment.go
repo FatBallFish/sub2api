@@ -37,6 +37,12 @@ type paymentFulfillmentLease struct {
 // --- Payment Notification & Fulfillment ---
 
 func (s *PaymentService) HandlePaymentNotification(ctx context.Context, n *payment.PaymentNotification, pk string) error {
+	if n != nil && n.Type == payment.NotificationTypeRefund {
+		if pk != payment.TypeCreem {
+			return fmt.Errorf("unsupported external refund provider: %s", pk)
+		}
+		return s.HandleCreemRefundCreated(ctx, n)
+	}
 	if n.Status != payment.NotificationStatusSuccess {
 		return nil
 	}
