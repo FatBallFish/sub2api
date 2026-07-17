@@ -76,8 +76,12 @@ export function sendVerifyCode(email: string, turnstileToken?: string) {
   });
 }
 
-export function startOAuth(provider: OAuthProvider, redirect = "/console") {
+export function startOAuth(provider: OAuthProvider, redirect = "/console", affiliateCode?: string) {
   const params = new URLSearchParams({ redirect });
+  const trimmedAffiliateCode = affiliateCode?.trim();
+  if (trimmedAffiliateCode) {
+    params.set("aff_code", trimmedAffiliateCode);
+  }
   window.location.href = `/api/v1/auth/oauth/${provider}/start?${params.toString()}`;
 }
 
