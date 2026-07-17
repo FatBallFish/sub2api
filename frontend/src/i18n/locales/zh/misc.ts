@@ -328,6 +328,7 @@ export default {
       airwallex: 'Airwallex',
       jeepay: 'Jeepay',
       paypal: 'PayPal',
+      creem: 'Creem',
       card: '银行卡',
       link: 'Link',
       alipay_direct: '支付宝（直连）',

@@ -616,6 +616,52 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(wrapper.text()).not.toContain("支付来源");
   });
 
+  it("exposes Creem in the enabled payment type controls", async () => {
+    let receivedPaymentTypes: Array<Record<string, unknown>> = [];
+    const PaymentProviderListCapture = defineComponent({
+      props: {
+        allPaymentTypes: {
+          type: Array,
+          default: () => [],
+        },
+      },
+      setup(props) {
+        receivedPaymentTypes = props.allPaymentTypes as Array<
+          Record<string, unknown>
+        >;
+        return () => h("div", { class: "provider-list-capture" });
+      },
+    });
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: PaymentProviderListCapture,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    expect(receivedPaymentTypes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "creem" }),
+      ]),
+    );
+  });
+
   it("links payment guidance to README sections instead of removed payment docs", async () => {
     const wrapper = mountView();
 

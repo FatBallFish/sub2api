@@ -10603,6 +10603,7 @@ const allPaymentTypes = computed(() => [
   { value: "stripe", label: t("payment.methods.stripe") },
   { value: "airwallex", label: t("payment.methods.airwallex") },
   { value: "jeepay", label: t("payment.methods.jeepay") },
+  { value: "creem", label: t("payment.methods.creem") },
 ]);
 
 function isPaymentTypeEnabled(type: string): boolean {
