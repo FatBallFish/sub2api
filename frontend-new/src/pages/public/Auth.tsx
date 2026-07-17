@@ -389,7 +389,7 @@ export default function Auth() {
                   {googleOAuthEnabled ? (
                     <button
                       type="button"
-                      onClick={() => startOAuth("google", redirectTo)}
+                      onClick={() => startOAuth("google", redirectTo, initialAffiliateCode)}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50"
                     >
                       <GoogleLogo size={20} weight="bold" />
@@ -399,7 +399,7 @@ export default function Auth() {
                   {githubOAuthEnabled ? (
                     <button
                       type="button"
-                      onClick={() => startOAuth("github", redirectTo)}
+                      onClick={() => startOAuth("github", redirectTo, initialAffiliateCode)}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50"
                     >
                       <GithubLogo size={20} weight="bold" />

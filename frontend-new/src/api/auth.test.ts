@@ -104,6 +104,23 @@ describe("auth API", () => {
     await expect(sendVerifyCode("new@example.com")).resolves.toEqual({ message: "sent", countdown: 60 });
   });
 
+  it.each(["google", "github"] as const)(
+    "redirects to %s OAuth start endpoint with affiliate code",
+    (provider) => {
+      startOAuth(provider, "/console", " AFF123 ");
+
+      expect(window.location.href).toBe(
+        `/api/v1/auth/oauth/${provider}/start?redirect=%2Fconsole&aff_code=AFF123`,
+      );
+    },
+  );
+
+  it("omits whitespace-only affiliate code from OAuth start endpoint", () => {
+    startOAuth("google", "/console", "   ");
+
+    expect(window.location.href).toBe("/api/v1/auth/oauth/google/start?redirect=%2Fconsole");
+  });
+
   it("redirects to OAuth start endpoint with console redirect", () => {
     startOAuth("google");
 
