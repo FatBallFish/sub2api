@@ -3,9 +3,28 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Auth from "./Auth";
 
+const originalFetch = globalThis.fetch;
+
+async function withMutableWindowLocation(run: () => Promise<void>) {
+  const originalLocation = Object.getOwnPropertyDescriptor(window, "location");
+  if (!originalLocation) throw new Error("window.location is unavailable");
+
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { href: window.location.href },
+  });
+
+  try {
+    await run();
+  } finally {
+    Object.defineProperty(window, "location", originalLocation);
+  }
+}
+
 describe("Auth page", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    globalThis.fetch = originalFetch;
     localStorage.clear();
   });
 
@@ -316,6 +335,64 @@ describe("Auth page", () => {
       expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
+  });
+
+  it.each(["google", "github"] as const)("passes the registration referral code to %s OAuth", async (provider) => {
+    await withMutableWindowLocation(async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            registration_enabled: true,
+            email_verify_enabled: true,
+            github_oauth_enabled: true,
+            google_oauth_enabled: true,
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/register?ref=AFF123"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: new RegExp(provider, "i") }));
+
+      expect(window.location.href).toBe(
+        `/api/v1/auth/oauth/${provider}/start?redirect=%2Fconsole&aff_code=AFF123`,
+      );
+    });
+  });
+
+  it("does not pass a registration invitation code to Google OAuth as an affiliate code", async () => {
+    await withMutableWindowLocation(async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            registration_enabled: true,
+            email_verify_enabled: true,
+            github_oauth_enabled: true,
+            google_oauth_enabled: true,
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/register?invitation_code=SYSTEM-CODE"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(await screen.findByRole("button", { name: /google/i }));
+
+      expect(window.location.href).toBe("/api/v1/auth/oauth/google/start?redirect=%2Fconsole");
+    });
   });
 
   it("redirects authenticated users away from auth pages", async () => {
