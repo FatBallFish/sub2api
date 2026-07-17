@@ -32,8 +32,12 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
-        <ToggleSwitch v-if="form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
+		<div :class="form.provider_key === 'creem' ? 'pointer-events-none opacity-50' : ''">
+		  <ToggleSwitch :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.provider_key !== 'creem' && (form.refund_enabled = !form.refund_enabled); if (!form.refund_enabled) form.allow_user_refund = false" />
+		</div>
+		<div v-if="form.refund_enabled || form.provider_key === 'creem'" :class="form.provider_key === 'creem' ? 'pointer-events-none opacity-50' : ''">
+		  <ToggleSwitch :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.provider_key !== 'creem' && (form.allow_user_refund = !form.allow_user_refund)" />
+		</div>
         <div v-if="supportsPaymentMode" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
           <div class="flex gap-1.5">
@@ -243,6 +247,8 @@
         </div>
       </div>
 
+	  <CreemProductManager v-if="editing && form.provider_key === 'creem'" :provider-id="editing.id" />
+
       <!-- Per-type limits (collapsible) -->
       <div v-if="limitableTypes.length" class="border-t border-gray-200 pt-4 dark:border-dark-700">
         <button type="button" @click="limitsExpanded = !limitsExpanded" class="flex w-full items-center justify-between">
@@ -312,6 +318,7 @@ import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Select from '@/components/common/Select.vue'
 import type { SelectOption } from '@/components/common/Select.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
+import CreemProductManager from './CreemProductManager.vue'
 import type { ProviderInstance } from '@/types/payment'
 import type { EasyPayCustomMethod, TypeOption } from './providerConfig'
 import {
@@ -419,6 +426,7 @@ const providerWebhookHintMap: Record<string, string> = {
   stripe: 'admin.settings.payment.stripeWebhookHint',
   airwallex: 'admin.settings.payment.airwallexWebhookHint',
   jeepay: 'admin.settings.payment.jeepayWebhookHint',
+	creem: 'admin.settings.payment.creemWebhookHint',
 }
 
 const providerWebhookUrl = computed(() => {
@@ -600,6 +608,10 @@ function removeEasyPayCustomMethod(index: number) {
 function onKeyChange() {
   form.supported_types = [...(PROVIDER_SUPPORTED_TYPES[form.provider_key] || [])]
   form.payment_mode = defaultPaymentMode(form.provider_key)
+	if (form.provider_key === 'creem') {
+	  form.refund_enabled = false
+	  form.allow_user_refund = false
+	}
   clearConfig()
   applyDefaults()
 }
@@ -728,8 +740,8 @@ function handleSave() {
     supported_types: form.supported_types,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
-    refund_enabled: form.refund_enabled,
-    allow_user_refund: form.refund_enabled ? form.allow_user_refund : false,
+	refund_enabled: form.provider_key === 'creem' ? false : form.refund_enabled,
+	allow_user_refund: form.provider_key === 'creem' ? false : (form.refund_enabled ? form.allow_user_refund : false),
     config: filteredConfig,
     limits: serializeLimits(),
   })

@@ -26,6 +26,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/creemproductbinding"
+	"github.com/Wei-Shaw/sub2api/ent/creemrefundevent"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -78,6 +80,8 @@ const (
 	TypeChannelMonitorDailyRollup     = "ChannelMonitorDailyRollup"
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
 	TypeChannelMonitorRequestTemplate = "ChannelMonitorRequestTemplate"
+	TypeCreemProductBinding           = "CreemProductBinding"
+	TypeCreemRefundEvent              = "CreemRefundEvent"
 	TypeErrorPassthroughRule          = "ErrorPassthroughRule"
 	TypeGroup                         = "Group"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
@@ -19468,6 +19472,3092 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelMonitorRequestTemplate edge %s", name)
+}
+
+// CreemProductBindingMutation represents an operation that mutates the CreemProductBinding nodes in the graph.
+type CreemProductBindingMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int64
+	provider_instance_id    *int64
+	addprovider_instance_id *int64
+	external_product_id     *string
+	target_type             *string
+	plan_id                 *int64
+	addplan_id              *int64
+	credited_balance        *float64
+	addcredited_balance     *float64
+	product_name            *string
+	price_minor             *int64
+	addprice_minor          *int64
+	currency                *string
+	billing_type            *string
+	product_status          *string
+	tax_mode                *string
+	environment             *string
+	enabled                 *bool
+	health_status           *string
+	health_reason           *string
+	sort_order              *int
+	addsort_order           *int
+	last_synced_at          *time.Time
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*CreemProductBinding, error)
+	predicates              []predicate.CreemProductBinding
+}
+
+var _ ent.Mutation = (*CreemProductBindingMutation)(nil)
+
+// creemproductbindingOption allows management of the mutation configuration using functional options.
+type creemproductbindingOption func(*CreemProductBindingMutation)
+
+// newCreemProductBindingMutation creates new mutation for the CreemProductBinding entity.
+func newCreemProductBindingMutation(c config, op Op, opts ...creemproductbindingOption) *CreemProductBindingMutation {
+	m := &CreemProductBindingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreemProductBinding,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreemProductBindingID sets the ID field of the mutation.
+func withCreemProductBindingID(id int64) creemproductbindingOption {
+	return func(m *CreemProductBindingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreemProductBinding
+		)
+		m.oldValue = func(ctx context.Context) (*CreemProductBinding, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreemProductBinding.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreemProductBinding sets the old CreemProductBinding of the mutation.
+func withCreemProductBinding(node *CreemProductBinding) creemproductbindingOption {
+	return func(m *CreemProductBindingMutation) {
+		m.oldValue = func(context.Context) (*CreemProductBinding, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreemProductBindingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreemProductBindingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreemProductBindingMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreemProductBindingMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreemProductBinding.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetProviderInstanceID sets the "provider_instance_id" field.
+func (m *CreemProductBindingMutation) SetProviderInstanceID(i int64) {
+	m.provider_instance_id = &i
+	m.addprovider_instance_id = nil
+}
+
+// ProviderInstanceID returns the value of the "provider_instance_id" field in the mutation.
+func (m *CreemProductBindingMutation) ProviderInstanceID() (r int64, exists bool) {
+	v := m.provider_instance_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderInstanceID returns the old "provider_instance_id" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldProviderInstanceID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderInstanceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderInstanceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderInstanceID: %w", err)
+	}
+	return oldValue.ProviderInstanceID, nil
+}
+
+// AddProviderInstanceID adds i to the "provider_instance_id" field.
+func (m *CreemProductBindingMutation) AddProviderInstanceID(i int64) {
+	if m.addprovider_instance_id != nil {
+		*m.addprovider_instance_id += i
+	} else {
+		m.addprovider_instance_id = &i
+	}
+}
+
+// AddedProviderInstanceID returns the value that was added to the "provider_instance_id" field in this mutation.
+func (m *CreemProductBindingMutation) AddedProviderInstanceID() (r int64, exists bool) {
+	v := m.addprovider_instance_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProviderInstanceID resets all changes to the "provider_instance_id" field.
+func (m *CreemProductBindingMutation) ResetProviderInstanceID() {
+	m.provider_instance_id = nil
+	m.addprovider_instance_id = nil
+}
+
+// SetExternalProductID sets the "external_product_id" field.
+func (m *CreemProductBindingMutation) SetExternalProductID(s string) {
+	m.external_product_id = &s
+}
+
+// ExternalProductID returns the value of the "external_product_id" field in the mutation.
+func (m *CreemProductBindingMutation) ExternalProductID() (r string, exists bool) {
+	v := m.external_product_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExternalProductID returns the old "external_product_id" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldExternalProductID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExternalProductID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExternalProductID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExternalProductID: %w", err)
+	}
+	return oldValue.ExternalProductID, nil
+}
+
+// ResetExternalProductID resets all changes to the "external_product_id" field.
+func (m *CreemProductBindingMutation) ResetExternalProductID() {
+	m.external_product_id = nil
+}
+
+// SetTargetType sets the "target_type" field.
+func (m *CreemProductBindingMutation) SetTargetType(s string) {
+	m.target_type = &s
+}
+
+// TargetType returns the value of the "target_type" field in the mutation.
+func (m *CreemProductBindingMutation) TargetType() (r string, exists bool) {
+	v := m.target_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetType returns the old "target_type" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldTargetType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetType: %w", err)
+	}
+	return oldValue.TargetType, nil
+}
+
+// ResetTargetType resets all changes to the "target_type" field.
+func (m *CreemProductBindingMutation) ResetTargetType() {
+	m.target_type = nil
+}
+
+// SetPlanID sets the "plan_id" field.
+func (m *CreemProductBindingMutation) SetPlanID(i int64) {
+	m.plan_id = &i
+	m.addplan_id = nil
+}
+
+// PlanID returns the value of the "plan_id" field in the mutation.
+func (m *CreemProductBindingMutation) PlanID() (r int64, exists bool) {
+	v := m.plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlanID returns the old "plan_id" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldPlanID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlanID: %w", err)
+	}
+	return oldValue.PlanID, nil
+}
+
+// AddPlanID adds i to the "plan_id" field.
+func (m *CreemProductBindingMutation) AddPlanID(i int64) {
+	if m.addplan_id != nil {
+		*m.addplan_id += i
+	} else {
+		m.addplan_id = &i
+	}
+}
+
+// AddedPlanID returns the value that was added to the "plan_id" field in this mutation.
+func (m *CreemProductBindingMutation) AddedPlanID() (r int64, exists bool) {
+	v := m.addplan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPlanID clears the value of the "plan_id" field.
+func (m *CreemProductBindingMutation) ClearPlanID() {
+	m.plan_id = nil
+	m.addplan_id = nil
+	m.clearedFields[creemproductbinding.FieldPlanID] = struct{}{}
+}
+
+// PlanIDCleared returns if the "plan_id" field was cleared in this mutation.
+func (m *CreemProductBindingMutation) PlanIDCleared() bool {
+	_, ok := m.clearedFields[creemproductbinding.FieldPlanID]
+	return ok
+}
+
+// ResetPlanID resets all changes to the "plan_id" field.
+func (m *CreemProductBindingMutation) ResetPlanID() {
+	m.plan_id = nil
+	m.addplan_id = nil
+	delete(m.clearedFields, creemproductbinding.FieldPlanID)
+}
+
+// SetCreditedBalance sets the "credited_balance" field.
+func (m *CreemProductBindingMutation) SetCreditedBalance(f float64) {
+	m.credited_balance = &f
+	m.addcredited_balance = nil
+}
+
+// CreditedBalance returns the value of the "credited_balance" field in the mutation.
+func (m *CreemProductBindingMutation) CreditedBalance() (r float64, exists bool) {
+	v := m.credited_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreditedBalance returns the old "credited_balance" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldCreditedBalance(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreditedBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreditedBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreditedBalance: %w", err)
+	}
+	return oldValue.CreditedBalance, nil
+}
+
+// AddCreditedBalance adds f to the "credited_balance" field.
+func (m *CreemProductBindingMutation) AddCreditedBalance(f float64) {
+	if m.addcredited_balance != nil {
+		*m.addcredited_balance += f
+	} else {
+		m.addcredited_balance = &f
+	}
+}
+
+// AddedCreditedBalance returns the value that was added to the "credited_balance" field in this mutation.
+func (m *CreemProductBindingMutation) AddedCreditedBalance() (r float64, exists bool) {
+	v := m.addcredited_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreditedBalance clears the value of the "credited_balance" field.
+func (m *CreemProductBindingMutation) ClearCreditedBalance() {
+	m.credited_balance = nil
+	m.addcredited_balance = nil
+	m.clearedFields[creemproductbinding.FieldCreditedBalance] = struct{}{}
+}
+
+// CreditedBalanceCleared returns if the "credited_balance" field was cleared in this mutation.
+func (m *CreemProductBindingMutation) CreditedBalanceCleared() bool {
+	_, ok := m.clearedFields[creemproductbinding.FieldCreditedBalance]
+	return ok
+}
+
+// ResetCreditedBalance resets all changes to the "credited_balance" field.
+func (m *CreemProductBindingMutation) ResetCreditedBalance() {
+	m.credited_balance = nil
+	m.addcredited_balance = nil
+	delete(m.clearedFields, creemproductbinding.FieldCreditedBalance)
+}
+
+// SetProductName sets the "product_name" field.
+func (m *CreemProductBindingMutation) SetProductName(s string) {
+	m.product_name = &s
+}
+
+// ProductName returns the value of the "product_name" field in the mutation.
+func (m *CreemProductBindingMutation) ProductName() (r string, exists bool) {
+	v := m.product_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductName returns the old "product_name" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldProductName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductName: %w", err)
+	}
+	return oldValue.ProductName, nil
+}
+
+// ResetProductName resets all changes to the "product_name" field.
+func (m *CreemProductBindingMutation) ResetProductName() {
+	m.product_name = nil
+}
+
+// SetPriceMinor sets the "price_minor" field.
+func (m *CreemProductBindingMutation) SetPriceMinor(i int64) {
+	m.price_minor = &i
+	m.addprice_minor = nil
+}
+
+// PriceMinor returns the value of the "price_minor" field in the mutation.
+func (m *CreemProductBindingMutation) PriceMinor() (r int64, exists bool) {
+	v := m.price_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceMinor returns the old "price_minor" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldPriceMinor(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceMinor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceMinor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceMinor: %w", err)
+	}
+	return oldValue.PriceMinor, nil
+}
+
+// AddPriceMinor adds i to the "price_minor" field.
+func (m *CreemProductBindingMutation) AddPriceMinor(i int64) {
+	if m.addprice_minor != nil {
+		*m.addprice_minor += i
+	} else {
+		m.addprice_minor = &i
+	}
+}
+
+// AddedPriceMinor returns the value that was added to the "price_minor" field in this mutation.
+func (m *CreemProductBindingMutation) AddedPriceMinor() (r int64, exists bool) {
+	v := m.addprice_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriceMinor resets all changes to the "price_minor" field.
+func (m *CreemProductBindingMutation) ResetPriceMinor() {
+	m.price_minor = nil
+	m.addprice_minor = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *CreemProductBindingMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *CreemProductBindingMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *CreemProductBindingMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetBillingType sets the "billing_type" field.
+func (m *CreemProductBindingMutation) SetBillingType(s string) {
+	m.billing_type = &s
+}
+
+// BillingType returns the value of the "billing_type" field in the mutation.
+func (m *CreemProductBindingMutation) BillingType() (r string, exists bool) {
+	v := m.billing_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBillingType returns the old "billing_type" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldBillingType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBillingType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBillingType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBillingType: %w", err)
+	}
+	return oldValue.BillingType, nil
+}
+
+// ResetBillingType resets all changes to the "billing_type" field.
+func (m *CreemProductBindingMutation) ResetBillingType() {
+	m.billing_type = nil
+}
+
+// SetProductStatus sets the "product_status" field.
+func (m *CreemProductBindingMutation) SetProductStatus(s string) {
+	m.product_status = &s
+}
+
+// ProductStatus returns the value of the "product_status" field in the mutation.
+func (m *CreemProductBindingMutation) ProductStatus() (r string, exists bool) {
+	v := m.product_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProductStatus returns the old "product_status" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldProductStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProductStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProductStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProductStatus: %w", err)
+	}
+	return oldValue.ProductStatus, nil
+}
+
+// ResetProductStatus resets all changes to the "product_status" field.
+func (m *CreemProductBindingMutation) ResetProductStatus() {
+	m.product_status = nil
+}
+
+// SetTaxMode sets the "tax_mode" field.
+func (m *CreemProductBindingMutation) SetTaxMode(s string) {
+	m.tax_mode = &s
+}
+
+// TaxMode returns the value of the "tax_mode" field in the mutation.
+func (m *CreemProductBindingMutation) TaxMode() (r string, exists bool) {
+	v := m.tax_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaxMode returns the old "tax_mode" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldTaxMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaxMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaxMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaxMode: %w", err)
+	}
+	return oldValue.TaxMode, nil
+}
+
+// ResetTaxMode resets all changes to the "tax_mode" field.
+func (m *CreemProductBindingMutation) ResetTaxMode() {
+	m.tax_mode = nil
+}
+
+// SetEnvironment sets the "environment" field.
+func (m *CreemProductBindingMutation) SetEnvironment(s string) {
+	m.environment = &s
+}
+
+// Environment returns the value of the "environment" field in the mutation.
+func (m *CreemProductBindingMutation) Environment() (r string, exists bool) {
+	v := m.environment
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnvironment returns the old "environment" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldEnvironment(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnvironment is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnvironment requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnvironment: %w", err)
+	}
+	return oldValue.Environment, nil
+}
+
+// ResetEnvironment resets all changes to the "environment" field.
+func (m *CreemProductBindingMutation) ResetEnvironment() {
+	m.environment = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *CreemProductBindingMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *CreemProductBindingMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *CreemProductBindingMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetHealthStatus sets the "health_status" field.
+func (m *CreemProductBindingMutation) SetHealthStatus(s string) {
+	m.health_status = &s
+}
+
+// HealthStatus returns the value of the "health_status" field in the mutation.
+func (m *CreemProductBindingMutation) HealthStatus() (r string, exists bool) {
+	v := m.health_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHealthStatus returns the old "health_status" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldHealthStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHealthStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHealthStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHealthStatus: %w", err)
+	}
+	return oldValue.HealthStatus, nil
+}
+
+// ResetHealthStatus resets all changes to the "health_status" field.
+func (m *CreemProductBindingMutation) ResetHealthStatus() {
+	m.health_status = nil
+}
+
+// SetHealthReason sets the "health_reason" field.
+func (m *CreemProductBindingMutation) SetHealthReason(s string) {
+	m.health_reason = &s
+}
+
+// HealthReason returns the value of the "health_reason" field in the mutation.
+func (m *CreemProductBindingMutation) HealthReason() (r string, exists bool) {
+	v := m.health_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHealthReason returns the old "health_reason" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldHealthReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHealthReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHealthReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHealthReason: %w", err)
+	}
+	return oldValue.HealthReason, nil
+}
+
+// ResetHealthReason resets all changes to the "health_reason" field.
+func (m *CreemProductBindingMutation) ResetHealthReason() {
+	m.health_reason = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *CreemProductBindingMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *CreemProductBindingMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *CreemProductBindingMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *CreemProductBindingMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *CreemProductBindingMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetLastSyncedAt sets the "last_synced_at" field.
+func (m *CreemProductBindingMutation) SetLastSyncedAt(t time.Time) {
+	m.last_synced_at = &t
+}
+
+// LastSyncedAt returns the value of the "last_synced_at" field in the mutation.
+func (m *CreemProductBindingMutation) LastSyncedAt() (r time.Time, exists bool) {
+	v := m.last_synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSyncedAt returns the old "last_synced_at" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldLastSyncedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSyncedAt: %w", err)
+	}
+	return oldValue.LastSyncedAt, nil
+}
+
+// ClearLastSyncedAt clears the value of the "last_synced_at" field.
+func (m *CreemProductBindingMutation) ClearLastSyncedAt() {
+	m.last_synced_at = nil
+	m.clearedFields[creemproductbinding.FieldLastSyncedAt] = struct{}{}
+}
+
+// LastSyncedAtCleared returns if the "last_synced_at" field was cleared in this mutation.
+func (m *CreemProductBindingMutation) LastSyncedAtCleared() bool {
+	_, ok := m.clearedFields[creemproductbinding.FieldLastSyncedAt]
+	return ok
+}
+
+// ResetLastSyncedAt resets all changes to the "last_synced_at" field.
+func (m *CreemProductBindingMutation) ResetLastSyncedAt() {
+	m.last_synced_at = nil
+	delete(m.clearedFields, creemproductbinding.FieldLastSyncedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreemProductBindingMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreemProductBindingMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreemProductBindingMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CreemProductBindingMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CreemProductBindingMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CreemProductBinding entity.
+// If the CreemProductBinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemProductBindingMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CreemProductBindingMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the CreemProductBindingMutation builder.
+func (m *CreemProductBindingMutation) Where(ps ...predicate.CreemProductBinding) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreemProductBindingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreemProductBindingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreemProductBinding, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreemProductBindingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreemProductBindingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreemProductBinding).
+func (m *CreemProductBindingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreemProductBindingMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.provider_instance_id != nil {
+		fields = append(fields, creemproductbinding.FieldProviderInstanceID)
+	}
+	if m.external_product_id != nil {
+		fields = append(fields, creemproductbinding.FieldExternalProductID)
+	}
+	if m.target_type != nil {
+		fields = append(fields, creemproductbinding.FieldTargetType)
+	}
+	if m.plan_id != nil {
+		fields = append(fields, creemproductbinding.FieldPlanID)
+	}
+	if m.credited_balance != nil {
+		fields = append(fields, creemproductbinding.FieldCreditedBalance)
+	}
+	if m.product_name != nil {
+		fields = append(fields, creemproductbinding.FieldProductName)
+	}
+	if m.price_minor != nil {
+		fields = append(fields, creemproductbinding.FieldPriceMinor)
+	}
+	if m.currency != nil {
+		fields = append(fields, creemproductbinding.FieldCurrency)
+	}
+	if m.billing_type != nil {
+		fields = append(fields, creemproductbinding.FieldBillingType)
+	}
+	if m.product_status != nil {
+		fields = append(fields, creemproductbinding.FieldProductStatus)
+	}
+	if m.tax_mode != nil {
+		fields = append(fields, creemproductbinding.FieldTaxMode)
+	}
+	if m.environment != nil {
+		fields = append(fields, creemproductbinding.FieldEnvironment)
+	}
+	if m.enabled != nil {
+		fields = append(fields, creemproductbinding.FieldEnabled)
+	}
+	if m.health_status != nil {
+		fields = append(fields, creemproductbinding.FieldHealthStatus)
+	}
+	if m.health_reason != nil {
+		fields = append(fields, creemproductbinding.FieldHealthReason)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, creemproductbinding.FieldSortOrder)
+	}
+	if m.last_synced_at != nil {
+		fields = append(fields, creemproductbinding.FieldLastSyncedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creemproductbinding.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, creemproductbinding.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreemProductBindingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		return m.ProviderInstanceID()
+	case creemproductbinding.FieldExternalProductID:
+		return m.ExternalProductID()
+	case creemproductbinding.FieldTargetType:
+		return m.TargetType()
+	case creemproductbinding.FieldPlanID:
+		return m.PlanID()
+	case creemproductbinding.FieldCreditedBalance:
+		return m.CreditedBalance()
+	case creemproductbinding.FieldProductName:
+		return m.ProductName()
+	case creemproductbinding.FieldPriceMinor:
+		return m.PriceMinor()
+	case creemproductbinding.FieldCurrency:
+		return m.Currency()
+	case creemproductbinding.FieldBillingType:
+		return m.BillingType()
+	case creemproductbinding.FieldProductStatus:
+		return m.ProductStatus()
+	case creemproductbinding.FieldTaxMode:
+		return m.TaxMode()
+	case creemproductbinding.FieldEnvironment:
+		return m.Environment()
+	case creemproductbinding.FieldEnabled:
+		return m.Enabled()
+	case creemproductbinding.FieldHealthStatus:
+		return m.HealthStatus()
+	case creemproductbinding.FieldHealthReason:
+		return m.HealthReason()
+	case creemproductbinding.FieldSortOrder:
+		return m.SortOrder()
+	case creemproductbinding.FieldLastSyncedAt:
+		return m.LastSyncedAt()
+	case creemproductbinding.FieldCreatedAt:
+		return m.CreatedAt()
+	case creemproductbinding.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreemProductBindingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		return m.OldProviderInstanceID(ctx)
+	case creemproductbinding.FieldExternalProductID:
+		return m.OldExternalProductID(ctx)
+	case creemproductbinding.FieldTargetType:
+		return m.OldTargetType(ctx)
+	case creemproductbinding.FieldPlanID:
+		return m.OldPlanID(ctx)
+	case creemproductbinding.FieldCreditedBalance:
+		return m.OldCreditedBalance(ctx)
+	case creemproductbinding.FieldProductName:
+		return m.OldProductName(ctx)
+	case creemproductbinding.FieldPriceMinor:
+		return m.OldPriceMinor(ctx)
+	case creemproductbinding.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case creemproductbinding.FieldBillingType:
+		return m.OldBillingType(ctx)
+	case creemproductbinding.FieldProductStatus:
+		return m.OldProductStatus(ctx)
+	case creemproductbinding.FieldTaxMode:
+		return m.OldTaxMode(ctx)
+	case creemproductbinding.FieldEnvironment:
+		return m.OldEnvironment(ctx)
+	case creemproductbinding.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case creemproductbinding.FieldHealthStatus:
+		return m.OldHealthStatus(ctx)
+	case creemproductbinding.FieldHealthReason:
+		return m.OldHealthReason(ctx)
+	case creemproductbinding.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case creemproductbinding.FieldLastSyncedAt:
+		return m.OldLastSyncedAt(ctx)
+	case creemproductbinding.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case creemproductbinding.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreemProductBinding field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreemProductBindingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderInstanceID(v)
+		return nil
+	case creemproductbinding.FieldExternalProductID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExternalProductID(v)
+		return nil
+	case creemproductbinding.FieldTargetType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetType(v)
+		return nil
+	case creemproductbinding.FieldPlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlanID(v)
+		return nil
+	case creemproductbinding.FieldCreditedBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreditedBalance(v)
+		return nil
+	case creemproductbinding.FieldProductName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductName(v)
+		return nil
+	case creemproductbinding.FieldPriceMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceMinor(v)
+		return nil
+	case creemproductbinding.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case creemproductbinding.FieldBillingType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBillingType(v)
+		return nil
+	case creemproductbinding.FieldProductStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProductStatus(v)
+		return nil
+	case creemproductbinding.FieldTaxMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaxMode(v)
+		return nil
+	case creemproductbinding.FieldEnvironment:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnvironment(v)
+		return nil
+	case creemproductbinding.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case creemproductbinding.FieldHealthStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHealthStatus(v)
+		return nil
+	case creemproductbinding.FieldHealthReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHealthReason(v)
+		return nil
+	case creemproductbinding.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case creemproductbinding.FieldLastSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSyncedAt(v)
+		return nil
+	case creemproductbinding.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case creemproductbinding.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreemProductBinding field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreemProductBindingMutation) AddedFields() []string {
+	var fields []string
+	if m.addprovider_instance_id != nil {
+		fields = append(fields, creemproductbinding.FieldProviderInstanceID)
+	}
+	if m.addplan_id != nil {
+		fields = append(fields, creemproductbinding.FieldPlanID)
+	}
+	if m.addcredited_balance != nil {
+		fields = append(fields, creemproductbinding.FieldCreditedBalance)
+	}
+	if m.addprice_minor != nil {
+		fields = append(fields, creemproductbinding.FieldPriceMinor)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, creemproductbinding.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreemProductBindingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		return m.AddedProviderInstanceID()
+	case creemproductbinding.FieldPlanID:
+		return m.AddedPlanID()
+	case creemproductbinding.FieldCreditedBalance:
+		return m.AddedCreditedBalance()
+	case creemproductbinding.FieldPriceMinor:
+		return m.AddedPriceMinor()
+	case creemproductbinding.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreemProductBindingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProviderInstanceID(v)
+		return nil
+	case creemproductbinding.FieldPlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlanID(v)
+		return nil
+	case creemproductbinding.FieldCreditedBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreditedBalance(v)
+		return nil
+	case creemproductbinding.FieldPriceMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriceMinor(v)
+		return nil
+	case creemproductbinding.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreemProductBinding numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreemProductBindingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creemproductbinding.FieldPlanID) {
+		fields = append(fields, creemproductbinding.FieldPlanID)
+	}
+	if m.FieldCleared(creemproductbinding.FieldCreditedBalance) {
+		fields = append(fields, creemproductbinding.FieldCreditedBalance)
+	}
+	if m.FieldCleared(creemproductbinding.FieldLastSyncedAt) {
+		fields = append(fields, creemproductbinding.FieldLastSyncedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreemProductBindingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreemProductBindingMutation) ClearField(name string) error {
+	switch name {
+	case creemproductbinding.FieldPlanID:
+		m.ClearPlanID()
+		return nil
+	case creemproductbinding.FieldCreditedBalance:
+		m.ClearCreditedBalance()
+		return nil
+	case creemproductbinding.FieldLastSyncedAt:
+		m.ClearLastSyncedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreemProductBinding nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreemProductBindingMutation) ResetField(name string) error {
+	switch name {
+	case creemproductbinding.FieldProviderInstanceID:
+		m.ResetProviderInstanceID()
+		return nil
+	case creemproductbinding.FieldExternalProductID:
+		m.ResetExternalProductID()
+		return nil
+	case creemproductbinding.FieldTargetType:
+		m.ResetTargetType()
+		return nil
+	case creemproductbinding.FieldPlanID:
+		m.ResetPlanID()
+		return nil
+	case creemproductbinding.FieldCreditedBalance:
+		m.ResetCreditedBalance()
+		return nil
+	case creemproductbinding.FieldProductName:
+		m.ResetProductName()
+		return nil
+	case creemproductbinding.FieldPriceMinor:
+		m.ResetPriceMinor()
+		return nil
+	case creemproductbinding.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case creemproductbinding.FieldBillingType:
+		m.ResetBillingType()
+		return nil
+	case creemproductbinding.FieldProductStatus:
+		m.ResetProductStatus()
+		return nil
+	case creemproductbinding.FieldTaxMode:
+		m.ResetTaxMode()
+		return nil
+	case creemproductbinding.FieldEnvironment:
+		m.ResetEnvironment()
+		return nil
+	case creemproductbinding.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case creemproductbinding.FieldHealthStatus:
+		m.ResetHealthStatus()
+		return nil
+	case creemproductbinding.FieldHealthReason:
+		m.ResetHealthReason()
+		return nil
+	case creemproductbinding.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case creemproductbinding.FieldLastSyncedAt:
+		m.ResetLastSyncedAt()
+		return nil
+	case creemproductbinding.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case creemproductbinding.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreemProductBinding field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreemProductBindingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreemProductBindingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreemProductBindingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreemProductBindingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreemProductBindingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreemProductBindingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreemProductBindingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CreemProductBinding unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreemProductBindingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CreemProductBinding edge %s", name)
+}
+
+// CreemRefundEventMutation represents an operation that mutates the CreemRefundEvent nodes in the graph.
+type CreemRefundEventMutation struct {
+	config
+	op                               Op
+	typ                              string
+	id                               *int64
+	event_id                         *string
+	provider_refund_id               *string
+	provider_instance_id             *int64
+	addprovider_instance_id          *int64
+	payment_order_id                 *int64
+	addpayment_order_id              *int64
+	transaction_id                   *string
+	refund_amount_minor              *int64
+	addrefund_amount_minor           *int64
+	cumulative_refunded_minor        *int64
+	addcumulative_refunded_minor     *int64
+	transaction_amount_paid_minor    *int64
+	addtransaction_amount_paid_minor *int64
+	currency                         *string
+	refund_ratio                     *float64
+	addrefund_ratio                  *float64
+	status                           *string
+	recovery_snapshot                *map[string]interface{}
+	raw_payload                      *map[string]interface{}
+	attempts                         *int
+	addattempts                      *int
+	last_error                       *string
+	processed_at                     *time.Time
+	created_at                       *time.Time
+	updated_at                       *time.Time
+	clearedFields                    map[string]struct{}
+	done                             bool
+	oldValue                         func(context.Context) (*CreemRefundEvent, error)
+	predicates                       []predicate.CreemRefundEvent
+}
+
+var _ ent.Mutation = (*CreemRefundEventMutation)(nil)
+
+// creemrefundeventOption allows management of the mutation configuration using functional options.
+type creemrefundeventOption func(*CreemRefundEventMutation)
+
+// newCreemRefundEventMutation creates new mutation for the CreemRefundEvent entity.
+func newCreemRefundEventMutation(c config, op Op, opts ...creemrefundeventOption) *CreemRefundEventMutation {
+	m := &CreemRefundEventMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCreemRefundEvent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCreemRefundEventID sets the ID field of the mutation.
+func withCreemRefundEventID(id int64) creemrefundeventOption {
+	return func(m *CreemRefundEventMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CreemRefundEvent
+		)
+		m.oldValue = func(ctx context.Context) (*CreemRefundEvent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CreemRefundEvent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCreemRefundEvent sets the old CreemRefundEvent of the mutation.
+func withCreemRefundEvent(node *CreemRefundEvent) creemrefundeventOption {
+	return func(m *CreemRefundEventMutation) {
+		m.oldValue = func(context.Context) (*CreemRefundEvent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CreemRefundEventMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CreemRefundEventMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CreemRefundEventMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CreemRefundEventMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CreemRefundEvent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetEventID sets the "event_id" field.
+func (m *CreemRefundEventMutation) SetEventID(s string) {
+	m.event_id = &s
+}
+
+// EventID returns the value of the "event_id" field in the mutation.
+func (m *CreemRefundEventMutation) EventID() (r string, exists bool) {
+	v := m.event_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventID returns the old "event_id" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldEventID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventID: %w", err)
+	}
+	return oldValue.EventID, nil
+}
+
+// ResetEventID resets all changes to the "event_id" field.
+func (m *CreemRefundEventMutation) ResetEventID() {
+	m.event_id = nil
+}
+
+// SetProviderRefundID sets the "provider_refund_id" field.
+func (m *CreemRefundEventMutation) SetProviderRefundID(s string) {
+	m.provider_refund_id = &s
+}
+
+// ProviderRefundID returns the value of the "provider_refund_id" field in the mutation.
+func (m *CreemRefundEventMutation) ProviderRefundID() (r string, exists bool) {
+	v := m.provider_refund_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderRefundID returns the old "provider_refund_id" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldProviderRefundID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderRefundID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderRefundID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderRefundID: %w", err)
+	}
+	return oldValue.ProviderRefundID, nil
+}
+
+// ResetProviderRefundID resets all changes to the "provider_refund_id" field.
+func (m *CreemRefundEventMutation) ResetProviderRefundID() {
+	m.provider_refund_id = nil
+}
+
+// SetProviderInstanceID sets the "provider_instance_id" field.
+func (m *CreemRefundEventMutation) SetProviderInstanceID(i int64) {
+	m.provider_instance_id = &i
+	m.addprovider_instance_id = nil
+}
+
+// ProviderInstanceID returns the value of the "provider_instance_id" field in the mutation.
+func (m *CreemRefundEventMutation) ProviderInstanceID() (r int64, exists bool) {
+	v := m.provider_instance_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderInstanceID returns the old "provider_instance_id" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldProviderInstanceID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderInstanceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderInstanceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderInstanceID: %w", err)
+	}
+	return oldValue.ProviderInstanceID, nil
+}
+
+// AddProviderInstanceID adds i to the "provider_instance_id" field.
+func (m *CreemRefundEventMutation) AddProviderInstanceID(i int64) {
+	if m.addprovider_instance_id != nil {
+		*m.addprovider_instance_id += i
+	} else {
+		m.addprovider_instance_id = &i
+	}
+}
+
+// AddedProviderInstanceID returns the value that was added to the "provider_instance_id" field in this mutation.
+func (m *CreemRefundEventMutation) AddedProviderInstanceID() (r int64, exists bool) {
+	v := m.addprovider_instance_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProviderInstanceID resets all changes to the "provider_instance_id" field.
+func (m *CreemRefundEventMutation) ResetProviderInstanceID() {
+	m.provider_instance_id = nil
+	m.addprovider_instance_id = nil
+}
+
+// SetPaymentOrderID sets the "payment_order_id" field.
+func (m *CreemRefundEventMutation) SetPaymentOrderID(i int64) {
+	m.payment_order_id = &i
+	m.addpayment_order_id = nil
+}
+
+// PaymentOrderID returns the value of the "payment_order_id" field in the mutation.
+func (m *CreemRefundEventMutation) PaymentOrderID() (r int64, exists bool) {
+	v := m.payment_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentOrderID returns the old "payment_order_id" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldPaymentOrderID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentOrderID: %w", err)
+	}
+	return oldValue.PaymentOrderID, nil
+}
+
+// AddPaymentOrderID adds i to the "payment_order_id" field.
+func (m *CreemRefundEventMutation) AddPaymentOrderID(i int64) {
+	if m.addpayment_order_id != nil {
+		*m.addpayment_order_id += i
+	} else {
+		m.addpayment_order_id = &i
+	}
+}
+
+// AddedPaymentOrderID returns the value that was added to the "payment_order_id" field in this mutation.
+func (m *CreemRefundEventMutation) AddedPaymentOrderID() (r int64, exists bool) {
+	v := m.addpayment_order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (m *CreemRefundEventMutation) ClearPaymentOrderID() {
+	m.payment_order_id = nil
+	m.addpayment_order_id = nil
+	m.clearedFields[creemrefundevent.FieldPaymentOrderID] = struct{}{}
+}
+
+// PaymentOrderIDCleared returns if the "payment_order_id" field was cleared in this mutation.
+func (m *CreemRefundEventMutation) PaymentOrderIDCleared() bool {
+	_, ok := m.clearedFields[creemrefundevent.FieldPaymentOrderID]
+	return ok
+}
+
+// ResetPaymentOrderID resets all changes to the "payment_order_id" field.
+func (m *CreemRefundEventMutation) ResetPaymentOrderID() {
+	m.payment_order_id = nil
+	m.addpayment_order_id = nil
+	delete(m.clearedFields, creemrefundevent.FieldPaymentOrderID)
+}
+
+// SetTransactionID sets the "transaction_id" field.
+func (m *CreemRefundEventMutation) SetTransactionID(s string) {
+	m.transaction_id = &s
+}
+
+// TransactionID returns the value of the "transaction_id" field in the mutation.
+func (m *CreemRefundEventMutation) TransactionID() (r string, exists bool) {
+	v := m.transaction_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransactionID returns the old "transaction_id" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldTransactionID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransactionID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransactionID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransactionID: %w", err)
+	}
+	return oldValue.TransactionID, nil
+}
+
+// ResetTransactionID resets all changes to the "transaction_id" field.
+func (m *CreemRefundEventMutation) ResetTransactionID() {
+	m.transaction_id = nil
+}
+
+// SetRefundAmountMinor sets the "refund_amount_minor" field.
+func (m *CreemRefundEventMutation) SetRefundAmountMinor(i int64) {
+	m.refund_amount_minor = &i
+	m.addrefund_amount_minor = nil
+}
+
+// RefundAmountMinor returns the value of the "refund_amount_minor" field in the mutation.
+func (m *CreemRefundEventMutation) RefundAmountMinor() (r int64, exists bool) {
+	v := m.refund_amount_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundAmountMinor returns the old "refund_amount_minor" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldRefundAmountMinor(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundAmountMinor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundAmountMinor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundAmountMinor: %w", err)
+	}
+	return oldValue.RefundAmountMinor, nil
+}
+
+// AddRefundAmountMinor adds i to the "refund_amount_minor" field.
+func (m *CreemRefundEventMutation) AddRefundAmountMinor(i int64) {
+	if m.addrefund_amount_minor != nil {
+		*m.addrefund_amount_minor += i
+	} else {
+		m.addrefund_amount_minor = &i
+	}
+}
+
+// AddedRefundAmountMinor returns the value that was added to the "refund_amount_minor" field in this mutation.
+func (m *CreemRefundEventMutation) AddedRefundAmountMinor() (r int64, exists bool) {
+	v := m.addrefund_amount_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRefundAmountMinor resets all changes to the "refund_amount_minor" field.
+func (m *CreemRefundEventMutation) ResetRefundAmountMinor() {
+	m.refund_amount_minor = nil
+	m.addrefund_amount_minor = nil
+}
+
+// SetCumulativeRefundedMinor sets the "cumulative_refunded_minor" field.
+func (m *CreemRefundEventMutation) SetCumulativeRefundedMinor(i int64) {
+	m.cumulative_refunded_minor = &i
+	m.addcumulative_refunded_minor = nil
+}
+
+// CumulativeRefundedMinor returns the value of the "cumulative_refunded_minor" field in the mutation.
+func (m *CreemRefundEventMutation) CumulativeRefundedMinor() (r int64, exists bool) {
+	v := m.cumulative_refunded_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCumulativeRefundedMinor returns the old "cumulative_refunded_minor" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldCumulativeRefundedMinor(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCumulativeRefundedMinor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCumulativeRefundedMinor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCumulativeRefundedMinor: %w", err)
+	}
+	return oldValue.CumulativeRefundedMinor, nil
+}
+
+// AddCumulativeRefundedMinor adds i to the "cumulative_refunded_minor" field.
+func (m *CreemRefundEventMutation) AddCumulativeRefundedMinor(i int64) {
+	if m.addcumulative_refunded_minor != nil {
+		*m.addcumulative_refunded_minor += i
+	} else {
+		m.addcumulative_refunded_minor = &i
+	}
+}
+
+// AddedCumulativeRefundedMinor returns the value that was added to the "cumulative_refunded_minor" field in this mutation.
+func (m *CreemRefundEventMutation) AddedCumulativeRefundedMinor() (r int64, exists bool) {
+	v := m.addcumulative_refunded_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCumulativeRefundedMinor resets all changes to the "cumulative_refunded_minor" field.
+func (m *CreemRefundEventMutation) ResetCumulativeRefundedMinor() {
+	m.cumulative_refunded_minor = nil
+	m.addcumulative_refunded_minor = nil
+}
+
+// SetTransactionAmountPaidMinor sets the "transaction_amount_paid_minor" field.
+func (m *CreemRefundEventMutation) SetTransactionAmountPaidMinor(i int64) {
+	m.transaction_amount_paid_minor = &i
+	m.addtransaction_amount_paid_minor = nil
+}
+
+// TransactionAmountPaidMinor returns the value of the "transaction_amount_paid_minor" field in the mutation.
+func (m *CreemRefundEventMutation) TransactionAmountPaidMinor() (r int64, exists bool) {
+	v := m.transaction_amount_paid_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransactionAmountPaidMinor returns the old "transaction_amount_paid_minor" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldTransactionAmountPaidMinor(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransactionAmountPaidMinor is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransactionAmountPaidMinor requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransactionAmountPaidMinor: %w", err)
+	}
+	return oldValue.TransactionAmountPaidMinor, nil
+}
+
+// AddTransactionAmountPaidMinor adds i to the "transaction_amount_paid_minor" field.
+func (m *CreemRefundEventMutation) AddTransactionAmountPaidMinor(i int64) {
+	if m.addtransaction_amount_paid_minor != nil {
+		*m.addtransaction_amount_paid_minor += i
+	} else {
+		m.addtransaction_amount_paid_minor = &i
+	}
+}
+
+// AddedTransactionAmountPaidMinor returns the value that was added to the "transaction_amount_paid_minor" field in this mutation.
+func (m *CreemRefundEventMutation) AddedTransactionAmountPaidMinor() (r int64, exists bool) {
+	v := m.addtransaction_amount_paid_minor
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTransactionAmountPaidMinor resets all changes to the "transaction_amount_paid_minor" field.
+func (m *CreemRefundEventMutation) ResetTransactionAmountPaidMinor() {
+	m.transaction_amount_paid_minor = nil
+	m.addtransaction_amount_paid_minor = nil
+}
+
+// SetCurrency sets the "currency" field.
+func (m *CreemRefundEventMutation) SetCurrency(s string) {
+	m.currency = &s
+}
+
+// Currency returns the value of the "currency" field in the mutation.
+func (m *CreemRefundEventMutation) Currency() (r string, exists bool) {
+	v := m.currency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrency returns the old "currency" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldCurrency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrency: %w", err)
+	}
+	return oldValue.Currency, nil
+}
+
+// ResetCurrency resets all changes to the "currency" field.
+func (m *CreemRefundEventMutation) ResetCurrency() {
+	m.currency = nil
+}
+
+// SetRefundRatio sets the "refund_ratio" field.
+func (m *CreemRefundEventMutation) SetRefundRatio(f float64) {
+	m.refund_ratio = &f
+	m.addrefund_ratio = nil
+}
+
+// RefundRatio returns the value of the "refund_ratio" field in the mutation.
+func (m *CreemRefundEventMutation) RefundRatio() (r float64, exists bool) {
+	v := m.refund_ratio
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRefundRatio returns the old "refund_ratio" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldRefundRatio(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRefundRatio is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRefundRatio requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRefundRatio: %w", err)
+	}
+	return oldValue.RefundRatio, nil
+}
+
+// AddRefundRatio adds f to the "refund_ratio" field.
+func (m *CreemRefundEventMutation) AddRefundRatio(f float64) {
+	if m.addrefund_ratio != nil {
+		*m.addrefund_ratio += f
+	} else {
+		m.addrefund_ratio = &f
+	}
+}
+
+// AddedRefundRatio returns the value that was added to the "refund_ratio" field in this mutation.
+func (m *CreemRefundEventMutation) AddedRefundRatio() (r float64, exists bool) {
+	v := m.addrefund_ratio
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRefundRatio resets all changes to the "refund_ratio" field.
+func (m *CreemRefundEventMutation) ResetRefundRatio() {
+	m.refund_ratio = nil
+	m.addrefund_ratio = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *CreemRefundEventMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *CreemRefundEventMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *CreemRefundEventMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetRecoverySnapshot sets the "recovery_snapshot" field.
+func (m *CreemRefundEventMutation) SetRecoverySnapshot(value map[string]interface{}) {
+	m.recovery_snapshot = &value
+}
+
+// RecoverySnapshot returns the value of the "recovery_snapshot" field in the mutation.
+func (m *CreemRefundEventMutation) RecoverySnapshot() (r map[string]interface{}, exists bool) {
+	v := m.recovery_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecoverySnapshot returns the old "recovery_snapshot" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldRecoverySnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecoverySnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecoverySnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecoverySnapshot: %w", err)
+	}
+	return oldValue.RecoverySnapshot, nil
+}
+
+// ClearRecoverySnapshot clears the value of the "recovery_snapshot" field.
+func (m *CreemRefundEventMutation) ClearRecoverySnapshot() {
+	m.recovery_snapshot = nil
+	m.clearedFields[creemrefundevent.FieldRecoverySnapshot] = struct{}{}
+}
+
+// RecoverySnapshotCleared returns if the "recovery_snapshot" field was cleared in this mutation.
+func (m *CreemRefundEventMutation) RecoverySnapshotCleared() bool {
+	_, ok := m.clearedFields[creemrefundevent.FieldRecoverySnapshot]
+	return ok
+}
+
+// ResetRecoverySnapshot resets all changes to the "recovery_snapshot" field.
+func (m *CreemRefundEventMutation) ResetRecoverySnapshot() {
+	m.recovery_snapshot = nil
+	delete(m.clearedFields, creemrefundevent.FieldRecoverySnapshot)
+}
+
+// SetRawPayload sets the "raw_payload" field.
+func (m *CreemRefundEventMutation) SetRawPayload(value map[string]interface{}) {
+	m.raw_payload = &value
+}
+
+// RawPayload returns the value of the "raw_payload" field in the mutation.
+func (m *CreemRefundEventMutation) RawPayload() (r map[string]interface{}, exists bool) {
+	v := m.raw_payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRawPayload returns the old "raw_payload" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldRawPayload(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRawPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRawPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRawPayload: %w", err)
+	}
+	return oldValue.RawPayload, nil
+}
+
+// ClearRawPayload clears the value of the "raw_payload" field.
+func (m *CreemRefundEventMutation) ClearRawPayload() {
+	m.raw_payload = nil
+	m.clearedFields[creemrefundevent.FieldRawPayload] = struct{}{}
+}
+
+// RawPayloadCleared returns if the "raw_payload" field was cleared in this mutation.
+func (m *CreemRefundEventMutation) RawPayloadCleared() bool {
+	_, ok := m.clearedFields[creemrefundevent.FieldRawPayload]
+	return ok
+}
+
+// ResetRawPayload resets all changes to the "raw_payload" field.
+func (m *CreemRefundEventMutation) ResetRawPayload() {
+	m.raw_payload = nil
+	delete(m.clearedFields, creemrefundevent.FieldRawPayload)
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *CreemRefundEventMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *CreemRefundEventMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *CreemRefundEventMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *CreemRefundEventMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *CreemRefundEventMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetLastError sets the "last_error" field.
+func (m *CreemRefundEventMutation) SetLastError(s string) {
+	m.last_error = &s
+}
+
+// LastError returns the value of the "last_error" field in the mutation.
+func (m *CreemRefundEventMutation) LastError() (r string, exists bool) {
+	v := m.last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastError returns the old "last_error" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastError: %w", err)
+	}
+	return oldValue.LastError, nil
+}
+
+// ResetLastError resets all changes to the "last_error" field.
+func (m *CreemRefundEventMutation) ResetLastError() {
+	m.last_error = nil
+}
+
+// SetProcessedAt sets the "processed_at" field.
+func (m *CreemRefundEventMutation) SetProcessedAt(t time.Time) {
+	m.processed_at = &t
+}
+
+// ProcessedAt returns the value of the "processed_at" field in the mutation.
+func (m *CreemRefundEventMutation) ProcessedAt() (r time.Time, exists bool) {
+	v := m.processed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProcessedAt returns the old "processed_at" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldProcessedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProcessedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProcessedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProcessedAt: %w", err)
+	}
+	return oldValue.ProcessedAt, nil
+}
+
+// ClearProcessedAt clears the value of the "processed_at" field.
+func (m *CreemRefundEventMutation) ClearProcessedAt() {
+	m.processed_at = nil
+	m.clearedFields[creemrefundevent.FieldProcessedAt] = struct{}{}
+}
+
+// ProcessedAtCleared returns if the "processed_at" field was cleared in this mutation.
+func (m *CreemRefundEventMutation) ProcessedAtCleared() bool {
+	_, ok := m.clearedFields[creemrefundevent.FieldProcessedAt]
+	return ok
+}
+
+// ResetProcessedAt resets all changes to the "processed_at" field.
+func (m *CreemRefundEventMutation) ResetProcessedAt() {
+	m.processed_at = nil
+	delete(m.clearedFields, creemrefundevent.FieldProcessedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CreemRefundEventMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CreemRefundEventMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CreemRefundEventMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CreemRefundEventMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CreemRefundEventMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CreemRefundEvent entity.
+// If the CreemRefundEvent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CreemRefundEventMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CreemRefundEventMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the CreemRefundEventMutation builder.
+func (m *CreemRefundEventMutation) Where(ps ...predicate.CreemRefundEvent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CreemRefundEventMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CreemRefundEventMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CreemRefundEvent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CreemRefundEventMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CreemRefundEventMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CreemRefundEvent).
+func (m *CreemRefundEventMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CreemRefundEventMutation) Fields() []string {
+	fields := make([]string, 0, 18)
+	if m.event_id != nil {
+		fields = append(fields, creemrefundevent.FieldEventID)
+	}
+	if m.provider_refund_id != nil {
+		fields = append(fields, creemrefundevent.FieldProviderRefundID)
+	}
+	if m.provider_instance_id != nil {
+		fields = append(fields, creemrefundevent.FieldProviderInstanceID)
+	}
+	if m.payment_order_id != nil {
+		fields = append(fields, creemrefundevent.FieldPaymentOrderID)
+	}
+	if m.transaction_id != nil {
+		fields = append(fields, creemrefundevent.FieldTransactionID)
+	}
+	if m.refund_amount_minor != nil {
+		fields = append(fields, creemrefundevent.FieldRefundAmountMinor)
+	}
+	if m.cumulative_refunded_minor != nil {
+		fields = append(fields, creemrefundevent.FieldCumulativeRefundedMinor)
+	}
+	if m.transaction_amount_paid_minor != nil {
+		fields = append(fields, creemrefundevent.FieldTransactionAmountPaidMinor)
+	}
+	if m.currency != nil {
+		fields = append(fields, creemrefundevent.FieldCurrency)
+	}
+	if m.refund_ratio != nil {
+		fields = append(fields, creemrefundevent.FieldRefundRatio)
+	}
+	if m.status != nil {
+		fields = append(fields, creemrefundevent.FieldStatus)
+	}
+	if m.recovery_snapshot != nil {
+		fields = append(fields, creemrefundevent.FieldRecoverySnapshot)
+	}
+	if m.raw_payload != nil {
+		fields = append(fields, creemrefundevent.FieldRawPayload)
+	}
+	if m.attempts != nil {
+		fields = append(fields, creemrefundevent.FieldAttempts)
+	}
+	if m.last_error != nil {
+		fields = append(fields, creemrefundevent.FieldLastError)
+	}
+	if m.processed_at != nil {
+		fields = append(fields, creemrefundevent.FieldProcessedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, creemrefundevent.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, creemrefundevent.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CreemRefundEventMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case creemrefundevent.FieldEventID:
+		return m.EventID()
+	case creemrefundevent.FieldProviderRefundID:
+		return m.ProviderRefundID()
+	case creemrefundevent.FieldProviderInstanceID:
+		return m.ProviderInstanceID()
+	case creemrefundevent.FieldPaymentOrderID:
+		return m.PaymentOrderID()
+	case creemrefundevent.FieldTransactionID:
+		return m.TransactionID()
+	case creemrefundevent.FieldRefundAmountMinor:
+		return m.RefundAmountMinor()
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		return m.CumulativeRefundedMinor()
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		return m.TransactionAmountPaidMinor()
+	case creemrefundevent.FieldCurrency:
+		return m.Currency()
+	case creemrefundevent.FieldRefundRatio:
+		return m.RefundRatio()
+	case creemrefundevent.FieldStatus:
+		return m.Status()
+	case creemrefundevent.FieldRecoverySnapshot:
+		return m.RecoverySnapshot()
+	case creemrefundevent.FieldRawPayload:
+		return m.RawPayload()
+	case creemrefundevent.FieldAttempts:
+		return m.Attempts()
+	case creemrefundevent.FieldLastError:
+		return m.LastError()
+	case creemrefundevent.FieldProcessedAt:
+		return m.ProcessedAt()
+	case creemrefundevent.FieldCreatedAt:
+		return m.CreatedAt()
+	case creemrefundevent.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CreemRefundEventMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case creemrefundevent.FieldEventID:
+		return m.OldEventID(ctx)
+	case creemrefundevent.FieldProviderRefundID:
+		return m.OldProviderRefundID(ctx)
+	case creemrefundevent.FieldProviderInstanceID:
+		return m.OldProviderInstanceID(ctx)
+	case creemrefundevent.FieldPaymentOrderID:
+		return m.OldPaymentOrderID(ctx)
+	case creemrefundevent.FieldTransactionID:
+		return m.OldTransactionID(ctx)
+	case creemrefundevent.FieldRefundAmountMinor:
+		return m.OldRefundAmountMinor(ctx)
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		return m.OldCumulativeRefundedMinor(ctx)
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		return m.OldTransactionAmountPaidMinor(ctx)
+	case creemrefundevent.FieldCurrency:
+		return m.OldCurrency(ctx)
+	case creemrefundevent.FieldRefundRatio:
+		return m.OldRefundRatio(ctx)
+	case creemrefundevent.FieldStatus:
+		return m.OldStatus(ctx)
+	case creemrefundevent.FieldRecoverySnapshot:
+		return m.OldRecoverySnapshot(ctx)
+	case creemrefundevent.FieldRawPayload:
+		return m.OldRawPayload(ctx)
+	case creemrefundevent.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case creemrefundevent.FieldLastError:
+		return m.OldLastError(ctx)
+	case creemrefundevent.FieldProcessedAt:
+		return m.OldProcessedAt(ctx)
+	case creemrefundevent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case creemrefundevent.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown CreemRefundEvent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreemRefundEventMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case creemrefundevent.FieldEventID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventID(v)
+		return nil
+	case creemrefundevent.FieldProviderRefundID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderRefundID(v)
+		return nil
+	case creemrefundevent.FieldProviderInstanceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderInstanceID(v)
+		return nil
+	case creemrefundevent.FieldPaymentOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentOrderID(v)
+		return nil
+	case creemrefundevent.FieldTransactionID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransactionID(v)
+		return nil
+	case creemrefundevent.FieldRefundAmountMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundAmountMinor(v)
+		return nil
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCumulativeRefundedMinor(v)
+		return nil
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransactionAmountPaidMinor(v)
+		return nil
+	case creemrefundevent.FieldCurrency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrency(v)
+		return nil
+	case creemrefundevent.FieldRefundRatio:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRefundRatio(v)
+		return nil
+	case creemrefundevent.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case creemrefundevent.FieldRecoverySnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecoverySnapshot(v)
+		return nil
+	case creemrefundevent.FieldRawPayload:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRawPayload(v)
+		return nil
+	case creemrefundevent.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case creemrefundevent.FieldLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastError(v)
+		return nil
+	case creemrefundevent.FieldProcessedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProcessedAt(v)
+		return nil
+	case creemrefundevent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case creemrefundevent.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreemRefundEvent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CreemRefundEventMutation) AddedFields() []string {
+	var fields []string
+	if m.addprovider_instance_id != nil {
+		fields = append(fields, creemrefundevent.FieldProviderInstanceID)
+	}
+	if m.addpayment_order_id != nil {
+		fields = append(fields, creemrefundevent.FieldPaymentOrderID)
+	}
+	if m.addrefund_amount_minor != nil {
+		fields = append(fields, creemrefundevent.FieldRefundAmountMinor)
+	}
+	if m.addcumulative_refunded_minor != nil {
+		fields = append(fields, creemrefundevent.FieldCumulativeRefundedMinor)
+	}
+	if m.addtransaction_amount_paid_minor != nil {
+		fields = append(fields, creemrefundevent.FieldTransactionAmountPaidMinor)
+	}
+	if m.addrefund_ratio != nil {
+		fields = append(fields, creemrefundevent.FieldRefundRatio)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, creemrefundevent.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CreemRefundEventMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case creemrefundevent.FieldProviderInstanceID:
+		return m.AddedProviderInstanceID()
+	case creemrefundevent.FieldPaymentOrderID:
+		return m.AddedPaymentOrderID()
+	case creemrefundevent.FieldRefundAmountMinor:
+		return m.AddedRefundAmountMinor()
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		return m.AddedCumulativeRefundedMinor()
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		return m.AddedTransactionAmountPaidMinor()
+	case creemrefundevent.FieldRefundRatio:
+		return m.AddedRefundRatio()
+	case creemrefundevent.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CreemRefundEventMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case creemrefundevent.FieldProviderInstanceID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProviderInstanceID(v)
+		return nil
+	case creemrefundevent.FieldPaymentOrderID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPaymentOrderID(v)
+		return nil
+	case creemrefundevent.FieldRefundAmountMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRefundAmountMinor(v)
+		return nil
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCumulativeRefundedMinor(v)
+		return nil
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTransactionAmountPaidMinor(v)
+		return nil
+	case creemrefundevent.FieldRefundRatio:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRefundRatio(v)
+		return nil
+	case creemrefundevent.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CreemRefundEvent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CreemRefundEventMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(creemrefundevent.FieldPaymentOrderID) {
+		fields = append(fields, creemrefundevent.FieldPaymentOrderID)
+	}
+	if m.FieldCleared(creemrefundevent.FieldRecoverySnapshot) {
+		fields = append(fields, creemrefundevent.FieldRecoverySnapshot)
+	}
+	if m.FieldCleared(creemrefundevent.FieldRawPayload) {
+		fields = append(fields, creemrefundevent.FieldRawPayload)
+	}
+	if m.FieldCleared(creemrefundevent.FieldProcessedAt) {
+		fields = append(fields, creemrefundevent.FieldProcessedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CreemRefundEventMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CreemRefundEventMutation) ClearField(name string) error {
+	switch name {
+	case creemrefundevent.FieldPaymentOrderID:
+		m.ClearPaymentOrderID()
+		return nil
+	case creemrefundevent.FieldRecoverySnapshot:
+		m.ClearRecoverySnapshot()
+		return nil
+	case creemrefundevent.FieldRawPayload:
+		m.ClearRawPayload()
+		return nil
+	case creemrefundevent.FieldProcessedAt:
+		m.ClearProcessedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreemRefundEvent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CreemRefundEventMutation) ResetField(name string) error {
+	switch name {
+	case creemrefundevent.FieldEventID:
+		m.ResetEventID()
+		return nil
+	case creemrefundevent.FieldProviderRefundID:
+		m.ResetProviderRefundID()
+		return nil
+	case creemrefundevent.FieldProviderInstanceID:
+		m.ResetProviderInstanceID()
+		return nil
+	case creemrefundevent.FieldPaymentOrderID:
+		m.ResetPaymentOrderID()
+		return nil
+	case creemrefundevent.FieldTransactionID:
+		m.ResetTransactionID()
+		return nil
+	case creemrefundevent.FieldRefundAmountMinor:
+		m.ResetRefundAmountMinor()
+		return nil
+	case creemrefundevent.FieldCumulativeRefundedMinor:
+		m.ResetCumulativeRefundedMinor()
+		return nil
+	case creemrefundevent.FieldTransactionAmountPaidMinor:
+		m.ResetTransactionAmountPaidMinor()
+		return nil
+	case creemrefundevent.FieldCurrency:
+		m.ResetCurrency()
+		return nil
+	case creemrefundevent.FieldRefundRatio:
+		m.ResetRefundRatio()
+		return nil
+	case creemrefundevent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case creemrefundevent.FieldRecoverySnapshot:
+		m.ResetRecoverySnapshot()
+		return nil
+	case creemrefundevent.FieldRawPayload:
+		m.ResetRawPayload()
+		return nil
+	case creemrefundevent.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case creemrefundevent.FieldLastError:
+		m.ResetLastError()
+		return nil
+	case creemrefundevent.FieldProcessedAt:
+		m.ResetProcessedAt()
+		return nil
+	case creemrefundevent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case creemrefundevent.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown CreemRefundEvent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CreemRefundEventMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CreemRefundEventMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CreemRefundEventMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CreemRefundEventMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CreemRefundEventMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CreemRefundEventMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CreemRefundEventMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown CreemRefundEvent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CreemRefundEventMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown CreemRefundEvent edge %s", name)
 }
 
 // ErrorPassthroughRuleMutation represents an operation that mutates the ErrorPassthroughRule nodes in the graph.

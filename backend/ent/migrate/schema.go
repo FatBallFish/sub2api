@@ -793,6 +793,102 @@ var (
 			},
 		},
 	}
+	// CreemProductBindingsColumns holds the columns for the "creem_product_bindings" table.
+	CreemProductBindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "provider_instance_id", Type: field.TypeInt64},
+		{Name: "external_product_id", Type: field.TypeString, Size: 128},
+		{Name: "target_type", Type: field.TypeString, Size: 20},
+		{Name: "plan_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "credited_balance", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,2)"}},
+		{Name: "product_name", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "price_minor", Type: field.TypeInt64},
+		{Name: "currency", Type: field.TypeString, Size: 3},
+		{Name: "billing_type", Type: field.TypeString, Size: 20, Default: "onetime"},
+		{Name: "product_status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "tax_mode", Type: field.TypeString, Size: 20, Default: "exclusive"},
+		{Name: "environment", Type: field.TypeString, Size: 10},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "health_status", Type: field.TypeString, Size: 20, Default: "healthy"},
+		{Name: "health_reason", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "last_synced_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CreemProductBindingsTable holds the schema information for the "creem_product_bindings" table.
+	CreemProductBindingsTable = &schema.Table{
+		Name:       "creem_product_bindings",
+		Columns:    CreemProductBindingsColumns,
+		PrimaryKey: []*schema.Column{CreemProductBindingsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creemproductbinding_provider_instance_id_external_product_id",
+				Unique:  true,
+				Columns: []*schema.Column{CreemProductBindingsColumns[1], CreemProductBindingsColumns[2]},
+			},
+			{
+				Name:    "creemproductbinding_target_type_plan_id_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{CreemProductBindingsColumns[3], CreemProductBindingsColumns[4], CreemProductBindingsColumns[13]},
+			},
+			{
+				Name:    "creemproductbinding_provider_instance_id_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{CreemProductBindingsColumns[1], CreemProductBindingsColumns[13]},
+			},
+		},
+	}
+	// CreemRefundEventsColumns holds the columns for the "creem_refund_events" table.
+	CreemRefundEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "event_id", Type: field.TypeString, Unique: true, Size: 128},
+		{Name: "provider_refund_id", Type: field.TypeString, Unique: true, Size: 128},
+		{Name: "provider_instance_id", Type: field.TypeInt64},
+		{Name: "payment_order_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "transaction_id", Type: field.TypeString, Size: 128},
+		{Name: "refund_amount_minor", Type: field.TypeInt64},
+		{Name: "cumulative_refunded_minor", Type: field.TypeInt64},
+		{Name: "transaction_amount_paid_minor", Type: field.TypeInt64},
+		{Name: "currency", Type: field.TypeString, Size: 3},
+		{Name: "refund_ratio", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(12,10)"}},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "received"},
+		{Name: "recovery_snapshot", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "raw_payload", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "last_error", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "processed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// CreemRefundEventsTable holds the schema information for the "creem_refund_events" table.
+	CreemRefundEventsTable = &schema.Table{
+		Name:       "creem_refund_events",
+		Columns:    CreemRefundEventsColumns,
+		PrimaryKey: []*schema.Column{CreemRefundEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "creemrefundevent_payment_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{CreemRefundEventsColumns[4]},
+			},
+			{
+				Name:    "creemrefundevent_provider_instance_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{CreemRefundEventsColumns[3], CreemRefundEventsColumns[11]},
+			},
+			{
+				Name:    "creemrefundevent_transaction_id",
+				Unique:  false,
+				Columns: []*schema.Column{CreemRefundEventsColumns[5]},
+			},
+			{
+				Name:    "creemrefundevent_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CreemRefundEventsColumns[11], CreemRefundEventsColumns[17]},
+			},
+		},
+	}
 	// ErrorPassthroughRulesColumns holds the columns for the "error_passthrough_rules" table.
 	ErrorPassthroughRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2172,6 +2268,8 @@ var (
 		ChannelMonitorDailyRollupsTable,
 		ChannelMonitorHistoriesTable,
 		ChannelMonitorRequestTemplatesTable,
+		CreemProductBindingsTable,
+		CreemRefundEventsTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -2255,6 +2353,12 @@ func init() {
 	}
 	ChannelMonitorRequestTemplatesTable.Annotation = &entsql.Annotation{
 		Table: "channel_monitor_request_templates",
+	}
+	CreemProductBindingsTable.Annotation = &entsql.Annotation{
+		Table: "creem_product_bindings",
+	}
+	CreemRefundEventsTable.Annotation = &entsql.Annotation{
+		Table: "creem_refund_events",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

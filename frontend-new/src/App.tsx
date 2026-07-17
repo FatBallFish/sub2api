@@ -12,6 +12,7 @@ import Team from "./pages/public/Team";
 import Privacy from "./pages/public/legal/Privacy";
 import Terms from "./pages/public/legal/Terms";
 import PaymentResult from "./pages/public/PaymentResult";
+import StripePayment from "./pages/public/StripePayment";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import Overview from "./pages/console/Overview";
 import ApiKeys from "./pages/console/ApiKeys";
@@ -155,6 +156,7 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
       <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
       <Route path="/payment/result" element={<PaymentResult />} />
+	  <Route path="/payment/stripe" element={<StripePayment />} />
 
       {/* Console Routes */}
       <Route path="/console" element={<ConsoleGuard />}>

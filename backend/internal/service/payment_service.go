@@ -87,6 +87,9 @@ type CreateOrderRequest struct {
 	PaymentSource        string
 	OrderType            string
 	PlanID               int64
+	OfferID              int64
+	CreemProductID       string
+	CreemBindingID       int64
 	Locale               string
 	UpgradeQuote         *GlobalPlanUpgradeQuote
 }

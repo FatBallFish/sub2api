@@ -114,10 +114,11 @@ function checkoutPaymentMethods(checkoutInfo: CheckoutInfo | null, billing: Cons
   const fromCheckout = Object.values(checkoutInfo?.methods ?? {})
     .map((method) => method.payment_type)
     .filter(Boolean);
-  if (fromCheckout.length > 0) return fromCheckout;
-  return (billing?.payment_methods ?? [])
+  const methods = fromCheckout.length > 0 ? fromCheckout : (billing?.payment_methods ?? [])
     .filter((method) => method.available !== false)
     .map((method) => method.type);
+  if ((checkoutInfo?.fixed_offers?.length ?? 0) > 0 && !methods.includes("creem")) methods.push("creem");
+  return methods;
 }
 
 function parseExchangeRates(raw?: string) {
@@ -203,6 +204,7 @@ export default function Billing() {
   const [selectedTopUpAmount, setSelectedTopUpAmount] = useState<number | null>(null);
   const [customTopUpAmount, setCustomTopUpAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [selectedCreemOfferId, setSelectedCreemOfferId] = useState<number | null>(null);
   const [topUpLoading, setTopUpLoading] = useState(false);
   const [topUpError, setTopUpError] = useState<string | null>(null);
   const [topUpOrder, setTopUpOrder] = useState<CreateOrderResult | null>(null);
@@ -325,7 +327,20 @@ export default function Billing() {
       setPlanOrder(order);
     }
 
-    if (order.pay_url) {
+	if (order.client_secret) {
+		sessionStorage.setItem(`stripe-payment:${order.order_id}`, JSON.stringify({
+			clientSecret: order.client_secret,
+			resumeToken: order.resume_token,
+			outTradeNo: order.out_trade_no,
+		}));
+		window.location.assign(`/payment/stripe?order_id=${encodeURIComponent(String(order.order_id))}`);
+		return;
+	}
+
+    if (order.pay_url && order.payment_type === "creem") {
+	  window.location.assign(order.pay_url);
+	  return;
+	} else if (order.pay_url) {
       window.open(order.pay_url, "_blank", "noopener,noreferrer");
       setPaymentDialog({
         type: "info",
@@ -384,22 +399,26 @@ export default function Billing() {
   const usedPercent = quotaPercent(billingData);
   const paymentMethods = checkoutPaymentMethods(checkoutInfo, billingData);
   const defaultPaymentMethod = selectedPaymentMethod || paymentMethods[0] || "stripe";
+  const isCreem = defaultPaymentMethod === "creem";
+  const creemOffers = checkoutInfo?.fixed_offers ?? [];
+  const creemBalanceOffers = creemOffers.filter((offer) => offer.target_type === "balance" && typeof offer.credited_amount === "number");
+  const selectedCreemOffer = creemBalanceOffers.find((offer) => offer.offer_id === selectedCreemOfferId) ?? creemBalanceOffers[0];
   const customAmountValue = Number(customTopUpAmount);
   const customAmountValid = Number.isFinite(customAmountValue) && customAmountValue > 0;
   const selectedTopUp = billingData.add_ons.find((item) => item.amount === selectedTopUpAmount);
-  const previewAmount = customAmountValid ? customAmountValue : selectedTopUp?.amount ?? billingData.add_ons[0]?.amount ?? 0;
+  const previewAmount = isCreem ? selectedCreemOffer?.credited_amount ?? 0 : customAmountValid ? customAmountValue : selectedTopUp?.amount ?? billingData.add_ons[0]?.amount ?? 0;
   const rechargeMultiplier = checkoutInfo?.balance_recharge_multiplier && checkoutInfo.balance_recharge_multiplier > 0
     ? checkoutInfo.balance_recharge_multiplier
     : 1;
-  const previewCredits = topUpCredits(previewAmount, selectedTopUp, rechargeMultiplier);
+  const previewCredits = isCreem ? selectedCreemOffer?.credited_amount ?? 0 : topUpCredits(previewAmount, selectedTopUp, rechargeMultiplier);
   const exchangeRates = parseExchangeRates(checkoutInfo?.currency_exchange_rates);
   const selectedMethodLimits = checkoutInfo?.methods?.[defaultPaymentMethod];
-  const methodCurrency = selectedMethodLimits?.currency || walletCurrency;
+  const methodCurrency = isCreem ? selectedCreemOffer?.payment_currency || walletCurrency : selectedMethodLimits?.currency || walletCurrency;
   const rawCheckoutMin = selectedMethodLimits?.single_min ?? checkoutInfo?.global_min ?? 0;
   const rawCheckoutMax = selectedMethodLimits?.single_max ?? checkoutInfo?.global_max ?? 0;
   const checkoutMin = convertCurrencyAmount(rawCheckoutMin, methodCurrency, walletCurrency, exchangeRates);
   const checkoutMax = convertCurrencyAmount(rawCheckoutMax, methodCurrency, walletCurrency, exchangeRates);
-  const topUpOutOfRange = previewAmount <= 0 || (checkoutMin > 0 && previewAmount < checkoutMin) || (checkoutMax > 0 && previewAmount > checkoutMax);
+  const topUpOutOfRange = previewAmount <= 0 || (!isCreem && ((checkoutMin > 0 && previewAmount < checkoutMin) || (checkoutMax > 0 && previewAmount > checkoutMax)));
 
   async function buyTopUp() {
     if (topUpOutOfRange || !defaultPaymentMethod) return;
@@ -412,6 +431,7 @@ export default function Billing() {
         amount: previewAmount,
         amount_currency: walletCurrency,
         payment_type: defaultPaymentMethod,
+		offer_id: isCreem ? selectedCreemOffer?.offer_id : undefined,
         order_type: "balance",
         payment_source: "hosted_redirect",
         return_url: `${window.location.origin}/payment/result`,
@@ -438,7 +458,9 @@ export default function Billing() {
     setPlanOrder(null);
 
     try {
-      const upgradeQuote = !groupScoped && categoryActivePlan ? await getGlobalPlanUpgradeQuote(plan.id) : null;
+	  const creemPlanOffer = isCreem ? creemOffers.find((offer) => offer.plan_id === plan.id && offer.target_type === (groupScoped ? "group_plan" : "global_plan")) : undefined;
+	  if (isCreem && (!creemPlanOffer || categoryActivePlan)) throw new Error("This plan is not available through Creem.");
+      const upgradeQuote = !isCreem && !groupScoped && categoryActivePlan ? await getGlobalPlanUpgradeQuote(plan.id) : null;
       const orderAmount = upgradeQuote?.upgrade_price ?? plan.price;
       if (orderAmount <= 0) {
         throw new Error("This plan is already covered by your current global plan.");
@@ -447,6 +469,7 @@ export default function Billing() {
         amount: orderAmount,
         amount_currency: plan.currency || walletCurrency,
         payment_type: defaultPaymentMethod,
+		offer_id: creemPlanOffer?.offer_id,
         order_type: groupScoped ? "subscription" : upgradeQuote ? "global_plan_upgrade" : "global_plan",
         plan_id: plan.id,
         payment_source: "hosted_redirect",
@@ -525,6 +548,7 @@ export default function Billing() {
             const categoryActivePlan = groupScoped ? null : activePlanForCategory(plan, activePlans);
             const isCurrent = !groupScoped && categoryActivePlan?.plan_id === plan.id;
             const isCoveredByCurrentGlobalPlan = !groupScoped && !isCurrent && categoryActivePlan ? !isHigherTierPlan(plan, categoryActivePlan) : false;
+			const creemPlanAvailable = !isCreem || (!categoryActivePlan && creemOffers.some((offer) => offer.plan_id === plan.id && offer.target_type === (groupScoped ? "group_plan" : "global_plan")));
             return (
             <div key={plan.id} className={`p-6 rounded-2xl border transition-all relative overflow-hidden ${isCurrent ? 'console-inverted-panel bg-zinc-900 text-white border-zinc-900 shadow-xl' : 'bg-white border-zinc-200 hover:border-zinc-300'}`}>
               {groupScoped && (
@@ -584,10 +608,10 @@ export default function Billing() {
               ) : (
                 <button
                   onClick={() => void buyPlan(plan)}
-                  disabled={planLoadingId === plan.id || isCurrent}
+				  disabled={planLoadingId === plan.id || isCurrent || !creemPlanAvailable}
                   className={`mt-8 w-full rounded-xl py-2.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-white text-zinc-900 hover:bg-zinc-100' : 'bg-zinc-900 text-white hover:bg-zinc-800'}`}
                 >
-                  {planLoadingId === plan.id ? "Creating order..." : isCurrent ? 'Current Plan' : `Upgrade to ${plan.name}`}
+				  {planLoadingId === plan.id ? "Creating order..." : isCurrent ? 'Current Plan' : !creemPlanAvailable ? "Unavailable with Creem" : `Upgrade to ${plan.name}`}
                 </button>
               )}
             </div>
@@ -620,28 +644,33 @@ export default function Billing() {
             )}
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
-            {billingData.add_ons.map(addOn => (
+			{(isCreem ? creemBalanceOffers : billingData.add_ons).map((item) => {
+			  const amount = isCreem && "credited_amount" in item ? item.credited_amount ?? 0 : "amount" in item ? item.amount : 0;
+			  const credits = isCreem && "credited_amount" in item ? item.credited_amount ?? 0 : "credits" in item ? item.credits : 0;
+			  const selected = isCreem ? selectedCreemOffer?.offer_id === ("offer_id" in item ? item.offer_id : 0) : selectedTopUp?.amount === amount && !customAmountValid;
+			  return (
               <button
-                key={addOn.amount}
+				key={isCreem && "offer_id" in item ? item.offer_id : amount}
                 onClick={() => {
-                  setSelectedTopUpAmount(addOn.amount);
+				  if (isCreem && "offer_id" in item) setSelectedCreemOfferId(item.offer_id);
+				  else setSelectedTopUpAmount(amount);
                   setCustomTopUpAmount("");
                   setTopUpError(null);
                   setTopUpOrder(null);
                 }}
                 className={`min-w-28 rounded-2xl border px-5 py-4 text-left font-bold transition-all ${
-                  selectedTopUp?.amount === addOn.amount && !customAmountValid
+				  selected
                     ? "border-zinc-900 bg-zinc-900 text-white"
                     : "border-zinc-200 text-zinc-900 hover:border-zinc-900 hover:bg-zinc-50"
                 }`}
               >
-                <span className="block">{formatMoney(addOn.amount, addOn.currency)}</span>
-                <span className={`mt-1 block text-[10px] uppercase tracking-widest ${selectedTopUp?.amount === addOn.amount && !customAmountValid ? "text-zinc-400" : "text-zinc-500"}`}>
-                  {formatCredits(addOn.credits)} credits
+				<span className="block">{isCreem && "pay_amount" in item ? formatMoney(item.pay_amount, item.payment_currency) : formatMoney(amount, "currency" in item ? item.currency : walletCurrency)}</span>
+				<span className={`mt-1 block text-[10px] uppercase tracking-widest ${selected ? "text-zinc-400" : "text-zinc-500"}`}>
+				  {formatCredits(credits)} credits
                 </span>
               </button>
-            ))}
-            <label className="min-w-56 flex-1 rounded-2xl border border-zinc-200 px-5 py-4 transition-all focus-within:border-zinc-900">
+			)})}
+			{!isCreem && <label className="min-w-56 flex-1 rounded-2xl border border-zinc-200 px-5 py-4 transition-all focus-within:border-zinc-900">
               <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">Custom amount</span>
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-lg font-bold text-zinc-400">$</span>
@@ -657,7 +686,7 @@ export default function Billing() {
                   className="w-full bg-transparent text-lg font-bold text-zinc-900 outline-none placeholder:text-zinc-300"
                 />
               </div>
-            </label>
+			</label>}
           </div>
         </div>
 
@@ -677,13 +706,16 @@ export default function Billing() {
             </div>
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <span className="text-zinc-400">Amount due</span>
-              <span className="text-xl font-bold">{formatMoney(previewAmount, billingData.wallet.currency)}</span>
+			  <span className="text-xl font-bold">{isCreem && selectedCreemOffer ? formatMoney(selectedCreemOffer.pay_amount, selectedCreemOffer.payment_currency) : formatMoney(previewAmount, billingData.wallet.currency)}</span>
             </div>
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Payment method</span>
               <select
                 value={defaultPaymentMethod}
-                onChange={(event) => setSelectedPaymentMethod(event.target.value)}
+				onChange={(event) => {
+				  setSelectedPaymentMethod(event.target.value);
+				  if (event.target.value === "creem") setCustomTopUpAmount("");
+				}}
                 className="console-inverted-subtle mt-2 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white outline-none focus:border-white/30"
               >
                 {paymentMethods.map((method) => (

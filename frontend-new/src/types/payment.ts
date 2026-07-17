@@ -9,6 +9,7 @@ export interface CreateOrderRequest {
   payment_type: string;
   order_type: "balance" | "subscription" | "global_plan" | "global_plan_upgrade";
   plan_id?: number;
+  offer_id?: number;
   return_url?: string;
   payment_source?: string;
   is_mobile?: boolean;
@@ -86,4 +87,19 @@ export interface CheckoutInfo {
   balance_disabled?: boolean;
   balance_recharge_multiplier?: number;
   recharge_fee_rate?: number;
+  stripe_publishable_key?: string;
+  fixed_offers?: FixedPaymentOffer[];
+}
+
+export interface FixedPaymentOffer {
+  offer_id: number;
+  payment_type: "creem";
+  target_type: "balance" | "group_plan" | "global_plan";
+  plan_id?: number;
+  title: string;
+  pay_amount: number;
+  payment_currency: string;
+  credited_amount?: number;
+  tax_mode: "inclusive" | "exclusive";
+  sort_order: number;
 }

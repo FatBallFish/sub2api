@@ -36,6 +36,17 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if !cfg.Enabled {
 		return nil, infraerrors.Forbidden("PAYMENT_DISABLED", "payment system is disabled")
 	}
+	var creemSelection *payment.InstanceSelection
+	if req.PaymentType == payment.TypeCreem {
+		binding, selection, err := s.configService.ResolveCreemOffer(ctx, req.OfferID)
+		if err != nil {
+			return nil, err
+		}
+		if err := applyCreemOfferToOrderRequest(&req, binding); err != nil {
+			return nil, err
+		}
+		creemSelection = selection
+	}
 	plan, err := s.validateOrderInput(ctx, req, cfg)
 	if err != nil {
 		return nil, err
@@ -72,6 +83,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)
+	}
+	if creemSelection != nil {
+		return s.createCreemOrder(ctx, req, cfg, user, plan, creemSelection)
 	}
 	orderAmount := req.Amount
 	limitAmount := req.Amount
@@ -163,6 +177,74 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
 			SetStatus(OrderStatusFailed).
 			Save(ctx)
+		return nil, err
+	}
+	return resp, nil
+}
+
+func applyCreemOfferToOrderRequest(req *CreateOrderRequest, binding *dbent.CreemProductBinding) error {
+	if req == nil || binding == nil {
+		return infraerrors.NotFound("CREEM_OFFER_NOT_FOUND", "Creem offer not found")
+	}
+	if req.OrderType == payment.OrderTypeGlobalPlanUpgrade {
+		return infraerrors.BadRequest("CREEM_GLOBAL_UPGRADE_UNSUPPORTED", "Creem does not support global plan upgrades")
+	}
+	switch binding.TargetType {
+	case CreemBindingTargetBalance:
+		if req.OrderType != "" && req.OrderType != payment.OrderTypeBalance {
+			return infraerrors.BadRequest("CREEM_TARGET_MISMATCH", "Creem offer does not match order type")
+		}
+		if binding.CreditedBalance == nil || math.Abs(req.Amount-*binding.CreditedBalance) > 0.000001 {
+			return infraerrors.BadRequest("CREEM_CUSTOM_AMOUNT_UNSUPPORTED", "Creem only supports the fixed offer amount")
+		}
+		req.OrderType = payment.OrderTypeBalance
+		req.Amount = *binding.CreditedBalance
+		req.PlanID = 0
+	case CreemBindingTargetGroupPlan:
+		if binding.PlanID == nil || req.PlanID != *binding.PlanID || (req.OrderType != "" && req.OrderType != payment.OrderTypeSubscription) {
+			return infraerrors.BadRequest("CREEM_TARGET_MISMATCH", "Creem offer does not match subscription plan")
+		}
+		req.OrderType = payment.OrderTypeSubscription
+	case CreemBindingTargetGlobalPlan:
+		if binding.PlanID == nil || req.PlanID != *binding.PlanID || (req.OrderType != "" && req.OrderType != payment.OrderTypeSubscription && req.OrderType != payment.OrderTypeGlobalPlan) {
+			return infraerrors.BadRequest("CREEM_TARGET_MISMATCH", "Creem offer does not match global plan")
+		}
+		req.OrderType = payment.OrderTypeGlobalPlan
+	default:
+		return infraerrors.BadRequest("CREEM_TARGET_MISMATCH", "Creem offer target is invalid")
+	}
+	req.AmountCurrency = binding.Currency
+	req.PaymentCurrency = binding.Currency
+	req.CurrencyExchangeRate = 1
+	req.CreemProductID = binding.ExternalProductID
+	req.CreemBindingID = binding.ID
+	return nil
+}
+
+func (s *PaymentService) createCreemOrder(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig, user *User, plan *dbent.SubscriptionPlan, sel *payment.InstanceSelection) (*CreateOrderResponse, error) {
+	orderAmount := req.Amount
+	limitAmount := req.Amount
+	if plan != nil {
+		orderAmount = plan.Price
+		limitAmount = plan.Price
+	}
+	priceMinor, err := strconv.ParseInt(sel.Config["_creem_price_minor"], 10, 64)
+	if err != nil || priceMinor <= 0 {
+		binding, _, resolveErr := s.configService.ResolveCreemOffer(ctx, req.CreemBindingID)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		priceMinor = binding.PriceMinor
+	}
+	payAmount := payment.MinorUnitToAmount(priceMinor, req.PaymentCurrency)
+	payAmountStr := payment.FormatAmountForCurrency(payAmount, req.PaymentCurrency)
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, 0, payAmount, sel)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
+	if err != nil {
+		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).SetStatus(OrderStatusFailed).Save(ctx)
 		return nil, err
 	}
 	return resp, nil
@@ -436,6 +518,12 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
+	if providerKey == payment.TypeCreem {
+		snapshot["schema_version"] = 3
+		snapshot["creem_binding_id"] = req.CreemBindingID
+		snapshot["creem_product_id"] = req.CreemProductID
+		snapshot["currency"] = req.PaymentCurrency
+	}
 
 	if len(snapshot) == 1 {
 		return nil
@@ -648,6 +736,14 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		IsMobile:    req.IsMobile,
 		ReturnURL:   providerReturnURL,
 	}, sel, outTradeNo, payAmountStr, subject)
+	if sel.ProviderKey == payment.TypeCreem {
+		providerReq.ProductID = req.CreemProductID
+		providerReq.CustomerEmail = order.UserEmail
+		providerReq.Metadata = map[string]string{
+			"creem_binding_id": strconv.FormatInt(req.CreemBindingID, 10),
+			"sub2api_order_id": strconv.FormatInt(order.ID, 10),
+		}
+	}
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	pr, err := prov.CreatePayment(ctx, providerReq)
 	finishProviderCall()

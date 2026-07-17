@@ -239,7 +239,15 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		HelpImageURL:              cfg.HelpImageURL,
 		StripePublishableKey:      cfg.StripePublishableKey,
 		AlipayForceQRCode:         cfg.AlipayForceQRCode,
+		FixedOffers:               creemFixedOffers(h.configService.ListCreemFixedOffers(ctx)),
 	})
+}
+
+func creemFixedOffers(offers []service.CreemFixedOffer, err error) []service.CreemFixedOffer {
+	if err != nil || offers == nil {
+		return []service.CreemFixedOffer{}
+	}
+	return offers
 }
 
 type checkoutInfoResponse struct {
@@ -257,6 +265,7 @@ type checkoutInfoResponse struct {
 	HelpImageURL              string                          `json:"help_image_url"`
 	StripePublishableKey      string                          `json:"stripe_publishable_key"`
 	AlipayForceQRCode         bool                            `json:"alipay_force_qrcode"`
+	FixedOffers               []service.CreemFixedOffer       `json:"fixed_offers"`
 }
 
 type checkoutPlan struct {
@@ -337,6 +346,7 @@ type CreateOrderRequest struct {
 	PaymentSource     string  `json:"payment_source"`
 	OrderType         string  `json:"order_type"`
 	PlanID            int64   `json:"plan_id"`
+	OfferID           int64   `json:"offer_id"`
 	// IsMobile lets the frontend declare its mobile status directly. When
 	// nil we fall back to User-Agent heuristics (which miss iPadOS / some
 	// embedded browsers that strip the "Mobile" keyword).
@@ -411,6 +421,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		PaymentSource:   req.PaymentSource,
 		OrderType:       req.OrderType,
 		PlanID:          req.PlanID,
+		OfferID:         req.OfferID,
 		Locale:          c.GetHeader("Accept-Language"),
 	})
 	if err != nil {

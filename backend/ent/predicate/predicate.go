@@ -48,6 +48,12 @@ type ChannelMonitorHistory func(*sql.Selector)
 // ChannelMonitorRequestTemplate is the predicate function for channelmonitorrequesttemplate builders.
 type ChannelMonitorRequestTemplate func(*sql.Selector)
 
+// CreemProductBinding is the predicate function for creemproductbinding builders.
+type CreemProductBinding func(*sql.Selector)
+
+// CreemRefundEvent is the predicate function for creemrefundevent builders.
+type CreemRefundEvent func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 

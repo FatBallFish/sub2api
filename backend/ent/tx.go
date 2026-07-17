@@ -42,6 +42,10 @@ type Tx struct {
 	ChannelMonitorHistory *ChannelMonitorHistoryClient
 	// ChannelMonitorRequestTemplate is the client for interacting with the ChannelMonitorRequestTemplate builders.
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
+	// CreemProductBinding is the client for interacting with the CreemProductBinding builders.
+	CreemProductBinding *CreemProductBindingClient
+	// CreemRefundEvent is the client for interacting with the CreemRefundEvent builders.
+	CreemRefundEvent *CreemRefundEventClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -237,6 +241,8 @@ func (tx *Tx) init() {
 	tx.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(tx.config)
 	tx.ChannelMonitorHistory = NewChannelMonitorHistoryClient(tx.config)
 	tx.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(tx.config)
+	tx.CreemProductBinding = NewCreemProductBindingClient(tx.config)
+	tx.CreemRefundEvent = NewCreemRefundEventClient(tx.config)
 	tx.ErrorPassthroughRule = NewErrorPassthroughRuleClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)

@@ -177,6 +177,30 @@ func (f ChannelMonitorRequestTemplateFunc) Mutate(ctx context.Context, m ent.Mut
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelMonitorRequestTemplateMutation", m)
 }
 
+// The CreemProductBindingFunc type is an adapter to allow the use of ordinary
+// function as CreemProductBinding mutator.
+type CreemProductBindingFunc func(context.Context, *ent.CreemProductBindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreemProductBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreemProductBindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreemProductBindingMutation", m)
+}
+
+// The CreemRefundEventFunc type is an adapter to allow the use of ordinary
+// function as CreemRefundEvent mutator.
+type CreemRefundEventFunc func(context.Context, *ent.CreemRefundEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreemRefundEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreemRefundEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreemRefundEventMutation", m)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary
 // function as ErrorPassthroughRule mutator.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleMutation) (ent.Value, error)

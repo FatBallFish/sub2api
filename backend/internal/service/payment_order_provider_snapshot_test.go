@@ -606,7 +606,8 @@ func TestEnsureGlobalPlanVisibleRejectsBlacklistWhenAllUserGroupsAreBlacklisted(
 }
 
 type paymentOrderUserRepoStub struct {
-	user *User
+	user     *User
+	deducted float64
 }
 
 func (s *paymentOrderUserRepoStub) Create(context.Context, *User) error           { return nil }
@@ -643,7 +644,10 @@ func (s *paymentOrderUserRepoStub) UpdateUserLastActiveAt(context.Context, int64
 	return nil
 }
 func (s *paymentOrderUserRepoStub) UpdateBalance(context.Context, int64, float64) error { return nil }
-func (s *paymentOrderUserRepoStub) DeductBalance(context.Context, int64, float64) error { return nil }
+func (s *paymentOrderUserRepoStub) DeductBalance(_ context.Context, _ int64, amount float64) error {
+	s.deducted += amount
+	return nil
+}
 func (s *paymentOrderUserRepoStub) UpdateConcurrency(context.Context, int64, int) error { return nil }
 func (s *paymentOrderUserRepoStub) BatchSetConcurrency(context.Context, []int64, int) (int, error) {
 	return 0, nil

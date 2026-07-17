@@ -42,7 +42,16 @@
             </div>
             <template v-else>
             <div class="card p-6">
-              <AmountInput
+			  <div v-if="selectedMethod === 'creem'" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+				<button v-for="offer in creemBalanceOffers" :key="offer.offer_id" type="button"
+				  class="rounded-lg border px-4 py-3 text-left transition-all"
+				  :class="selectedCreemOffer?.offer_id === offer.offer_id ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-600'"
+				  @click="selectedCreemOfferId = offer.offer_id; amount = offer.credited_amount || 0">
+				  <span class="block font-semibold">{{ formatPaymentAmount(offer.pay_amount, offer.payment_currency, localeCode) }}</span>
+				  <span class="mt-1 block text-xs text-gray-500">+${{ (offer.credited_amount || 0).toFixed(2) }}</span>
+				</button>
+			  </div>
+			  <AmountInput v-else
                 v-model="amount"
                 :amounts="[10, 20, 50, 100, 200, 500, 1000, 2000, 5000]"
                 :min="globalMinAmount"
@@ -494,7 +503,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+	plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '', fixed_offers: [],
 })
 
 const tabs = computed(() => {
@@ -504,8 +513,18 @@ const tabs = computed(() => {
   return result
 })
 
-const visibleMethods = computed(() => getVisibleMethods(checkout.value.methods))
+const visibleMethods = computed(() => {
+	const methods = getVisibleMethods(checkout.value.methods)
+	if ((checkout.value.fixed_offers?.length || 0) > 0) {
+		methods.creem = { currency: 'USD', daily_limit: 0, daily_used: 0, daily_remaining: 0, single_min: 0, single_max: 0, fee_rate: 0, available: true }
+	}
+	return methods
+})
 const enabledMethods = computed(() => Object.keys(visibleMethods.value))
+const selectedCreemOfferId = ref<number | null>(null)
+const creemBalanceOffers = computed(() => (checkout.value.fixed_offers || []).filter(offer => offer.target_type === 'balance' && typeof offer.credited_amount === 'number'))
+const selectedCreemOffer = computed(() => creemBalanceOffers.value.find(offer => offer.offer_id === selectedCreemOfferId.value) || creemBalanceOffers.value[0])
+const selectedCreemPlanOffer = computed(() => (checkout.value.fixed_offers || []).find(offer => offer.plan_id === selectedPlan.value?.id && offer.target_type === (selectedPlan.value?.plan_scope === 'global' ? 'global_plan' : 'group_plan')))
 const validAmount = computed(() => amount.value ?? 0)
 const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
@@ -516,7 +535,7 @@ const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const creditedAmount = computed(() => selectedMethod.value === 'creem' ? selectedCreemOffer.value?.credited_amount || 0 : Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
@@ -610,7 +629,7 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
   })
 )
 
-const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
+const feeRate = computed(() => selectedMethod.value === 'creem' ? 0 : checkout.value?.recharge_fee_rate ?? 0)
 const feeAmount = computed(() =>
   feeRate.value > 0 && validAmount.value > 0
     ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
@@ -682,6 +701,7 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
 
 const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
+	&& (selectedMethod.value !== 'creem' || !!selectedCreemPlanOffer.value)
     && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
@@ -691,6 +711,15 @@ watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) 
   if (amt <= 0 || amountFitsMethod(amt, method)) return
   const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
   if (available) selectedMethod.value = available
+})
+
+watch(selectedMethod, (method) => {
+	if (method !== 'creem') return
+	const offer = selectedCreemOffer.value
+	if (offer) {
+		selectedCreemOfferId.value = offer.offer_id
+		amount.value = offer.credited_amount || 0
+	}
 })
 
 // Payment button class: follows selected payment method color
@@ -774,6 +803,9 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && normalizeVisibleMethod(requestType) === 'alipay'),
+	  offerId: requestType === 'creem'
+		? (orderType === 'balance' ? selectedCreemOffer.value?.offer_id : selectedCreemPlanOffer.value?.offer_id)
+		: undefined,
     })
     if (options.openid) {
       payload.openid = options.openid
@@ -901,6 +933,10 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       return
     }
     if (decision.kind === 'redirect_waiting' && decision.paymentState.payUrl) {
+	  if (visibleMethod === 'creem') {
+		window.location.href = decision.paymentState.payUrl
+		return
+	  }
       if (isMobileDevice()) {
         window.location.href = decision.paymentState.payUrl
         return
