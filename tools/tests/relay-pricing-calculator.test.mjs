@@ -15,6 +15,17 @@ async function loadCore() {
   return sandbox.window.PricingCalculatorCore;
 }
 
+test("contains the three workspace views and global controls", async () => {
+  const html = await readFile(htmlUrl, "utf8");
+  for (const view of ["prices", "stripe", "profit"]) {
+    assert.match(html, new RegExp(`data-view-target="${view}"`));
+    assert.match(html, new RegExp(`data-view="${view}"`));
+  }
+  assert.match(html, /id="global-exchange-rate"/);
+  assert.match(html, /id="global-stripe-rate"/);
+  assert.match(html, /id="backup-export"/);
+});
+
 test("calculates Stripe net receipt using the workbook fee assumptions", async () => {
   const core = await loadCore();
   assert.deepEqual(
@@ -64,5 +75,40 @@ test("rejects non-positive money inputs", async () => {
       fixedFee: 0.3,
     }),
     /sale price/i,
+  );
+});
+
+test("validates versioned state and rejects malformed imports", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  assert.equal(core.validateState(state), true);
+  assert.equal(core.validateState({ ...state, days: [] }), false);
+  assert.equal(core.validateState({ ...state, exchangeRate: 0 }), false);
+  assert.throws(() => core.normalizeImportedState({ version: 999 }), /invalid backup/i);
+});
+
+test("clones a price day into the next available date without sharing groups", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const source = state.days.at(-1);
+  const firstCopy = core.clonePriceDay(source, state.days);
+  state.days.push(firstCopy);
+  const secondCopy = core.clonePriceDay(source, state.days);
+
+  assert.equal(firstCopy.date, "2026-07-27");
+  assert.equal(firstCopy.id, "day-2026-07-27");
+  assert.equal(secondCopy.date, "2026-07-28");
+  firstCopy.groups[0].price = 999;
+  assert.notEqual(source.groups[0].price, 999);
+});
+
+test("prevents deleting the final day or profitability template", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  state.days = [state.days[0]];
+  assert.throws(() => core.removePriceDay(state, state.days[0].id), /at least one price day/i);
+  assert.throws(
+    () => core.removeProfitTemplate(state, state.templates[0].id),
+    /at least one profit template/i,
   );
 });

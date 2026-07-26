@@ -5,9 +5,313 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>中转站价格工作台</title>
+  <style>
+    :root {
+      --paper: #f4f1e9;
+      --paper-strong: #fffdf8;
+      --ink: #171916;
+      --muted: #6b6e67;
+      --line: #c9c6bb;
+      --line-strong: #242721;
+      --blue: #205b86;
+      --blue-soft: #e1edf4;
+      --green: #246a49;
+      --green-soft: #dfeee3;
+      --red: #a63e32;
+      --red-soft: #f4dfda;
+      --amber: #8a6419;
+      --amber-soft: #f4e8c8;
+      --gray-soft: #e9e8e2;
+      --shadow: 0 16px 40px rgba(27, 29, 24, 0.08);
+      --radius: 5px;
+      --body-font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --display-font: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      font-family: var(--body-font);
+      color: var(--ink);
+      background: var(--paper);
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--paper); }
+    body { margin: 0; min-height: 100vh; background: var(--paper); }
+    button, input, textarea, select { font: inherit; }
+    button, input, textarea, select { letter-spacing: 0; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .app-header {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      display: flex;
+      min-height: 76px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 13px clamp(16px, 3vw, 42px);
+      border-bottom: 1px solid var(--line-strong);
+      background: rgba(244, 241, 233, 0.96);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand { min-width: 190px; }
+    .brand h1 {
+      margin: 0;
+      font-family: var(--display-font);
+      font-size: clamp(20px, 2.2vw, 29px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .view-tabs {
+      display: flex;
+      align-self: stretch;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .tab-button {
+      position: relative;
+      min-width: 112px;
+      border: 0;
+      background: transparent;
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+    .tab-button::after {
+      position: absolute;
+      right: 14px;
+      bottom: 1px;
+      left: 14px;
+      height: 3px;
+      background: var(--ink);
+      content: "";
+      opacity: 0;
+      transform: scaleX(0.5);
+      transition: 160ms ease;
+    }
+    .tab-button[aria-selected="true"]::after { opacity: 1; transform: scaleX(1); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: calc(100vh - 76px);
+    }
+    .control-rail {
+      position: sticky;
+      top: 76px;
+      align-self: start;
+      min-height: calc(100vh - 76px);
+      padding: 24px 20px;
+      border-right: 1px solid var(--line);
+      background: #ebe7dc;
+    }
+    .rail-title {
+      margin: 0 0 18px;
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field { display: grid; gap: 7px; margin-bottom: 16px; }
+    .field > label { color: var(--muted); font-size: 12px; font-weight: 650; }
+    .input-unit { position: relative; }
+    .input-unit input { padding-right: 44px; }
+    .input-unit span {
+      position: absolute;
+      top: 50%;
+      right: 11px;
+      color: var(--muted);
+      font-size: 11px;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #aaa79e;
+      border-radius: 3px;
+      outline: 0;
+      background: var(--paper-strong);
+      padding: 9px 10px;
+      color: var(--ink);
+      transition: border-color 120ms, box-shadow 120ms;
+    }
+    input:focus, textarea:focus, select:focus, button:focus-visible {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(32, 91, 134, 0.16);
+      outline: none;
+    }
+    input[type="number"] { font-variant-numeric: tabular-nums; }
+    .rail-divider { height: 1px; margin: 22px 0; background: var(--line); }
+    .rail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .rail-actions .button:last-child { grid-column: 1 / -1; }
+
+    .button {
+      display: inline-flex;
+      min-height: 36px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: transparent;
+      padding: 7px 11px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: 120ms ease;
+    }
+    .button:hover { background: rgba(23, 25, 22, 0.07); }
+    .button.primary { background: var(--ink); color: white; }
+    .button.primary:hover { background: #30332d; }
+    .button.danger { border-color: #b56b62; color: var(--red); }
+    .button.compact { min-height: 32px; padding: 5px 9px; }
+
+    .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
+    .view-panel { animation: reveal 220ms ease both; }
+    .view-panel > header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 2px solid var(--line-strong);
+    }
+    .view-panel h2 {
+      margin: 0;
+      font-family: var(--display-font);
+      font-size: clamp(25px, 3vw, 38px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .view-panel header p { max-width: 580px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .placeholder {
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      font-family: var(--display-font);
+    }
+    .status-toast {
+      position: fixed;
+      z-index: 80;
+      right: 20px;
+      bottom: 20px;
+      max-width: min(380px, calc(100vw - 40px));
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--ink);
+      padding: 11px 14px;
+      color: white;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+    @keyframes reveal { from { opacity: 0; transform: translateY(5px); } }
+
+    @media (max-width: 900px) {
+      .app-header { position: relative; display: grid; gap: 12px; }
+      .view-tabs { overflow-x: auto; }
+      .tab-button { min-height: 42px; min-width: 104px; }
+      .workspace { display: block; }
+      .control-rail {
+        position: relative;
+        top: 0;
+        min-height: auto;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(130px, 1fr));
+        gap: 10px 14px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .rail-title, .rail-divider { display: none; }
+      .field { margin: 0; }
+      .rail-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; }
+      .rail-actions .button:last-child { grid-column: auto; }
+    }
+    @media (max-width: 620px) {
+      .control-rail { grid-template-columns: 1fr 1fr; padding: 16px; }
+      .field:first-of-type { grid-column: 1 / -1; }
+      .view-container { padding-top: 22px; }
+      .view-panel > header { align-items: start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
 </head>
 <body>
-  <main id="app"></main>
+  <header class="app-header">
+    <div class="brand">
+      <h1>价格与盈利工作台</h1>
+      <p>每日定价 · Stripe 净收款 · 额度利润</p>
+    </div>
+    <nav class="view-tabs" aria-label="工作区">
+      <button class="tab-button" type="button" data-view-target="prices" aria-selected="true">每日价格</button>
+      <button class="tab-button" type="button" data-view-target="stripe" aria-selected="false">Stripe 收款</button>
+      <button class="tab-button" type="button" data-view-target="profit" aria-selected="false">盈利模板</button>
+    </nav>
+  </header>
+
+  <main class="workspace" id="app">
+    <aside class="control-rail" aria-label="全局参数">
+      <p class="rail-title">全局计算口径</p>
+      <div class="field">
+        <label for="global-exchange-rate">人民币汇率</label>
+        <div class="input-unit">
+          <input id="global-exchange-rate" type="number" min="0.0001" step="0.01" inputmode="decimal">
+          <span>CNY/$</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="global-stripe-rate">Stripe 比例费率</label>
+        <div class="input-unit">
+          <input id="global-stripe-rate" type="number" min="0" step="0.01" inputmode="decimal">
+          <span>%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="global-stripe-fixed">每笔固定手续费</label>
+        <div class="input-unit">
+          <input id="global-stripe-fixed" type="number" min="0" step="0.01" inputmode="decimal">
+          <span>USD</span>
+        </div>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-actions">
+        <button class="button compact" id="backup-export" type="button">导出备份</button>
+        <button class="button compact" id="backup-import" type="button">导入备份</button>
+        <button class="button compact danger" id="reset-state" type="button">恢复初始数据</button>
+      </div>
+      <input id="backup-file" type="file" accept="application/json,.json" hidden>
+    </aside>
+
+    <div class="view-container">
+      <section class="view-panel" data-view="prices">
+        <header>
+          <div><h2>每日价格</h2><p>复制历史版本、调整各分组美元价格，并按上一日变化导出公告图。</p></div>
+        </header>
+        <div class="placeholder" id="daily-price-root">每日价格编辑器</div>
+      </section>
+      <section class="view-panel" data-view="stripe" hidden>
+        <header>
+          <div><h2>Stripe 收款</h2><p>查看固定手续费对小额充值的损耗，以及各充值档位的实际到账。</p></div>
+        </header>
+        <div class="placeholder" id="stripe-root">Stripe 收款分析</div>
+      </section>
+      <section class="view-panel" data-view="profit" hidden>
+        <header>
+          <div><h2>盈利模板</h2><p>用多套成本与售价假设，对比不同充值档位下的真实利润空间。</p></div>
+        </header>
+        <div class="placeholder" id="profit-root">盈利模板分析</div>
+      </section>
+    </div>
+  </main>
+  <div class="status-toast" id="status-toast" role="status" aria-live="polite" hidden></div>
 
   <script id="calculator-core">
   (() => {
@@ -91,6 +395,44 @@
       return days
         .filter((day) => day.date < date)
         .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    }
+
+    function cloneJson(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function addUtcDays(dateText, amount) {
+      const date = new Date(`${dateText}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + amount);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function clonePriceDay(source, existingDays) {
+      const usedDates = new Set(existingDays.map((day) => day.date));
+      let date = addUtcDays(source.date, 1);
+      while (usedDates.has(date)) date = addUtcDays(date, 1);
+      const copy = cloneJson(source);
+      copy.date = date;
+      copy.id = `day-${date}`;
+      return copy;
+    }
+
+    function removePriceDay(state, id) {
+      if (state.days.length <= 1) throw new RangeError("Keep at least one price day");
+      const index = state.days.findIndex((day) => day.id === id);
+      if (index < 0) return false;
+      state.days.splice(index, 1);
+      if (state.selectedDayId === id) state.selectedDayId = state.days.at(-1).id;
+      return true;
+    }
+
+    function removeProfitTemplate(state, id) {
+      if (state.templates.length <= 1) throw new RangeError("Keep at least one profit template");
+      const index = state.templates.findIndex((template) => template.id === id);
+      if (index < 0) return false;
+      state.templates.splice(index, 1);
+      if (state.selectedTemplateId === id) state.selectedTemplateId = state.templates.at(-1).id;
+      return true;
     }
 
     function group(id, category, name, price, note = "") {
@@ -201,9 +543,27 @@
       if (!Number.isFinite(state.stripe.fixedFee) || state.stripe.fixedFee < 0) return false;
       if (!Array.isArray(state.days) || state.days.length < 1) return false;
       if (!Array.isArray(state.templates) || state.templates.length < 1) return false;
-      return state.days.every((day) => /^\d{4}-\d{2}-\d{2}$/.test(day.date)
+      const daysValid = state.days.every((day) => /^\d{4}-\d{2}-\d{2}$/.test(day.date)
         && Array.isArray(day.groups)
         && day.groups.every((item) => typeof item.id === "string" && Number.isFinite(item.price) && item.price >= 0));
+      const templatesValid = state.templates.every((template) => typeof template.id === "string"
+        && typeof template.name === "string"
+        && Number.isFinite(template.costPrice)
+        && template.costPrice >= 0
+        && Number.isFinite(template.salePrice)
+        && template.salePrice > 0);
+      return daysValid && templatesValid;
+    }
+
+    function normalizeImportedState(input) {
+      const copy = cloneJson(input);
+      if (!validateState(copy)) throw new TypeError("Invalid backup data");
+      if (!copy.days.some((day) => day.id === copy.selectedDayId)) copy.selectedDayId = copy.days.at(-1).id;
+      if (!copy.templates.some((template) => template.id === copy.selectedTemplateId)) {
+        copy.selectedTemplateId = copy.templates[0].id;
+      }
+      if (!["prices", "stripe", "profit"].includes(copy.activeView)) copy.activeView = "prices";
+      return copy;
     }
 
     window.PricingCalculatorCore = Object.freeze({
@@ -214,9 +574,130 @@
       usdToCny,
       comparePrice,
       findPreviousDay,
+      clonePriceDay,
+      removePriceDay,
+      removeProfitTemplate,
       validateState,
+      normalizeImportedState,
       createDefaultState,
     });
+  })();
+  </script>
+  <script>
+  (() => {
+    "use strict";
+    const core = window.PricingCalculatorCore;
+    const STORAGE_KEY = "relay-pricing-calculator-state-v1";
+    let state = loadState();
+    let toastTimer;
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? core.normalizeImportedState(JSON.parse(saved)) : core.createDefaultState();
+      } catch {
+        return core.createDefaultState();
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function showStatus(message, tone = "default") {
+      const toast = document.querySelector("#status-toast");
+      toast.textContent = message;
+      toast.style.background = tone === "error" ? "var(--red)" : "var(--ink)";
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
+    }
+
+    function renderShell() {
+      document.querySelector("#global-exchange-rate").value = state.exchangeRate;
+      document.querySelector("#global-stripe-rate").value = core.round(state.stripe.rate * 100, 4);
+      document.querySelector("#global-stripe-fixed").value = state.stripe.fixedFee;
+      document.querySelectorAll("[data-view-target]").forEach((button) => {
+        button.setAttribute("aria-selected", String(button.dataset.viewTarget === state.activeView));
+      });
+      document.querySelectorAll("[data-view]").forEach((panel) => {
+        panel.hidden = panel.dataset.view !== state.activeView;
+      });
+    }
+
+    function updateGlobalNumber(path, rawValue) {
+      const value = Number(rawValue);
+      if (!Number.isFinite(value) || value < 0 || (path === "exchangeRate" && value === 0)) {
+        renderShell();
+        showStatus("请输入有效的非负数值", "error");
+        return;
+      }
+      if (path === "exchangeRate") state.exchangeRate = value;
+      if (path === "stripeRate") state.stripe.rate = value / 100;
+      if (path === "stripeFixed") state.stripe.fixedFee = value;
+      persist();
+      window.dispatchEvent(new CustomEvent("pricing-state-change"));
+    }
+
+    function download(name, blob) {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    document.addEventListener("click", (event) => {
+      const tab = event.target.closest("[data-view-target]");
+      if (tab) {
+        state.activeView = tab.dataset.viewTarget;
+        persist();
+        renderShell();
+        return;
+      }
+      if (event.target.closest("#backup-export")) {
+        download("中转站价格工作台备份.json", new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }));
+        showStatus("备份已导出");
+      }
+      if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
+      if (event.target.closest("#reset-state") && window.confirm("恢复 Excel 初始数据？当前本地修改将被覆盖。")) {
+        state = core.createDefaultState();
+        persist();
+        renderShell();
+        window.dispatchEvent(new CustomEvent("pricing-state-change"));
+        showStatus("已恢复初始数据");
+      }
+    });
+
+    document.querySelector("#global-exchange-rate").addEventListener("change", (event) => updateGlobalNumber("exchangeRate", event.target.value));
+    document.querySelector("#global-stripe-rate").addEventListener("change", (event) => updateGlobalNumber("stripeRate", event.target.value));
+    document.querySelector("#global-stripe-fixed").addEventListener("change", (event) => updateGlobalNumber("stripeFixed", event.target.value));
+    document.querySelector("#backup-file").addEventListener("change", async (event) => {
+      const [file] = event.target.files;
+      if (!file) return;
+      try {
+        state = core.normalizeImportedState(JSON.parse(await file.text()));
+        persist();
+        renderShell();
+        window.dispatchEvent(new CustomEvent("pricing-state-change"));
+        showStatus("备份已导入");
+      } catch {
+        showStatus("备份无效，未修改现有数据", "error");
+      } finally {
+        event.target.value = "";
+      }
+    });
+
+    window.PricingCalculatorApp = {
+      getState: () => state,
+      setState: (nextState) => { state = nextState; persist(); renderShell(); },
+      persist,
+      showStatus,
+    };
+    renderShell();
   })();
   </script>
 </body>
