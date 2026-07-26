@@ -776,6 +776,27 @@
       return copy;
     }
 
+    function wrapTextByChars(text, maxChars) {
+      if (!Number.isInteger(maxChars) || maxChars < 1) throw new RangeError("maxChars must be a positive integer");
+      return String(text ?? "").split("\n").flatMap((paragraph) => {
+        if (!paragraph) return [""];
+        const lines = [];
+        for (let index = 0; index < paragraph.length; index += maxChars) {
+          lines.push(paragraph.slice(index, index + maxChars));
+        }
+        return lines;
+      });
+    }
+
+    function makePriceImageFilename(day) {
+      return `中转站价格-${day.date}.png`;
+    }
+
+    function serializeState(state) {
+      if (!validateState(state)) throw new TypeError("Invalid backup data");
+      return JSON.stringify(state, null, 2);
+    }
+
     window.PricingCalculatorCore = Object.freeze({
       STATE_VERSION,
       round,
@@ -794,6 +815,9 @@
       removeProfitTemplate,
       validateState,
       normalizeImportedState,
+      wrapTextByChars,
+      makePriceImageFilename,
+      serializeState,
       createDefaultState,
     });
   })();
@@ -985,7 +1009,155 @@
       setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    document.addEventListener("click", (event) => {
+    function canvasWrapLines(context, text, maxWidth) {
+      const lines = [];
+      String(text ?? "").split("\n").forEach((paragraph) => {
+        if (!paragraph) {
+          lines.push("");
+          return;
+        }
+        let line = "";
+        for (const character of paragraph) {
+          const next = line + character;
+          if (line && context.measureText(next).width > maxWidth) {
+            lines.push(line);
+            line = character;
+          } else {
+            line = next;
+          }
+        }
+        if (line) lines.push(line);
+      });
+      return lines;
+    }
+
+    function drawCanvasLines(context, lines, x, y, lineHeight) {
+      lines.forEach((line, index) => context.fillText(line, x, y + index * lineHeight));
+    }
+
+    async function exportPriceImage() {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      const model = core.buildPriceComparison(day, state.days);
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      const width = 1400;
+      const padding = 64;
+      const tableTop = 208;
+      const headerHeight = 52;
+      const rowHeight = 60;
+      const columns = [padding, 260, 735, 930, 1125, width - padding];
+
+      context.font = '24px "PingFang SC", sans-serif';
+      const footerWidth = width - padding * 2 - 32;
+      const marketLines = canvasWrapLines(context, `今日行情：${day.market}`, footerWidth);
+      const noteLines = canvasWrapLines(context, `每日备注：${day.note}`, footerWidth);
+      const downstreamLines = canvasWrapLines(context, `下游配置：${day.downstream.replaceAll("\n", "  ")}`, footerWidth);
+      const footerLineCount = marketLines.length + noteLines.length + downstreamLines.length;
+      const footerHeight = 132 + footerLineCount * 34;
+      canvas.width = width;
+      canvas.height = tableTop + headerHeight + rowHeight * model.rows.length + footerHeight;
+
+      context.fillStyle = "#fffdf8";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#171916";
+      context.fillRect(0, 0, canvas.width, 12);
+      context.fillStyle = "#171916";
+      context.font = '700 52px "Songti SC", serif';
+      context.fillText(`${day.date} 价格公布`, padding, 93);
+      context.font = '22px "PingFang SC", sans-serif';
+      context.fillStyle = "#6b6e67";
+      context.fillText(`美元定价 · 汇率 1 USD = ${state.exchangeRate} CNY`, padding, 137);
+
+      const legend = [
+        ["涨价", "#f4dfda"], ["降价", "#dfeee3"], ["持平", "#e9e8e2"], ["新增", "#f4e8c8"],
+      ];
+      let legendX = width - padding;
+      context.font = '20px "PingFang SC", sans-serif';
+      context.textAlign = "right";
+      for (let index = legend.length - 1; index >= 0; index -= 1) {
+        const [label, color] = legend[index];
+        context.fillStyle = "#6b6e67";
+        context.fillText(label, legendX, 132);
+        legendX -= context.measureText(label).width + 38;
+        context.fillStyle = color;
+        context.fillRect(legendX, 111, 22, 22);
+        legendX -= 28;
+      }
+      context.textAlign = "left";
+
+      context.fillStyle = "#242721";
+      context.fillRect(padding, tableTop, width - padding * 2, headerHeight);
+      const headers = ["类型", "分组", "美元价格", "人民币换算", "较上一日"];
+      context.fillStyle = "#ffffff";
+      context.font = '700 21px "PingFang SC", sans-serif';
+      headers.forEach((header, index) => context.fillText(header, columns[index] + 16, tableTop + 34));
+
+      const statusFill = { up: "#f4dfda", down: "#dfeee3", same: "#e9e8e2", new: "#f4e8c8" };
+      const statusColor = { up: "#a63e32", down: "#246a49", same: "#6b6e67", new: "#8a6419" };
+      const statusLabel = { up: "↑ 涨价", down: "↓ 降价", same: "— 持平", new: "+ 新增" };
+      model.rows.forEach(({ group: item, comparison }, index) => {
+        const y = tableTop + headerHeight + index * rowHeight;
+        context.fillStyle = index % 2 ? "#faf8f1" : "#fffdf8";
+        context.fillRect(padding, y, width - padding * 2, rowHeight);
+        context.fillStyle = statusFill[comparison.status];
+        context.fillRect(columns[4], y, columns[5] - columns[4], rowHeight);
+        context.strokeStyle = "#c9c6bb";
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(padding, y + rowHeight);
+        context.lineTo(width - padding, y + rowHeight);
+        context.stroke();
+        context.fillStyle = "#6b6e67";
+        context.font = '19px "PingFang SC", sans-serif';
+        context.fillText(item.category, columns[0] + 16, y + 37);
+        context.fillStyle = "#171916";
+        context.font = '600 21px "PingFang SC", sans-serif';
+        context.fillText(item.name, columns[1] + 16, y + (item.note ? 27 : 37));
+        if (item.note) {
+          context.fillStyle = "#6b6e67";
+          context.font = '16px "PingFang SC", sans-serif';
+          context.fillText(item.note, columns[1] + 16, y + 49);
+        }
+        context.fillStyle = "#171916";
+        context.font = '700 22px ui-monospace, monospace';
+        context.fillText(formatUsd(item.price), columns[2] + 16, y + 38);
+        context.fillText(`¥${core.usdToCny(item.price, state.exchangeRate).toFixed(4)}`, columns[3] + 16, y + 38);
+        context.fillStyle = statusColor[comparison.status];
+        context.font = '700 20px "PingFang SC", sans-serif';
+        const deltaText = comparison.delta === null || comparison.delta === 0 ? "" : ` ${formatUsd(Math.abs(comparison.delta))}`;
+        context.fillText(`${statusLabel[comparison.status]}${deltaText}`, columns[4] + 16, y + 38);
+      });
+
+      columns.slice(1, -1).forEach((x) => {
+        context.strokeStyle = "#c9c6bb";
+        context.beginPath();
+        context.moveTo(x, tableTop);
+        context.lineTo(x, tableTop + headerHeight + rowHeight * model.rows.length);
+        context.stroke();
+      });
+
+      let footerY = tableTop + headerHeight + rowHeight * model.rows.length + 58;
+      context.fillStyle = "#171916";
+      context.font = '700 23px "PingFang SC", sans-serif';
+      context.fillText(`官网地址：${day.website}`, padding, footerY);
+      footerY += 50;
+      context.font = '21px "PingFang SC", sans-serif';
+      drawCanvasLines(context, marketLines, padding, footerY, 34);
+      footerY += marketLines.length * 34 + 12;
+      drawCanvasLines(context, noteLines, padding, footerY, 34);
+      footerY += noteLines.length * 34 + 12;
+      context.fillStyle = "#6b6e67";
+      context.font = '19px "PingFang SC", sans-serif';
+      drawCanvasLines(context, downstreamLines, padding, footerY, 32);
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Canvas export failed")), "image/png");
+      });
+      download(core.makePriceImageFilename(day), blob);
+      return blob;
+    }
+
+    document.addEventListener("click", async (event) => {
       const tab = event.target.closest("[data-view-target]");
       if (tab) {
         state.activeView = tab.dataset.viewTarget;
@@ -994,7 +1166,7 @@
         return;
       }
       if (event.target.closest("#backup-export")) {
-        download("中转站价格工作台备份.json", new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }));
+        download("中转站价格工作台备份.json", new Blob([core.serializeState(state)], { type: "application/json" }));
         showStatus("备份已导出");
       }
       if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
@@ -1036,6 +1208,20 @@
         persist();
         renderShell();
         showStatus(`已创建 ${copy.date} 价格副本`);
+      }
+      const exportButton = event.target.closest("#export-price-image");
+      if (exportButton) {
+        exportButton.disabled = true;
+        exportButton.textContent = "正在生成…";
+        try {
+          await exportPriceImage();
+          showStatus("价格公告图片已导出");
+        } catch {
+          showStatus("图片导出失败，请重试", "error");
+        } finally {
+          exportButton.disabled = false;
+          exportButton.textContent = "导出图片";
+        }
       }
       if (event.target.closest("#delete-day")) {
         const selected = state.days.find((day) => day.id === state.selectedDayId);

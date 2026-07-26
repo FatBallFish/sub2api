@@ -227,3 +227,24 @@ test("contains profitability template controls and tier table", async () => {
   assert.match(html, /id="profit-sale-price"/);
   assert.match(html, /id="profit-table-body"/);
 });
+
+test("wraps long export text deterministically", async () => {
+  const core = await loadCore();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(core.wrapTextByChars("abcdefgh", 3))),
+    ["abc", "def", "gh"],
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(core.wrapTextByChars("第一行\n第二行", 20))),
+    ["第一行", "第二行"],
+  );
+});
+
+test("generates deterministic image filenames and valid backup JSON", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  assert.equal(core.makePriceImageFilename(state.days.at(-1)), "中转站价格-2026-07-26.png");
+  const serialized = core.serializeState(state);
+  assert.equal(core.validateState(JSON.parse(serialized)), true);
+  assert.doesNotMatch(serialized, /PricingCalculatorCore/);
+});
