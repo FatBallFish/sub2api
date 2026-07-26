@@ -7,11 +7,11 @@
   <title>中转站价格工作台</title>
   <style>
     :root {
-      --paper: #f4f1e9;
-      --paper-strong: #fffdf8;
+      --paper: #f2f4f3;
+      --paper-strong: #ffffff;
       --ink: #171916;
       --muted: #6b6e67;
-      --line: #c9c6bb;
+      --line: #c7cdca;
       --line-strong: #242721;
       --blue: #205b86;
       --blue-soft: #e1edf4;
@@ -21,7 +21,7 @@
       --red-soft: #f4dfda;
       --amber: #8a6419;
       --amber-soft: #f4e8c8;
-      --gray-soft: #e9e8e2;
+      --gray-soft: #e8ecea;
       --shadow: 0 16px 40px rgba(27, 29, 24, 0.08);
       --radius: 5px;
       --body-font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -51,7 +51,7 @@
       gap: 24px;
       padding: 13px clamp(16px, 3vw, 42px);
       border-bottom: 1px solid var(--line-strong);
-      background: rgba(244, 241, 233, 0.96);
+      background: rgba(242, 244, 243, 0.96);
       backdrop-filter: blur(12px);
     }
 
@@ -107,7 +107,7 @@
       min-height: calc(100vh - 76px);
       padding: 24px 20px;
       border-right: 1px solid var(--line);
-      background: #ebe7dc;
+      background: #e7ebe9;
     }
     .rail-title {
       margin: 0 0 18px;
@@ -203,7 +203,7 @@
       position: sticky;
       z-index: 2;
       top: 0;
-      background: #ded9cd;
+      background: #dfe4e1;
       color: #3d403a;
       font-size: 11px;
       font-weight: 750;
@@ -910,7 +910,7 @@
         return `<tr class="change-${comparison.status}" data-group-row="${escapeHtml(item.id)}">
           <td class="category-cell">${escapeHtml(item.category)}</td>
           <td class="name-cell">${escapeHtml(item.name)}${item.note ? `<small style="display:block;margin-top:4px;color:var(--muted);font-weight:400">${escapeHtml(item.note)}</small>` : ""}</td>
-          <td><input type="number" min="0" step="0.0001" inputmode="decimal" data-group-id="${escapeHtml(item.id)}" value="${item.price}"></td>
+          <td><input type="number" min="0" step="0.000001" inputmode="decimal" data-group-id="${escapeHtml(item.id)}" value="${core.round(item.price, 8)}"></td>
           <td class="number cny-value">¥${core.usdToCny(item.price, state.exchangeRate).toFixed(4)}</td>
           <td class="change-cell">${labels[comparison.status]}</td>
         </tr>`;
@@ -1057,7 +1057,7 @@
       canvas.width = width;
       canvas.height = tableTop + headerHeight + rowHeight * model.rows.length + footerHeight;
 
-      context.fillStyle = "#fffdf8";
+      context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = "#171916";
       context.fillRect(0, 0, canvas.width, 12);
@@ -1069,7 +1069,7 @@
       context.fillText(`美元定价 · 汇率 1 USD = ${state.exchangeRate} CNY`, padding, 137);
 
       const legend = [
-        ["涨价", "#f4dfda"], ["降价", "#dfeee3"], ["持平", "#e9e8e2"], ["新增", "#f4e8c8"],
+        ["涨价", "#f4dfda"], ["降价", "#dfeee3"], ["持平", "#e8ecea"], ["新增", "#f4e8c8"],
       ];
       let legendX = width - padding;
       context.font = '20px "PingFang SC", sans-serif';
@@ -1092,16 +1092,16 @@
       context.font = '700 21px "PingFang SC", sans-serif';
       headers.forEach((header, index) => context.fillText(header, columns[index] + 16, tableTop + 34));
 
-      const statusFill = { up: "#f4dfda", down: "#dfeee3", same: "#e9e8e2", new: "#f4e8c8" };
+      const statusFill = { up: "#f4dfda", down: "#dfeee3", same: "#e8ecea", new: "#f4e8c8" };
       const statusColor = { up: "#a63e32", down: "#246a49", same: "#6b6e67", new: "#8a6419" };
       const statusLabel = { up: "↑ 涨价", down: "↓ 降价", same: "— 持平", new: "+ 新增" };
       model.rows.forEach(({ group: item, comparison }, index) => {
         const y = tableTop + headerHeight + index * rowHeight;
-        context.fillStyle = index % 2 ? "#faf8f1" : "#fffdf8";
+        context.fillStyle = index % 2 ? "#f6f8f7" : "#ffffff";
         context.fillRect(padding, y, width - padding * 2, rowHeight);
         context.fillStyle = statusFill[comparison.status];
         context.fillRect(columns[4], y, columns[5] - columns[4], rowHeight);
-        context.strokeStyle = "#c9c6bb";
+        context.strokeStyle = "#c7cdca";
         context.lineWidth = 1;
         context.beginPath();
         context.moveTo(padding, y + rowHeight);
@@ -1129,7 +1129,7 @@
       });
 
       columns.slice(1, -1).forEach((x) => {
-        context.strokeStyle = "#c9c6bb";
+        context.strokeStyle = "#c7cdca";
         context.beginPath();
         context.moveTo(x, tableTop);
         context.lineTo(x, tableTop + headerHeight + rowHeight * model.rows.length);
@@ -1362,6 +1362,7 @@
       showStatus,
     };
     renderShell();
+    document.documentElement.dataset.appReady = "true";
   })();
   </script>
 </body>
