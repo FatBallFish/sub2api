@@ -170,6 +170,59 @@
     .button.danger { border-color: #b56b62; color: var(--red); }
     .button.compact { min-height: 32px; padding: 5px 9px; }
 
+    .view-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .view-actions select { width: auto; min-width: 154px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 11px; height: 11px; border: 1px solid rgba(23, 25, 22, 0.22); }
+    .legend-swatch.up { background: var(--red-soft); }
+    .legend-swatch.down { background: var(--green-soft); }
+    .legend-swatch.same { background: var(--gray-soft); }
+    .legend-swatch.new { background: var(--amber-soft); }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+      gap: 14px 18px;
+      margin-bottom: 22px;
+    }
+    .editor-grid .field { margin: 0; }
+    .editor-grid .wide { grid-column: 1 / -1; }
+    .editor-grid textarea { min-height: 72px; resize: vertical; line-height: 1.55; }
+
+    .table-wrap {
+      width: 100%;
+      overflow: auto;
+      border-top: 2px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+      background: var(--paper-strong);
+    }
+    .data-table { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 13px; }
+    .data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    .data-table th {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      background: #ded9cd;
+      color: #3d403a;
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    .data-table tr:last-child td { border-bottom: 0; }
+    .data-table .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .data-table .category-cell { width: 155px; color: var(--muted); font-size: 12px; }
+    .data-table .name-cell { min-width: 220px; font-weight: 650; }
+    .data-table input { min-width: 108px; padding: 7px 8px; color: var(--blue); font-weight: 700; }
+    .price-pair { display: grid; grid-template-columns: minmax(108px, 1fr) auto; align-items: center; gap: 10px; }
+    .cny-value { min-width: 86px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .change-cell { min-width: 130px; font-weight: 700; }
+    tr.change-up .change-cell { background: var(--red-soft); color: var(--red); }
+    tr.change-down .change-cell { background: var(--green-soft); color: var(--green); }
+    tr.change-same .change-cell { background: var(--gray-soft); color: var(--muted); }
+    tr.change-new .change-cell { background: var(--amber-soft); color: var(--amber); }
+    .section-caption { margin: 11px 0 0; color: var(--muted); font-size: 12px; }
+
     .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
     .view-panel { animation: reveal 220ms ease both; }
     .view-panel > header {
@@ -238,6 +291,8 @@
       .field:first-of-type { grid-column: 1 / -1; }
       .view-container { padding-top: 22px; }
       .view-panel > header { align-items: start; flex-direction: column; }
+      .editor-grid { grid-template-columns: 1fr; }
+      .editor-grid .wide { grid-column: auto; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -294,8 +349,29 @@
       <section class="view-panel" data-view="prices">
         <header>
           <div><h2>每日价格</h2><p>复制历史版本、调整各分组美元价格，并按上一日变化导出公告图。</p></div>
+          <div class="view-actions">
+            <select id="price-day-select" aria-label="选择价格日期"></select>
+            <button class="button" id="duplicate-day" type="button">复制当天</button>
+            <button class="button danger" id="delete-day" type="button">删除</button>
+            <button class="button primary" id="export-price-image" type="button">导出图片</button>
+          </div>
         </header>
-        <div class="placeholder" id="daily-price-root">每日价格编辑器</div>
+        <div id="daily-price-root">
+          <div class="legend" aria-label="价格变化图例">
+            <span class="legend-item"><i class="legend-swatch up"></i>涨价</span>
+            <span class="legend-item"><i class="legend-swatch down"></i>降价</span>
+            <span class="legend-item"><i class="legend-swatch same"></i>持平</span>
+            <span class="legend-item"><i class="legend-swatch new"></i>新增</span>
+          </div>
+          <div class="editor-grid" id="day-meta-editor"></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>类型</th><th>分组</th><th>美元价格</th><th>人民币换算</th><th>较上一日</th></tr></thead>
+              <tbody id="price-groups-body"></tbody>
+            </table>
+          </div>
+          <p class="section-caption" id="comparison-caption"></p>
+        </div>
       </section>
       <section class="view-panel" data-view="stripe" hidden>
         <header>
@@ -395,6 +471,23 @@
       return days
         .filter((day) => day.date < date)
         .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    }
+
+    function buildPriceComparison(day, days) {
+      const previousDay = findPreviousDay(days, day.date);
+      const previousById = new Map((previousDay?.groups ?? []).map((item) => [item.id, item]));
+      return {
+        day,
+        previousDay,
+        rows: day.groups.map((item) => {
+          const previous = previousById.get(item.id);
+          return {
+            group: item,
+            previousPrice: previous?.price ?? null,
+            comparison: comparePrice(item.price, previous?.price),
+          };
+        }),
+      };
     }
 
     function cloneJson(value) {
@@ -574,6 +667,7 @@
       usdToCny,
       comparePrice,
       findPreviousDay,
+      buildPriceComparison,
       clonePriceDay,
       removePriceDay,
       removeProfitTemplate,
@@ -623,6 +717,55 @@
       document.querySelectorAll("[data-view]").forEach((panel) => {
         panel.hidden = panel.dataset.view !== state.activeView;
       });
+      renderDailyPrices();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;",
+      })[character]);
+    }
+
+    function formatUsd(value, precision = 6) {
+      return `$${core.round(value, precision).toFixed(precision).replace(/0+$/, "").replace(/\.$/, "")}`;
+    }
+
+    function renderDailyPrices() {
+      const sortedDays = [...state.days].sort((a, b) => b.date.localeCompare(a.date));
+      let day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) {
+        day = sortedDays[0];
+        state.selectedDayId = day.id;
+      }
+      const model = core.buildPriceComparison(day, state.days);
+      document.querySelector("#price-day-select").innerHTML = sortedDays.map((item) => (
+        `<option value="${escapeHtml(item.id)}" ${item.id === day.id ? "selected" : ""}>${escapeHtml(item.date)}</option>`
+      )).join("");
+      document.querySelector("#day-meta-editor").innerHTML = `
+        <div class="field"><label for="day-date">发布日期</label><input id="day-date" data-day-field="date" type="date" value="${escapeHtml(day.date)}"></div>
+        <div class="field"><label for="day-website">官网地址</label><input id="day-website" data-day-field="website" value="${escapeHtml(day.website)}"></div>
+        <div class="field wide"><label for="day-market">今日行情</label><textarea id="day-market" data-day-field="market">${escapeHtml(day.market)}</textarea></div>
+        <div class="field wide"><label for="day-note">每日备注</label><textarea id="day-note" data-day-field="note">${escapeHtml(day.note)}</textarea></div>
+        <div class="field wide"><label for="day-downstream">下游配置说明</label><textarea id="day-downstream" data-day-field="downstream">${escapeHtml(day.downstream)}</textarea></div>
+      `;
+      document.querySelector("#price-groups-body").innerHTML = model.rows.map(({ group: item, comparison }) => {
+        const labels = {
+          up: `↑ 涨 ${formatUsd(Math.abs(comparison.delta))}`,
+          down: `↓ 降 ${formatUsd(Math.abs(comparison.delta))}`,
+          same: "— 持平",
+          new: "+ 新增",
+        };
+        return `<tr class="change-${comparison.status}" data-group-row="${escapeHtml(item.id)}">
+          <td class="category-cell">${escapeHtml(item.category)}</td>
+          <td class="name-cell">${escapeHtml(item.name)}${item.note ? `<small style="display:block;margin-top:4px;color:var(--muted);font-weight:400">${escapeHtml(item.note)}</small>` : ""}</td>
+          <td><input type="number" min="0" step="0.0001" inputmode="decimal" data-group-id="${escapeHtml(item.id)}" value="${item.price}"></td>
+          <td class="number cny-value">¥${core.usdToCny(item.price, state.exchangeRate).toFixed(4)}</td>
+          <td class="change-cell">${labels[comparison.status]}</td>
+        </tr>`;
+      }).join("");
+      document.querySelector("#comparison-caption").textContent = model.previousDay
+        ? `当前价格与 ${model.previousDay.date} 对比；所有输入以美元为准，人民币按 ${state.exchangeRate} 汇率换算。`
+        : `这是最早一条价格记录；所有分组标记为新增。人民币按 ${state.exchangeRate} 汇率换算。`;
     }
 
     function updateGlobalNumber(path, rawValue) {
@@ -663,12 +806,77 @@
         showStatus("备份已导出");
       }
       if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
+      if (event.target.closest("#duplicate-day")) {
+        const source = state.days.find((day) => day.id === state.selectedDayId);
+        const copy = core.clonePriceDay(source, state.days);
+        state.days.push(copy);
+        state.selectedDayId = copy.id;
+        persist();
+        renderShell();
+        showStatus(`已创建 ${copy.date} 价格副本`);
+      }
+      if (event.target.closest("#delete-day")) {
+        const selected = state.days.find((day) => day.id === state.selectedDayId);
+        if (selected && window.confirm(`删除 ${selected.date} 的价格记录？`)) {
+          try {
+            core.removePriceDay(state, selected.id);
+            persist();
+            renderShell();
+            showStatus("价格记录已删除");
+          } catch {
+            showStatus("至少需要保留一天价格", "error");
+          }
+        }
+      }
       if (event.target.closest("#reset-state") && window.confirm("恢复 Excel 初始数据？当前本地修改将被覆盖。")) {
         state = core.createDefaultState();
         persist();
         renderShell();
         window.dispatchEvent(new CustomEvent("pricing-state-change"));
         showStatus("已恢复初始数据");
+      }
+    });
+
+    document.addEventListener("change", (event) => {
+      if (event.target.matches("#price-day-select")) {
+        state.selectedDayId = event.target.value;
+        persist();
+        renderDailyPrices();
+        return;
+      }
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      const field = event.target.dataset.dayField;
+      if (field) {
+        if (field === "date") {
+          const nextDate = event.target.value;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate) || state.days.some((item) => item !== day && item.date === nextDate)) {
+            showStatus("日期无效或已存在", "error");
+            renderDailyPrices();
+            return;
+          }
+          day.date = nextDate;
+          day.id = `day-${nextDate}`;
+          state.selectedDayId = day.id;
+        } else {
+          day[field] = event.target.value;
+        }
+        persist();
+        renderDailyPrices();
+        return;
+      }
+      const groupId = event.target.dataset.groupId;
+      if (groupId) {
+        const value = Number(event.target.value);
+        const priceGroup = day.groups.find((item) => item.id === groupId);
+        if (!priceGroup || !Number.isFinite(value) || value < 0) {
+          showStatus("请输入有效的美元价格", "error");
+          renderDailyPrices();
+          return;
+        }
+        priceGroup.price = value;
+        persist();
+        renderDailyPrices();
       }
     });
 

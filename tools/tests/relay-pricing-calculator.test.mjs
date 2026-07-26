@@ -112,3 +112,50 @@ test("prevents deleting the final day or profitability template", async () => {
     /at least one profit template/i,
   );
 });
+
+test("builds daily comparisons against the chronologically previous day", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const current = {
+    id: "day-2026-07-27",
+    date: "2026-07-27",
+    groups: [
+      { id: "up", price: 2 },
+      { id: "down", price: 1 },
+      { id: "same", price: 1 },
+      { id: "new", price: 4 },
+    ],
+  };
+  const previous = {
+    id: "day-2026-07-26-test",
+    date: "2026-07-26",
+    groups: [
+      { id: "up", price: 1 },
+      { id: "down", price: 2 },
+      { id: "same", price: 1 },
+    ],
+  };
+  const days = [current, state.days[0], previous, state.days[2]];
+  const model = core.buildPriceComparison(current, days);
+
+  assert.equal(model.previousDay.id, previous.id);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(model.rows.map((row) => row.comparison.status))),
+    ["up", "down", "same", "new"],
+  );
+});
+
+test("ships the complete twelve-group daily price template", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  assert.equal(state.days.at(-1).groups.length, 12);
+  assert.equal(new Set(state.days.at(-1).groups.map((group) => group.id)).size, 12);
+});
+
+test("contains daily price editing and image export controls", async () => {
+  const html = await readFile(htmlUrl, "utf8");
+  assert.match(html, /id="price-day-select"/);
+  assert.match(html, /id="duplicate-day"/);
+  assert.match(html, /id="export-price-image"/);
+  assert.match(html, /id="price-groups-body"/);
+});
