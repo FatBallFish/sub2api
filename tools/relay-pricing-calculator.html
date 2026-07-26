@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>中转站价格工作台</title>
+</head>
+<body>
+  <main id="app"></main>
+
+  <script id="calculator-core">
+  (() => {
+    "use strict";
+
+    const STATE_VERSION = 1;
+
+    function round(value, precision = 12) {
+      if (!Number.isFinite(value)) return value;
+      return Number(value.toFixed(precision));
+    }
+
+    function assertFinite(name, value, { min = -Infinity, exclusiveMin = false } = {}) {
+      if (!Number.isFinite(value)) throw new TypeError(`${name} must be a finite number`);
+      if (exclusiveMin ? value <= min : value < min) {
+        const boundary = exclusiveMin && min === 0 ? "zero" : String(min);
+        throw new RangeError(`${name} must be greater than ${boundary}`);
+      }
+    }
+
+    function calculateStripe(amount, rate, fixedFee) {
+      assertFinite("amount", amount, { min: 0, exclusiveMin: true });
+      assertFinite("rate", rate, { min: 0 });
+      assertFinite("fixed fee", fixedFee, { min: 0 });
+      const fee = round(amount * rate + fixedFee);
+      const net = round(Math.max(0, amount - fee));
+      return {
+        amount: round(amount),
+        fee,
+        net,
+        lossRate: round(fee / amount),
+        collectionRate: round(net / amount),
+      };
+    }
+
+    function calculateProfitability(amount, options) {
+      const { costPrice, salePrice, rate, fixedFee } = options;
+      assertFinite("amount", amount, { min: 0, exclusiveMin: true });
+      assertFinite("cost price", costPrice, { min: 0 });
+      assertFinite("sale price", salePrice, { min: 0, exclusiveMin: true });
+      const stripe = calculateStripe(amount, rate, fixedFee);
+      const quotaPerDollar = 1 / salePrice;
+      const costPerDollar = quotaPerDollar * costPrice;
+      const totalCost = amount * costPerDollar;
+      const surfaceMargin = 1 - costPerDollar;
+      const actualProfit = stripe.net - totalCost;
+      const actualMargin = stripe.net > 0 ? actualProfit / stripe.net : null;
+      return {
+        ...stripe,
+        quotaPerDollar: round(quotaPerDollar),
+        costPerDollar: round(costPerDollar),
+        totalCost: round(totalCost),
+        surfaceMargin: round(surfaceMargin),
+        actualProfit: round(actualProfit),
+        actualMargin: actualMargin === null ? null : round(actualMargin),
+      };
+    }
+
+    function usdToCny(usd, exchangeRate) {
+      assertFinite("USD amount", usd, { min: 0 });
+      assertFinite("exchange rate", exchangeRate, { min: 0, exclusiveMin: true });
+      return round(usd * exchangeRate);
+    }
+
+    function comparePrice(current, previous) {
+      assertFinite("current price", current, { min: 0 });
+      if (previous === null || previous === undefined || !Number.isFinite(previous)) {
+        return { status: "new", delta: null, deltaRate: null };
+      }
+      assertFinite("previous price", previous, { min: 0 });
+      const delta = round(current - previous);
+      const status = delta > 0 ? "up" : delta < 0 ? "down" : "same";
+      return {
+        status,
+        delta,
+        deltaRate: previous === 0 ? null : round(delta / previous),
+      };
+    }
+
+    function findPreviousDay(days, date) {
+      return days
+        .filter((day) => day.date < date)
+        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    }
+
+    function group(id, category, name, price, note = "") {
+      return { id, category, name, price, note };
+    }
+
+    const baseImageGroups = [
+      group("gpt-image-low", "生图分组", "gpt - image - low", 0.01, "仅支持 1/2K，中低画质"),
+      group("gpt-image-medium", "生图分组", "gpt - image - medium", 0.02, "支持 1/2/4K，中画质"),
+      group("gpt-image-high", "生图分组", "gpt - image - high", 0.045, "支持 1/2/4K，高画质"),
+      group("grok-image", "生图分组", "grok - image", 0.002 / 6.8, "每张"),
+    ];
+
+    function createGroups(prices) {
+      return [
+        group("gpt-regression", "语言分组 · GPT", prices.regressionName ?? "gpt - regression（老客分组）", prices.regression),
+        group("gpt-offer", "语言分组 · GPT", "gpt - offer", prices.offer),
+        group("gpt-normal", "语言分组 · GPT", "gpt - normal", prices.normal),
+        group("gpt-stable", "语言分组 · GPT", "gpt - stable", prices.stable),
+        group("claude-offer", "语言分组 · Claude", "claude - offer（kiro高缓）", 0.012),
+        group("grok-offer", "语言分组 · Grok", "grok - offer", 0.005),
+        group("opensource-openai", "语言分组 · 开源国模", "opensource - openai", 0.3),
+        group("opensource-claude", "语言分组 · 开源国模", "opensource - claude", 0.3),
+        ...baseImageGroups.map((item) => ({ ...item })),
+      ];
+    }
+
+    function priceDay(date, prices, market, note) {
+      return {
+        id: `day-${date}`,
+        date,
+        market,
+        note,
+        website: "https://mikiko.cc（带梯子访问）",
+        downstream: "1. 开池模式\n2. 同账号重试次数 5-10\n3. 同账号重试状态码：400,401,403,429,502,503,524",
+        groups: createGroups(prices),
+      };
+    }
+
+    function createDefaultState() {
+      const days = [
+        priceDay(
+          "2026-07-22",
+          { regression: 0.004, offer: 0.008, normal: 0.016, stable: 0.023 },
+          "号池全面拉闸，所有分组价格上调",
+          "还没想好",
+        ),
+        priceDay(
+          "2026-07-23",
+          { regression: 0.011, offer: 0.015, normal: 0.018, stable: 0.023 },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-24",
+          {
+            regression: 0.012,
+            regressionName: "gpt - regression（老客分组不稳定）",
+            offer: 0.018,
+            normal: 0.023,
+            stable: 0.027,
+          },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-25",
+          {
+            regression: 0.009,
+            regressionName: "gpt - regression（老客分组不稳定）",
+            offer: 0.016,
+            normal: 0.018,
+            stable: 0.024,
+          },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-26",
+          { regression: 0.009, offer: 0.013, normal: 0.018, stable: 0.024 },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+      ];
+
+      return {
+        version: STATE_VERSION,
+        activeView: "prices",
+        exchangeRate: 6.8,
+        stripe: { rate: 0.029, fixedFee: 0.3, customAmount: 10 },
+        selectedDayId: days.at(-1).id,
+        selectedTemplateId: "template-default",
+        days,
+        templates: [{
+          id: "template-default",
+          name: "标准模型",
+          costPrice: 0.01470588235,
+          salePrice: 0.02,
+        }],
+      };
+    }
+
+    function validateState(state) {
+      if (!state || typeof state !== "object") return false;
+      if (state.version !== STATE_VERSION) return false;
+      if (!Number.isFinite(state.exchangeRate) || state.exchangeRate <= 0) return false;
+      if (!state.stripe || !Number.isFinite(state.stripe.rate) || state.stripe.rate < 0) return false;
+      if (!Number.isFinite(state.stripe.fixedFee) || state.stripe.fixedFee < 0) return false;
+      if (!Array.isArray(state.days) || state.days.length < 1) return false;
+      if (!Array.isArray(state.templates) || state.templates.length < 1) return false;
+      return state.days.every((day) => /^\d{4}-\d{2}-\d{2}$/.test(day.date)
+        && Array.isArray(day.groups)
+        && day.groups.every((item) => typeof item.id === "string" && Number.isFinite(item.price) && item.price >= 0));
+    }
+
+    window.PricingCalculatorCore = Object.freeze({
+      STATE_VERSION,
+      round,
+      calculateStripe,
+      calculateProfitability,
+      usdToCny,
+      comparePrice,
+      findPreviousDay,
+      validateState,
+      createDefaultState,
+    });
+  })();
+  </script>
+</body>
+</html>
