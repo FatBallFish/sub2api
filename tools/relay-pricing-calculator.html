@@ -246,6 +246,17 @@
     .metric strong { display: block; overflow: hidden; font-family: var(--display-font); font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
     .metric strong.negative { color: var(--red); }
     .table-section-title { margin: 30px 0 12px; font-family: var(--display-font); font-size: 18px; }
+    .profit-editor {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.2fr) repeat(2, minmax(180px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .profit-editor .field { margin: 0; }
+    .conversion-note { margin: 6px 0 0; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .margin-negative { background: var(--red-soft); color: var(--red); font-weight: 750; }
+    .margin-low { background: var(--amber-soft); color: var(--amber); font-weight: 750; }
+    .margin-healthy { background: var(--green-soft); color: var(--green); font-weight: 750; }
 
     .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
     .view-panel { animation: reveal 220ms ease both; }
@@ -321,6 +332,7 @@
       .metric-strip { grid-template-columns: 1fr 1fr; }
       .metric:nth-child(2) { border-right: 0; }
       .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+      .profit-editor { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -425,8 +437,28 @@
       <section class="view-panel" data-view="profit" hidden>
         <header>
           <div><h2>盈利模板</h2><p>用多套成本与售价假设，对比不同充值档位下的真实利润空间。</p></div>
+          <div class="view-actions">
+            <select id="profit-template-select" aria-label="选择盈利模板"></select>
+            <button class="button" id="create-profit-template" type="button">新建</button>
+            <button class="button" id="duplicate-profit-template" type="button">复制</button>
+            <button class="button danger" id="delete-profit-template" type="button">删除</button>
+          </div>
         </header>
-        <div class="placeholder" id="profit-root">盈利模板分析</div>
+        <div id="profit-root">
+          <div class="profit-editor">
+            <div class="field"><label for="profit-template-name">模板名称</label><input id="profit-template-name" data-template-field="name"></div>
+            <div class="field"><label for="profit-cost-price">实际成本单价（USD）</label><input id="profit-cost-price" data-template-field="costPrice" type="number" min="0" step="0.0001" inputmode="decimal"><p class="conversion-note" id="profit-cost-cny"></p></div>
+            <div class="field"><label for="profit-sale-price">销售单价（USD）</label><input id="profit-sale-price" data-template-field="salePrice" type="number" min="0.000001" step="0.0001" inputmode="decimal"><p class="conversion-note" id="profit-sale-cny"></p></div>
+          </div>
+          <div class="metric-strip" id="profit-summary"></div>
+          <h3 class="table-section-title">充值档位利润 · $1-$50</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>充值档位</th><th>实际到账</th><th>每 $1 可用额度</th><th>档位实际成本</th><th>表面盈利率</th><th>实际盈利额</th><th>实际盈利率</th></tr></thead>
+              <tbody id="profit-table-body"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
   </main>
@@ -498,6 +530,18 @@
       };
     }
 
+    function buildProfitRows(start, end, template, stripe) {
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
+        throw new RangeError("Profit row range must contain positive ascending integers");
+      }
+      return Array.from({ length: end - start + 1 }, (_, index) => calculateProfitability(start + index, {
+        costPrice: template.costPrice,
+        salePrice: template.salePrice,
+        rate: stripe.rate,
+        fixedFee: stripe.fixedFee,
+      }));
+    }
+
     function usdToCny(usd, exchangeRate) {
       assertFinite("USD amount", usd, { min: 0 });
       assertFinite("exchange rate", exchangeRate, { min: 0, exclusiveMin: true });
@@ -560,6 +604,27 @@
       copy.date = date;
       copy.id = `day-${date}`;
       return copy;
+    }
+
+    function nextTemplateId(existingTemplates) {
+      const used = new Set(existingTemplates.map((template) => template.id));
+      let index = 1;
+      while (used.has(`template-${index}`)) index += 1;
+      return `template-${index}`;
+    }
+
+    function cloneProfitTemplate(source, existingTemplates) {
+      return {
+        ...cloneJson(source),
+        id: nextTemplateId(existingTemplates),
+        name: `${source.name} 副本`,
+      };
+    }
+
+    function createProfitTemplate(existingTemplates) {
+      const id = nextTemplateId(existingTemplates);
+      const suffix = id.split("-").at(-1);
+      return { id, name: `新模板 ${suffix}`, costPrice: 0.01, salePrice: 0.02 };
     }
 
     function removePriceDay(state, id) {
@@ -717,11 +782,14 @@
       calculateStripe,
       buildStripeRows,
       calculateProfitability,
+      buildProfitRows,
       usdToCny,
       comparePrice,
       findPreviousDay,
       buildPriceComparison,
       clonePriceDay,
+      cloneProfitTemplate,
+      createProfitTemplate,
       removePriceDay,
       removeProfitTemplate,
       validateState,
@@ -772,6 +840,7 @@
       });
       renderDailyPrices();
       renderStripe();
+      renderProfit();
     }
 
     function escapeHtml(value) {
@@ -847,6 +916,50 @@
       </tr>`).join("");
     }
 
+    function marginClass(value) {
+      if (value === null || value < 0) return "margin-negative";
+      if (value < 0.15) return "margin-low";
+      return "margin-healthy";
+    }
+
+    function renderProfit() {
+      let template = state.templates.find((item) => item.id === state.selectedTemplateId);
+      if (!template) {
+        template = state.templates[0];
+        state.selectedTemplateId = template.id;
+      }
+      document.querySelector("#profit-template-select").innerHTML = state.templates.map((item) => (
+        `<option value="${escapeHtml(item.id)}" ${item.id === template.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`
+      )).join("");
+      document.querySelector("#profit-template-name").value = template.name;
+      document.querySelector("#profit-cost-price").value = template.costPrice;
+      document.querySelector("#profit-sale-price").value = template.salePrice;
+      document.querySelector("#profit-cost-cny").textContent = `≈ ¥${core.usdToCny(template.costPrice, state.exchangeRate).toFixed(4)} / 单位`;
+      document.querySelector("#profit-sale-cny").textContent = `≈ ¥${core.usdToCny(template.salePrice, state.exchangeRate).toFixed(4)} / 单位`;
+      const perDollar = core.calculateProfitability(1, {
+        costPrice: template.costPrice,
+        salePrice: template.salePrice,
+        rate: state.stripe.rate,
+        fixedFee: state.stripe.fixedFee,
+      });
+      document.querySelector("#profit-summary").innerHTML = `
+        <div class="metric"><span>每 $1 实际额度</span><strong>${perDollar.quotaPerDollar.toFixed(4)}</strong></div>
+        <div class="metric"><span>每 $1 实际成本</span><strong>${formatUsd(perDollar.costPerDollar, 4)}</strong></div>
+        <div class="metric"><span>表面盈利率</span><strong>${formatPercent(perDollar.surfaceMargin)}</strong></div>
+        <div class="metric"><span>$1 实际盈利率</span><strong class="${perDollar.actualMargin !== null && perDollar.actualMargin < 0 ? "negative" : ""}">${formatPercent(perDollar.actualMargin)}</strong></div>
+      `;
+      const rows = core.buildProfitRows(1, 50, template, state.stripe);
+      document.querySelector("#profit-table-body").innerHTML = rows.map((row) => `<tr>
+        <td class="number">${formatUsd(row.amount, 2)}</td>
+        <td class="number">${formatUsd(row.net, 3)}</td>
+        <td class="number">${row.quotaPerDollar.toFixed(4)}</td>
+        <td class="number">${formatUsd(row.totalCost, 4)}</td>
+        <td class="number">${formatPercent(row.surfaceMargin)}</td>
+        <td class="number ${row.actualProfit < 0 ? "margin-negative" : ""}">${formatUsd(row.actualProfit, 4)}</td>
+        <td class="number ${marginClass(row.actualMargin)}">${formatPercent(row.actualMargin)}</td>
+      </tr>`).join("");
+    }
+
     function updateGlobalNumber(path, rawValue) {
       const value = Number(rawValue);
       if (!Number.isFinite(value) || value < 0 || (path === "exchangeRate" && value === 0)) {
@@ -885,6 +998,36 @@
         showStatus("备份已导出");
       }
       if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
+      if (event.target.closest("#create-profit-template")) {
+        const template = core.createProfitTemplate(state.templates);
+        state.templates.push(template);
+        state.selectedTemplateId = template.id;
+        persist();
+        renderProfit();
+        showStatus("已新建盈利模板");
+      }
+      if (event.target.closest("#duplicate-profit-template")) {
+        const source = state.templates.find((item) => item.id === state.selectedTemplateId);
+        const copy = core.cloneProfitTemplate(source, state.templates);
+        state.templates.push(copy);
+        state.selectedTemplateId = copy.id;
+        persist();
+        renderProfit();
+        showStatus("模板副本已创建");
+      }
+      if (event.target.closest("#delete-profit-template")) {
+        const selected = state.templates.find((item) => item.id === state.selectedTemplateId);
+        if (selected && window.confirm(`删除盈利模板“${selected.name}”？`)) {
+          try {
+            core.removeProfitTemplate(state, selected.id);
+            persist();
+            renderProfit();
+            showStatus("盈利模板已删除");
+          } catch {
+            showStatus("至少需要保留一个盈利模板", "error");
+          }
+        }
+      }
       if (event.target.closest("#duplicate-day")) {
         const source = state.days.find((day) => day.id === state.selectedDayId);
         const copy = core.clonePriceDay(source, state.days);
@@ -921,6 +1064,12 @@
         state.selectedDayId = event.target.value;
         persist();
         renderDailyPrices();
+        return;
+      }
+      if (event.target.matches("#profit-template-select")) {
+        state.selectedTemplateId = event.target.value;
+        persist();
+        renderProfit();
         return;
       }
       const day = state.days.find((item) => item.id === state.selectedDayId);
@@ -968,6 +1117,31 @@
         persist();
         renderStripe();
       }
+      const templateField = event.target.dataset.templateField;
+      if (templateField) {
+        const template = state.templates.find((item) => item.id === state.selectedTemplateId);
+        if (!template) return;
+        if (templateField === "name") {
+          const name = event.target.value.trim();
+          if (!name) {
+            showStatus("模板名称不能为空", "error");
+            renderProfit();
+            return;
+          }
+          template.name = name;
+        } else {
+          const value = Number(event.target.value);
+          const valid = Number.isFinite(value) && value >= 0 && (templateField !== "salePrice" || value > 0);
+          if (!valid) {
+            showStatus("请输入有效的美元单价", "error");
+            renderProfit();
+            return;
+          }
+          template[templateField] = value;
+        }
+        persist();
+        renderProfit();
+      }
     });
 
     document.querySelector("#global-exchange-rate").addEventListener("change", (event) => updateGlobalNumber("exchangeRate", event.target.value));
@@ -992,6 +1166,7 @@
     window.addEventListener("pricing-state-change", () => {
       renderDailyPrices();
       renderStripe();
+      renderProfit();
     });
 
     window.PricingCalculatorApp = {

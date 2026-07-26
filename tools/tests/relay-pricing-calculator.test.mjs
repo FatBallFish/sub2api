@@ -176,3 +176,54 @@ test("contains the custom Stripe calculator and receipt table", async () => {
   assert.match(html, /id="stripe-custom-results"/);
   assert.match(html, /id="stripe-table-body"/);
 });
+
+test("builds profitability rows for every Stripe recharge tier", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const rows = core.buildProfitRows(1, 50, state.templates[0], state.stripe);
+  assert.equal(rows.length, 50);
+  assert.equal(rows[0].quotaPerDollar, 50);
+  assert.ok(Math.abs(rows[9].actualMargin - 0.21860348831) < 1e-10);
+  assert.equal(rows[49].amount, 50);
+});
+
+test("duplicates profitability templates with independent values", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const copy = core.cloneProfitTemplate(state.templates[0], state.templates);
+  assert.notEqual(copy.id, state.templates[0].id);
+  assert.match(copy.name, /副本/);
+  copy.costPrice = 999;
+  assert.notEqual(copy.costPrice, state.templates[0].costPrice);
+});
+
+test("creates a blank profitability template with safe defaults", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const created = core.createProfitTemplate(state.templates);
+  assert.notEqual(created.id, state.templates[0].id);
+  assert.match(created.name, /新模板/);
+  assert.ok(created.costPrice >= 0);
+  assert.ok(created.salePrice > 0);
+});
+
+test("marks actual margin unavailable when Stripe net receipt is zero", async () => {
+  const core = await loadCore();
+  const row = core.calculateProfitability(1, {
+    costPrice: 0.01,
+    salePrice: 0.02,
+    rate: 0,
+    fixedFee: 2,
+  });
+  assert.equal(row.net, 0);
+  assert.equal(row.actualMargin, null);
+});
+
+test("contains profitability template controls and tier table", async () => {
+  const html = await readFile(htmlUrl, "utf8");
+  assert.match(html, /id="profit-template-select"/);
+  assert.match(html, /id="create-profit-template"/);
+  assert.match(html, /id="profit-cost-price"/);
+  assert.match(html, /id="profit-sale-price"/);
+  assert.match(html, /id="profit-table-body"/);
+});
