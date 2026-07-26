@@ -159,3 +159,20 @@ test("contains daily price editing and image export controls", async () => {
   assert.match(html, /id="export-price-image"/);
   assert.match(html, /id="price-groups-body"/);
 });
+
+test("builds the Stripe one-to-fifty dollar receipt table", async () => {
+  const core = await loadCore();
+  const rows = core.buildStripeRows(1, 50, { rate: 0.029, fixedFee: 0.3 });
+  assert.equal(rows.length, 50);
+  assert.equal(rows[0].fee, 0.329);
+  assert.equal(rows[9].net, 9.41);
+  assert.equal(rows[29].collectionRate, 0.961);
+  assert.equal(rows[49].amount, 50);
+});
+
+test("contains the custom Stripe calculator and receipt table", async () => {
+  const html = await readFile(htmlUrl, "utf8");
+  assert.match(html, /id="stripe-custom-amount"/);
+  assert.match(html, /id="stripe-custom-results"/);
+  assert.match(html, /id="stripe-table-body"/);
+});

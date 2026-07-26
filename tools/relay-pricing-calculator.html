@@ -222,6 +222,30 @@
     tr.change-same .change-cell { background: var(--gray-soft); color: var(--muted); }
     tr.change-new .change-cell { background: var(--amber-soft); color: var(--amber); }
     .section-caption { margin: 11px 0 0; color: var(--muted); font-size: 12px; }
+    .analysis-input {
+      display: grid;
+      grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+      align-items: end;
+      gap: 22px;
+      margin-bottom: 26px;
+    }
+    .analysis-input .field { margin: 0; }
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .metric {
+      min-width: 0;
+      padding: 12px 14px;
+      border-right: 1px solid var(--line);
+    }
+    .metric:last-child { border-right: 0; }
+    .metric span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .metric strong { display: block; overflow: hidden; font-family: var(--display-font); font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
+    .metric strong.negative { color: var(--red); }
+    .table-section-title { margin: 30px 0 12px; font-family: var(--display-font); font-size: 18px; }
 
     .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
     .view-panel { animation: reveal 220ms ease both; }
@@ -293,6 +317,10 @@
       .view-panel > header { align-items: start; flex-direction: column; }
       .editor-grid { grid-template-columns: 1fr; }
       .editor-grid .wide { grid-column: auto; }
+      .analysis-input { grid-template-columns: 1fr; }
+      .metric-strip { grid-template-columns: 1fr 1fr; }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -377,7 +405,22 @@
         <header>
           <div><h2>Stripe 收款</h2><p>查看固定手续费对小额充值的损耗，以及各充值档位的实际到账。</p></div>
         </header>
-        <div class="placeholder" id="stripe-root">Stripe 收款分析</div>
+        <div id="stripe-root">
+          <div class="analysis-input">
+            <div class="field">
+              <label for="stripe-custom-amount">指定充值金额</label>
+              <div class="input-unit"><input id="stripe-custom-amount" type="number" min="0.01" step="0.01" inputmode="decimal"><span>USD</span></div>
+            </div>
+            <div class="metric-strip" id="stripe-custom-results"></div>
+          </div>
+          <h3 class="table-section-title">充值档位明细 · $1-$50</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>充值金额 / 理应收款</th><th>Stripe 手续费</th><th>实际收款</th><th>损耗率</th><th>收款率</th></tr></thead>
+              <tbody id="stripe-table-body"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
       <section class="view-panel" data-view="profit" hidden>
         <header>
@@ -421,6 +464,15 @@
         lossRate: round(fee / amount),
         collectionRate: round(net / amount),
       };
+    }
+
+    function buildStripeRows(start, end, assumptions) {
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
+        throw new RangeError("Stripe row range must contain positive ascending integers");
+      }
+      return Array.from({ length: end - start + 1 }, (_, index) => (
+        calculateStripe(start + index, assumptions.rate, assumptions.fixedFee)
+      ));
     }
 
     function calculateProfitability(amount, options) {
@@ -663,6 +715,7 @@
       STATE_VERSION,
       round,
       calculateStripe,
+      buildStripeRows,
       calculateProfitability,
       usdToCny,
       comparePrice,
@@ -718,6 +771,7 @@
         panel.hidden = panel.dataset.view !== state.activeView;
       });
       renderDailyPrices();
+      renderStripe();
     }
 
     function escapeHtml(value) {
@@ -728,6 +782,11 @@
 
     function formatUsd(value, precision = 6) {
       return `$${core.round(value, precision).toFixed(precision).replace(/0+$/, "").replace(/\.$/, "")}`;
+    }
+
+    function formatPercent(value, precision = 2) {
+      if (value === null || !Number.isFinite(value)) return "—";
+      return `${(value * 100).toFixed(precision)}%`;
     }
 
     function renderDailyPrices() {
@@ -766,6 +825,26 @@
       document.querySelector("#comparison-caption").textContent = model.previousDay
         ? `当前价格与 ${model.previousDay.date} 对比；所有输入以美元为准，人民币按 ${state.exchangeRate} 汇率换算。`
         : `这是最早一条价格记录；所有分组标记为新增。人民币按 ${state.exchangeRate} 汇率换算。`;
+    }
+
+    function renderStripe() {
+      const amount = Number(state.stripe.customAmount) > 0 ? Number(state.stripe.customAmount) : 1;
+      const custom = core.calculateStripe(amount, state.stripe.rate, state.stripe.fixedFee);
+      document.querySelector("#stripe-custom-amount").value = amount;
+      document.querySelector("#stripe-custom-results").innerHTML = `
+        <div class="metric"><span>理应收款</span><strong>${formatUsd(custom.amount, 2)}</strong></div>
+        <div class="metric"><span>实际收款</span><strong>${formatUsd(custom.net, 3)}</strong></div>
+        <div class="metric"><span>损耗率</span><strong class="negative">${formatPercent(custom.lossRate)}</strong></div>
+        <div class="metric"><span>收款率</span><strong>${formatPercent(custom.collectionRate)}</strong></div>
+      `;
+      const rows = core.buildStripeRows(1, 50, state.stripe);
+      document.querySelector("#stripe-table-body").innerHTML = rows.map((row) => `<tr>
+        <td class="number">${formatUsd(row.amount, 2)}</td>
+        <td class="number" style="color:var(--red)">${formatUsd(row.fee, 3)}</td>
+        <td class="number"><strong>${formatUsd(row.net, 3)}</strong></td>
+        <td class="number">${formatPercent(row.lossRate)}</td>
+        <td class="number">${formatPercent(row.collectionRate)}</td>
+      </tr>`).join("");
     }
 
     function updateGlobalNumber(path, rawValue) {
@@ -878,6 +957,17 @@
         persist();
         renderDailyPrices();
       }
+      if (event.target.matches("#stripe-custom-amount")) {
+        const amount = Number(event.target.value);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showStatus("充值金额必须大于 0", "error");
+          renderStripe();
+          return;
+        }
+        state.stripe.customAmount = amount;
+        persist();
+        renderStripe();
+      }
     });
 
     document.querySelector("#global-exchange-rate").addEventListener("change", (event) => updateGlobalNumber("exchangeRate", event.target.value));
@@ -897,6 +987,11 @@
       } finally {
         event.target.value = "";
       }
+    });
+
+    window.addEventListener("pricing-state-change", () => {
+      renderDailyPrices();
+      renderStripe();
     });
 
     window.PricingCalculatorApp = {
