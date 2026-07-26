@@ -70,7 +70,12 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
   await page.screenshot({ path: new URL("mobile.png", outputDir).pathname, fullPage: true });
   assert.equal(pageErrors.length, 0, pageErrors.join("\n"));
-  console.log("E2E PASS: daily prices, Stripe rows, templates, persistence, PNG export, desktop/mobile screenshots");
+
+  const filePage = await context.newPage();
+  await filePage.goto(new URL("tools/relay-pricing-calculator.html", root).href, { waitUntil: "load" });
+  await filePage.waitForSelector('html[data-app-ready="true"]');
+  assert.equal(await filePage.locator("#price-groups-body tr").count(), 12);
+  console.log("E2E PASS: direct file load, daily prices, Stripe rows, templates, persistence, PNG export, desktop/mobile screenshots");
 } finally {
   await browser.close();
   await new Promise((resolve) => server.close(resolve));
