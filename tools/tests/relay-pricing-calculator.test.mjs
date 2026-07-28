@@ -152,6 +152,65 @@ test("ships the complete twelve-group daily price template", async () => {
   assert.equal(new Set(state.days.at(-1).groups.map((group) => group.id)).size, 12);
 });
 
+test("creates validated price groups with IDs unique across history", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  state.days[0].groups.push({ id: "custom-1", category: "旧类型", name: "旧分组", price: 1, note: "" });
+
+  const created = core.createPriceGroup({
+    category: "语言分组 · 自定义",
+    name: "custom - fast",
+    price: 0.012,
+    note: "测试线路",
+  }, state.days);
+
+  assert.equal(created.id, "custom-2");
+  assert.equal(created.name, "custom - fast");
+  assert.throws(
+    () => core.createPriceGroup({ category: "", name: "x", price: 1, note: "" }, state.days),
+    /category/i,
+  );
+  assert.throws(
+    () => core.createPriceGroup({ category: "x", name: "y", price: -1, note: "" }, state.days),
+    /price/i,
+  );
+});
+
+test("removes only the requested daily price group", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const day = state.days.at(-1);
+  const remainingId = day.groups[1].id;
+
+  assert.equal(core.removePriceGroup(day, day.groups[0].id), true);
+  assert.equal(day.groups.length, 11);
+  assert.equal(day.groups.some((group) => group.id === remainingId), true);
+  assert.equal(core.removePriceGroup(day, "missing"), false);
+});
+
+test("restores built-in groups while preserving matching current prices", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const day = state.days.at(-1);
+  day.groups.find((group) => group.id === "gpt-offer").price = 0.777;
+  core.removePriceGroup(day, "gpt-normal");
+  day.groups.push({ id: "custom-1", category: "自定义", name: "custom", price: 1, note: "" });
+
+  const restored = core.restoreDefaultGroups(day);
+
+  assert.equal(restored.length, 12);
+  assert.equal(restored.find((group) => group.id === "gpt-offer").price, 0.777);
+  assert.equal(restored.some((group) => group.id === "gpt-normal"), true);
+  assert.equal(restored.some((group) => group.id === "custom-1"), false);
+});
+
+test("rejects duplicate group IDs inside a saved price day", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  state.days.at(-1).groups.push({ ...state.days.at(-1).groups[0] });
+  assert.equal(core.validateState(state), false);
+});
+
 test("contains daily price editing and image export controls", async () => {
   const html = await readFile(htmlUrl, "utf8");
   assert.match(html, /id="price-day-select"/);

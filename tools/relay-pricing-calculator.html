@@ -645,6 +645,28 @@
       return true;
     }
 
+    function createPriceGroup(input, days) {
+      const category = String(input.category ?? "").trim();
+      const name = String(input.name ?? "").trim();
+      const note = String(input.note ?? "").trim();
+      const price = Number(input.price);
+      if (!category) throw new TypeError("Price group category is required");
+      if (!name) throw new TypeError("Price group name is required");
+      if (!Number.isFinite(price) || price < 0) throw new RangeError("Price group price must be non-negative");
+
+      const usedIds = new Set(days.flatMap((day) => day.groups.map((item) => item.id)));
+      let index = 1;
+      while (usedIds.has(`custom-${index}`)) index += 1;
+      return { id: `custom-${index}`, category, name, price, note };
+    }
+
+    function removePriceGroup(day, groupId) {
+      const index = day.groups.findIndex((item) => item.id === groupId);
+      if (index < 0) return false;
+      day.groups.splice(index, 1);
+      return true;
+    }
+
     function group(id, category, name, price, note = "") {
       return { id, category, name, price, note };
     }
@@ -668,6 +690,19 @@
         group("opensource-claude", "语言分组 · 开源国模", "opensource - claude", 0.3),
         ...baseImageGroups.map((item) => ({ ...item })),
       ];
+    }
+
+    function createDefaultGroups() {
+      return createGroups({ regression: 0.009, offer: 0.013, normal: 0.018, stable: 0.024 });
+    }
+
+    function restoreDefaultGroups(day) {
+      const existingById = new Map(day.groups.map((item) => [item.id, item]));
+      day.groups = createDefaultGroups().map((defaultGroup) => ({
+        ...defaultGroup,
+        price: existingById.get(defaultGroup.id)?.price ?? defaultGroup.price,
+      }));
+      return day.groups;
     }
 
     function priceDay(date, prices, market, note) {
@@ -753,9 +788,19 @@
       if (!Number.isFinite(state.stripe.fixedFee) || state.stripe.fixedFee < 0) return false;
       if (!Array.isArray(state.days) || state.days.length < 1) return false;
       if (!Array.isArray(state.templates) || state.templates.length < 1) return false;
-      const daysValid = state.days.every((day) => /^\d{4}-\d{2}-\d{2}$/.test(day.date)
-        && Array.isArray(day.groups)
-        && day.groups.every((item) => typeof item.id === "string" && Number.isFinite(item.price) && item.price >= 0));
+      const daysValid = state.days.every((day) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date) || !Array.isArray(day.groups)) return false;
+        const ids = day.groups.map((item) => item.id);
+        return new Set(ids).size === ids.length
+          && day.groups.every((item) => typeof item.id === "string"
+            && typeof item.category === "string"
+            && item.category.trim().length > 0
+            && typeof item.name === "string"
+            && item.name.trim().length > 0
+            && typeof item.note === "string"
+            && Number.isFinite(item.price)
+            && item.price >= 0);
+      });
       const templatesValid = state.templates.every((template) => typeof template.id === "string"
         && typeof template.name === "string"
         && Number.isFinite(template.costPrice)
@@ -813,6 +858,9 @@
       createProfitTemplate,
       removePriceDay,
       removeProfitTemplate,
+      createPriceGroup,
+      removePriceGroup,
+      restoreDefaultGroups,
       validateState,
       normalizeImportedState,
       wrapTextByChars,
