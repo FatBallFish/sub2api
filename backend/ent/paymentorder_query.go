@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -15,17 +16,19 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 )
 
 // PaymentOrderQuery is the builder for querying PaymentOrder entities.
 type PaymentOrderQuery struct {
 	config
-	ctx        *QueryContext
-	order      []paymentorder.OrderOption
-	inters     []Interceptor
-	predicates []predicate.PaymentOrder
-	withUser   *UserQuery
-	modifiers  []func(*sql.Selector)
+	ctx                         *QueryContext
+	order                       []paymentorder.OrderOption
+	inters                      []Interceptor
+	predicates                  []predicate.PaymentOrder
+	withUser                    *UserQuery
+	withGlobalPlanSubscriptions *UserGlobalPlanSubscriptionQuery
+	modifiers                   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -77,6 +80,28 @@ func (_q *PaymentOrderQuery) QueryUser() *UserQuery {
 			sqlgraph.From(paymentorder.Table, paymentorder.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, paymentorder.UserTable, paymentorder.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryGlobalPlanSubscriptions chains the current query on the "global_plan_subscriptions" edge.
+func (_q *PaymentOrderQuery) QueryGlobalPlanSubscriptions() *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(paymentorder.Table, paymentorder.FieldID, selector),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, paymentorder.GlobalPlanSubscriptionsTable, paymentorder.GlobalPlanSubscriptionsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -271,12 +296,13 @@ func (_q *PaymentOrderQuery) Clone() *PaymentOrderQuery {
 		return nil
 	}
 	return &PaymentOrderQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]paymentorder.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.PaymentOrder{}, _q.predicates...),
-		withUser:   _q.withUser.Clone(),
+		config:                      _q.config,
+		ctx:                         _q.ctx.Clone(),
+		order:                       append([]paymentorder.OrderOption{}, _q.order...),
+		inters:                      append([]Interceptor{}, _q.inters...),
+		predicates:                  append([]predicate.PaymentOrder{}, _q.predicates...),
+		withUser:                    _q.withUser.Clone(),
+		withGlobalPlanSubscriptions: _q.withGlobalPlanSubscriptions.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -291,6 +317,17 @@ func (_q *PaymentOrderQuery) WithUser(opts ...func(*UserQuery)) *PaymentOrderQue
 		opt(query)
 	}
 	_q.withUser = query
+	return _q
+}
+
+// WithGlobalPlanSubscriptions tells the query-builder to eager-load the nodes that are connected to
+// the "global_plan_subscriptions" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *PaymentOrderQuery) WithGlobalPlanSubscriptions(opts ...func(*UserGlobalPlanSubscriptionQuery)) *PaymentOrderQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withGlobalPlanSubscriptions = query
 	return _q
 }
 
@@ -372,8 +409,9 @@ func (_q *PaymentOrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	var (
 		nodes       = []*PaymentOrder{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withUser != nil,
+			_q.withGlobalPlanSubscriptions != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -400,6 +438,15 @@ func (_q *PaymentOrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
 			func(n *PaymentOrder, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withGlobalPlanSubscriptions; query != nil {
+		if err := _q.loadGlobalPlanSubscriptions(ctx, query, nodes,
+			func(n *PaymentOrder) { n.Edges.GlobalPlanSubscriptions = []*UserGlobalPlanSubscription{} },
+			func(n *PaymentOrder, e *UserGlobalPlanSubscription) {
+				n.Edges.GlobalPlanSubscriptions = append(n.Edges.GlobalPlanSubscriptions, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -432,6 +479,39 @@ func (_q *PaymentOrderQuery) loadUser(ctx context.Context, query *UserQuery, nod
 		for i := range nodes {
 			assign(nodes[i], n)
 		}
+	}
+	return nil
+}
+func (_q *PaymentOrderQuery) loadGlobalPlanSubscriptions(ctx context.Context, query *UserGlobalPlanSubscriptionQuery, nodes []*PaymentOrder, init func(*PaymentOrder), assign func(*PaymentOrder, *UserGlobalPlanSubscription)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*PaymentOrder)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(userglobalplansubscription.FieldSourceOrderID)
+	}
+	query.Where(predicate.UserGlobalPlanSubscription(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(paymentorder.GlobalPlanSubscriptionsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.SourceOrderID
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "source_order_id" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "source_order_id" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
 	}
 	return nil
 }

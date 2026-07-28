@@ -74,6 +74,23 @@ func (s *PaymentConfigService) ListProviderInstancesWithConfig(ctx context.Conte
 	return result, nil
 }
 
+func (s *PaymentConfigService) GetProviderInstanceWithConfig(ctx context.Context, id int64) (*ProviderInstanceResponse, error) {
+	inst, err := s.entClient.PaymentProviderInstance.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	config, err := s.decryptAndMaskConfig(inst.ProviderKey, inst.Config)
+	if err != nil {
+		return nil, err
+	}
+	return &ProviderInstanceResponse{
+		ID: int64(inst.ID), ProviderKey: inst.ProviderKey, Name: inst.Name, Config: config,
+		SupportedTypes: splitTypes(inst.SupportedTypes), Limits: inst.Limits, Enabled: inst.Enabled,
+		RefundEnabled: inst.RefundEnabled, AllowUserRefund: inst.AllowUserRefund,
+		SortOrder: inst.SortOrder, PaymentMode: inst.PaymentMode,
+	}, nil
+}
+
 // decryptAndMaskConfig returns the stored config with sensitive fields omitted.
 // Admin UIs display masked placeholders for these; the raw values never leave
 // the server. Callers that need the full config (e.g. payment runtime) must
@@ -116,6 +133,8 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}},
 	payment.TypeAirwallex: {"apikey": {}, "webhooksecret": {}},
+	payment.TypeJeepay:    {"apikey": {}},
+	payment.TypeCreem:     {"apikey": {}, "webhooksecret": {}},
 }
 
 // providerPendingOrderProtectedConfigFields lists config keys that cannot be
@@ -128,6 +147,8 @@ var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
 	payment.TypeAirwallex: {"clientid": {}, "apikey": {}, "webhooksecret": {}, "apibase": {}, "accountid": {}, "currency": {}},
+	payment.TypeJeepay:    {"mchno": {}, "appid": {}, "apikey": {}, "apibase": {}, "currency": {}},
+	payment.TypeCreem:     {"apikey": {}, "webhooksecret": {}, "environment": {}},
 }
 
 func isSensitiveProviderConfigField(providerKey, fieldName string) bool {
@@ -178,10 +199,15 @@ func (s *PaymentConfigService) countPendingOrdersByPlan(ctx context.Context, pla
 }
 
 var validProviderKeys = map[string]bool{
-	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true,
+	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true, payment.TypeJeepay: true, payment.TypeCreem: true,
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
+	if req.ProviderKey == payment.TypeCreem {
+		req.SupportedTypes = []string{payment.TypeCreem}
+		req.RefundEnabled = false
+		req.AllowUserRefund = false
+	}
 	typesStr := joinTypes(req.SupportedTypes)
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
 		return nil, err
@@ -291,6 +317,12 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	current, err := s.entClient.PaymentProviderInstance.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("load provider instance: %w", err)
+	}
+	if current.ProviderKey == payment.TypeCreem {
+		req.SupportedTypes = []string{payment.TypeCreem}
+		refundDisabled := false
+		req.RefundEnabled = &refundDisabled
+		req.AllowUserRefund = &refundDisabled
 	}
 	var pendingOrderCount *int
 	getPendingOrderCount := func() (int, error) {

@@ -372,6 +372,575 @@ func TestExpectedNotificationProviderKeyPrefersOrderInstanceProvider(t *testing.
 	)
 }
 
+func TestExecuteGlobalPlanFulfillmentCreatesActiveEntitlement(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-fulfill@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-fulfill-user").
+		Save(ctx)
+	require.NoError(t, err)
+
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(60).
+		SetMonthlyMaxUsd(240).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(49).
+		SetPayAmount(49).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-FULFILL").
+		SetOutTradeNo("global_plan_fulfill").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-123").
+		SetOrderType(payment.OrderTypeGlobalPlan).
+		SetPlanID(plan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(plan)).
+		SetSubscriptionDays(30).
+		SetStatus(OrderStatusPaid).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetPaidAt(time.Now()).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{
+		entClient:         client,
+		globalPlanService: NewGlobalPlanService(client),
+	}
+	require.NoError(t, svc.ExecuteGlobalPlanFulfillment(ctx, order.ID))
+
+	updatedOrder, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, updatedOrder.Status)
+	require.NotNil(t, updatedOrder.CompletedAt)
+
+	entitlement, err := client.UserGlobalPlanSubscription.Query().Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, user.ID, entitlement.UserID)
+	require.Equal(t, plan.ID, entitlement.PlanID)
+	require.Equal(t, GlobalPlanStatusActive, entitlement.Status)
+	require.Equal(t, "Pro", entitlement.PlanNameSnapshot)
+	require.Equal(t, 20, entitlement.TierRank)
+	require.Equal(t, 60.0, entitlement.QuotaLimitUsd)
+	require.Equal(t, 0.0, entitlement.QuotaUsedUsd)
+	require.True(t, entitlement.ExpiresAt.After(entitlement.StartsAt))
+	require.True(t, entitlement.CurrentPeriodEnd.After(entitlement.CurrentPeriodStart))
+	require.Equal(t, order.ID, *entitlement.SourceOrderID)
+}
+
+func TestGlobalPlanServiceFulfillPurchaseRenewsExistingActiveEntitlement(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-renew@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-renew-user").
+		Save(ctx)
+	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(60).
+		SetMonthlyMaxUsd(240).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	existing, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(GlobalPlanStatusActive).
+		SetStartsAt(now.AddDate(0, 0, -10)).
+		SetExpiresAt(now.AddDate(0, 0, 20)).
+		SetCurrentPeriodStart(now.AddDate(0, 0, -3)).
+		SetCurrentPeriodEnd(now.AddDate(0, 0, 4)).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(60).
+		SetQuotaUsedUsd(12).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Pro").
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(49).
+		SetPayAmount(49).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-RENEW").
+		SetOutTradeNo("global_plan_renew").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-renew").
+		SetOrderType(payment.OrderTypeGlobalPlan).
+		SetPlanID(plan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(plan)).
+		SetSubscriptionDays(30).
+		SetStatus(OrderStatusCompleted).
+		SetExpiresAt(now.Add(time.Hour)).
+		SetPaidAt(now).
+		SetCompletedAt(now).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := NewGlobalPlanService(client)
+	renewed, err := svc.FulfillPurchase(ctx, FulfillGlobalPlanPurchaseInput{
+		UserID:       user.ID,
+		Plan:         plan,
+		OrderID:      order.ID,
+		ValidityDays: 30,
+		Now:          now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, existing.ID, renewed.ID)
+	require.True(t, renewed.ExpiresAt.Equal(now.AddDate(0, 0, 50)))
+	require.Equal(t, 12.0, renewed.QuotaUsedUsd)
+	require.Equal(t, order.ID, *renewed.SourceOrderID)
+
+	count, err := client.UserGlobalPlanSubscription.Query().Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+}
+
+func TestExecuteGlobalPlanFulfillmentRetryDoesNotExtendTwice(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-idempotent@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-idempotent-user").
+		Save(ctx)
+	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(60).
+		SetMonthlyMaxUsd(240).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(49).
+		SetPayAmount(49).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-IDEMPOTENT").
+		SetOutTradeNo("global_plan_idempotent").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-idempotent").
+		SetOrderType(payment.OrderTypeGlobalPlan).
+		SetPlanID(plan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(plan)).
+		SetSubscriptionDays(30).
+		SetStatus(OrderStatusPaid).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetPaidAt(time.Now()).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client, globalPlanService: NewGlobalPlanService(client)}
+	require.NoError(t, svc.ExecuteGlobalPlanFulfillment(ctx, order.ID))
+	firstSub, err := client.UserGlobalPlanSubscription.Query().Only(ctx)
+	require.NoError(t, err)
+	firstExpiresAt := firstSub.ExpiresAt
+
+	_, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetStatus(OrderStatusFailed).
+		ClearCompletedAt().
+		Save(ctx)
+	require.NoError(t, err)
+	require.NoError(t, svc.ExecuteGlobalPlanFulfillment(ctx, order.ID))
+
+	secondSub, err := client.UserGlobalPlanSubscription.Query().Only(ctx)
+	require.NoError(t, err)
+	require.True(t, secondSub.ExpiresAt.Equal(firstExpiresAt))
+}
+
+func TestExecuteGlobalPlanFulfillmentRetryUsesSourceOrderIdIdempotency(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	now := time.Now().UTC()
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-source-order@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-source-order-user").
+		Save(ctx)
+	require.NoError(t, err)
+	plan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(60).
+		SetMonthlyMaxUsd(240).
+		SetName("Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(49).
+		SetPayAmount(49).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-SOURCE-ORDER").
+		SetOutTradeNo("global_plan_source_order").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-source-order").
+		SetOrderType(payment.OrderTypeGlobalPlan).
+		SetPlanID(plan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(plan)).
+		SetSubscriptionDays(30).
+		SetStatus(OrderStatusFailed).
+		SetExpiresAt(now.Add(time.Hour)).
+		SetPaidAt(now).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+	entitlement, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(GlobalPlanStatusActive).
+		SetStartsAt(now).
+		SetExpiresAt(now.AddDate(0, 0, 30)).
+		SetCurrentPeriodStart(now).
+		SetCurrentPeriodEnd(now.AddDate(0, 0, 7)).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(60).
+		SetQuotaUsedUsd(0).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Pro").
+		SetSourceOrderID(order.ID).
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client, globalPlanService: NewGlobalPlanService(client)}
+	require.NoError(t, svc.ExecuteGlobalPlanFulfillment(ctx, order.ID))
+
+	stored, err := client.UserGlobalPlanSubscription.Get(ctx, entitlement.ID)
+	require.NoError(t, err)
+	require.True(t, stored.ExpiresAt.Equal(entitlement.ExpiresAt))
+	updatedOrder, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, updatedOrder.Status)
+}
+
+func TestExecuteGlobalPlanUpgradeFulfillmentUpgradesActiveEntitlement(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-upgrade-fulfill@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-upgrade-fulfill-user").
+		Save(ctx)
+	require.NoError(t, err)
+	currentPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(10).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(30).
+		SetMonthlyMaxUsd(120).
+		SetName("Starter").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	targetPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(80).
+		SetMonthlyMaxUsd(320).
+		SetName("Pro").
+		SetPrice(99).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	sub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(currentPlan.ID).
+		SetStatus(GlobalPlanStatusActive).
+		SetStartsAt(now.AddDate(0, 0, -10)).
+		SetExpiresAt(now.AddDate(0, 0, 20)).
+		SetCurrentPeriodStart(now.AddDate(0, 0, -3)).
+		SetCurrentPeriodEnd(now.AddDate(0, 0, 4)).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(30).
+		SetQuotaUsedUsd(7).
+		SetTierRank(10).
+		SetPlanNameSnapshot("Starter").
+		Save(ctx)
+	require.NoError(t, err)
+	quote, err := NewGlobalPlanService(client).CalculateUpgradeQuote(ctx, user.ID, targetPlan.ID, now)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(quote.UpgradePrice).
+		SetPayAmount(quote.UpgradePrice).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-UPGRADE").
+		SetOutTradeNo("global_plan_upgrade").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-upgrade").
+		SetOrderType(payment.OrderTypeGlobalPlanUpgrade).
+		SetPlanID(targetPlan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(targetPlan)).
+		SetSubscriptionDays(30).
+		SetUpgradeFromSubscriptionID(sub.ID).
+		SetUpgradeProration(buildPaymentOrderUpgradeProration(&quote)).
+		SetStatus(OrderStatusPaid).
+		SetExpiresAt(now.Add(time.Hour)).
+		SetPaidAt(now).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client, globalPlanService: NewGlobalPlanService(client)}
+	require.NoError(t, svc.ExecuteGlobalPlanUpgradeFulfillment(ctx, order.ID))
+
+	updatedSub, err := client.UserGlobalPlanSubscription.Get(ctx, sub.ID)
+	require.NoError(t, err)
+	require.Equal(t, targetPlan.ID, updatedSub.PlanID)
+	require.Equal(t, "Pro", updatedSub.PlanNameSnapshot)
+	require.Equal(t, 20, updatedSub.TierRank)
+	require.Equal(t, 80.0, updatedSub.QuotaLimitUsd)
+	require.Equal(t, 7.0, updatedSub.QuotaUsedUsd)
+	require.True(t, updatedSub.StartsAt.Equal(sub.StartsAt))
+	require.True(t, updatedSub.ExpiresAt.Equal(sub.ExpiresAt))
+	require.Equal(t, order.ID, *updatedSub.SourceOrderID)
+
+	updatedOrder, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, updatedOrder.Status)
+	require.Equal(t, sub.ID, *updatedOrder.GlobalPlanSubscriptionID)
+}
+
+func TestExecuteGlobalPlanUpgradeFulfillmentRejectsChangedEntitlement(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-upgrade-changed@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-upgrade-changed-user").
+		Save(ctx)
+	require.NoError(t, err)
+	currentPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(10).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(30).
+		SetMonthlyMaxUsd(120).
+		SetName("Starter").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	targetPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(80).
+		SetMonthlyMaxUsd(320).
+		SetName("Pro").
+		SetPrice(99).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	sub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(currentPlan.ID).
+		SetStatus(GlobalPlanStatusActive).
+		SetStartsAt(now.AddDate(0, 0, -10)).
+		SetExpiresAt(now.AddDate(0, 0, 20)).
+		SetCurrentPeriodStart(now.AddDate(0, 0, -3)).
+		SetCurrentPeriodEnd(now.AddDate(0, 0, 4)).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(30).
+		SetQuotaUsedUsd(7).
+		SetTierRank(10).
+		SetPlanNameSnapshot("Starter").
+		Save(ctx)
+	require.NoError(t, err)
+	quote, err := NewGlobalPlanService(client).CalculateUpgradeQuote(ctx, user.ID, targetPlan.ID, now)
+	require.NoError(t, err)
+	_, err = client.UserGlobalPlanSubscription.UpdateOneID(sub.ID).SetPlanID(targetPlan.ID).SetTierRank(20).Save(ctx)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(quote.UpgradePrice).
+		SetPayAmount(quote.UpgradePrice).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-UPGRADE-CHANGED").
+		SetOutTradeNo("global_plan_upgrade_changed").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-upgrade-changed").
+		SetOrderType(payment.OrderTypeGlobalPlanUpgrade).
+		SetPlanID(targetPlan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(targetPlan)).
+		SetSubscriptionDays(30).
+		SetUpgradeFromSubscriptionID(sub.ID).
+		SetUpgradeProration(buildPaymentOrderUpgradeProration(&quote)).
+		SetStatus(OrderStatusPaid).
+		SetExpiresAt(now.Add(time.Hour)).
+		SetPaidAt(now).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client, globalPlanService: NewGlobalPlanService(client)}
+	err = svc.ExecuteGlobalPlanUpgradeFulfillment(ctx, order.ID)
+	require.Error(t, err)
+	require.Equal(t, "GLOBAL_PLAN_CHANGED", infraerrors.Reason(err))
+
+	updatedOrder, getErr := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, getErr)
+	require.Equal(t, OrderStatusFailed, updatedOrder.Status)
+}
+
+func TestExecuteGlobalPlanUpgradeFulfillmentRejectsAmountMismatch(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	user, err := client.User.Create().
+		SetEmail("global-plan-upgrade-amount@example.com").
+		SetPasswordHash("hash").
+		SetUsername("global-plan-upgrade-amount-user").
+		Save(ctx)
+	require.NoError(t, err)
+	currentPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(10).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(30).
+		SetMonthlyMaxUsd(120).
+		SetName("Starter").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	targetPlan, err := client.SubscriptionPlan.Create().
+		SetPlanScope(PlanScopeGlobal).
+		SetTierRank(20).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(80).
+		SetMonthlyMaxUsd(320).
+		SetName("Pro").
+		SetPrice(99).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		Save(ctx)
+	require.NoError(t, err)
+	sub, err := client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(currentPlan.ID).
+		SetStatus(GlobalPlanStatusActive).
+		SetStartsAt(now.AddDate(0, 0, -10)).
+		SetExpiresAt(now.AddDate(0, 0, 20)).
+		SetCurrentPeriodStart(now.AddDate(0, 0, -3)).
+		SetCurrentPeriodEnd(now.AddDate(0, 0, 4)).
+		SetQuotaPeriod(GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(30).
+		SetQuotaUsedUsd(7).
+		SetTierRank(10).
+		SetPlanNameSnapshot("Starter").
+		Save(ctx)
+	require.NoError(t, err)
+	quote, err := NewGlobalPlanService(client).CalculateUpgradeQuote(ctx, user.ID, targetPlan.ID, now)
+	require.NoError(t, err)
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(1).
+		SetPayAmount(1).
+		SetFeeRate(0).
+		SetRechargeCode("GLOBAL-PLAN-UPGRADE-AMOUNT").
+		SetOutTradeNo("global_plan_upgrade_amount").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("stripe-upgrade-amount").
+		SetOrderType(payment.OrderTypeGlobalPlanUpgrade).
+		SetPlanID(targetPlan.ID).
+		SetPlanScope(PlanScopeGlobal).
+		SetPlanSnapshot(buildPaymentOrderPlanSnapshot(targetPlan)).
+		SetSubscriptionDays(30).
+		SetUpgradeFromSubscriptionID(sub.ID).
+		SetUpgradeProration(buildPaymentOrderUpgradeProration(&quote)).
+		SetStatus(OrderStatusPaid).
+		SetExpiresAt(now.Add(time.Hour)).
+		SetPaidAt(now).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("app.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client, globalPlanService: NewGlobalPlanService(client)}
+	err = svc.ExecuteGlobalPlanUpgradeFulfillment(ctx, order.ID)
+	require.Error(t, err)
+	require.Equal(t, "GLOBAL_PLAN_AMOUNT_MISMATCH", infraerrors.Reason(err))
+
+	updatedOrder, getErr := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, getErr)
+	require.Equal(t, OrderStatusFailed, updatedOrder.Status)
+}
+
 func TestExpectedNotificationProviderKeyUsesRegistryMappingForLegacyOrders(t *testing.T) {
 	t.Parallel()
 

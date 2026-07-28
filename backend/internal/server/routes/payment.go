@@ -33,6 +33,7 @@ func RegisterPaymentRoutes(
 		authenticated.GET("/checkout-info", paymentHandler.GetCheckoutInfo)
 		authenticated.GET("/plans", paymentHandler.GetPlans)
 		authenticated.GET("/limits", paymentHandler.GetLimits)
+		authenticated.POST("/global-plans/upgrade-quote", paymentHandler.GlobalPlanUpgradeQuote)
 
 		orders := authenticated.Group("/orders")
 		{
@@ -47,6 +48,12 @@ func RegisterPaymentRoutes(
 	}
 
 	// --- Public payment endpoints (no auth) ---
+	publicLanding := v1.Group("/public")
+	{
+		publicLanding.GET("/pricing", paymentHandler.GetPublicPricing)
+		publicLanding.GET("/model-pricing", paymentHandler.GetPublicModelPricing)
+	}
+
 	// Signed resume-token recovery is the preferred public lookup path.
 	// The legacy anonymous out_trade_no verify endpoint remains available as a
 	// persisted-state compatibility path for staggered upgrades.
@@ -66,6 +73,8 @@ func RegisterPaymentRoutes(
 		webhook.POST("/wxpay", webhookHandler.WxpayNotify)
 		webhook.POST("/stripe", webhookHandler.StripeWebhook)
 		webhook.POST("/airwallex", webhookHandler.AirwallexWebhook)
+		webhook.POST("/jeepay", webhookHandler.JeepayNotify)
+		webhook.POST("/creem", webhookHandler.CreemWebhook)
 	}
 
 	// --- Admin payment endpoints (admin auth) ---
@@ -108,6 +117,11 @@ func RegisterPaymentRoutes(
 			providers.POST("", adminPaymentHandler.CreateProvider)
 			providers.PUT("/:id", adminPaymentHandler.UpdateProvider)
 			providers.DELETE("/:id", adminPaymentHandler.DeleteProvider)
+			providers.GET("/:id/creem-products", adminPaymentHandler.ListCreemProducts)
+			providers.POST("/:id/creem-products", adminPaymentHandler.CreateCreemProduct)
+			providers.PUT("/:id/creem-products/:binding_id", adminPaymentHandler.UpdateCreemProduct)
+			providers.DELETE("/:id/creem-products/:binding_id", adminPaymentHandler.DeleteCreemProduct)
+			providers.POST("/:id/creem-products/:binding_id/sync", adminPaymentHandler.SyncCreemProduct)
 		}
 	}
 }

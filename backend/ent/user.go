@@ -93,6 +93,10 @@ type UserEdges struct {
 	PromoCodeUsages []*PromoCodeUsage `json:"promo_code_usages,omitempty"`
 	// PaymentOrders holds the value of the payment_orders edge.
 	PaymentOrders []*PaymentOrder `json:"payment_orders,omitempty"`
+	// GlobalPlanSubscriptions holds the value of the global_plan_subscriptions edge.
+	GlobalPlanSubscriptions []*UserGlobalPlanSubscription `json:"global_plan_subscriptions,omitempty"`
+	// AssignedGlobalPlanSubscriptions holds the value of the assigned_global_plan_subscriptions edge.
+	AssignedGlobalPlanSubscriptions []*UserGlobalPlanSubscription `json:"assigned_global_plan_subscriptions,omitempty"`
 	// AuthIdentities holds the value of the auth_identities edge.
 	AuthIdentities []*AuthIdentity `json:"auth_identities,omitempty"`
 	// PendingAuthSessions holds the value of the pending_auth_sessions edge.
@@ -103,7 +107,7 @@ type UserEdges struct {
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [14]bool
+	loadedTypes [16]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -196,10 +200,28 @@ func (e UserEdges) PaymentOrdersOrErr() ([]*PaymentOrder, error) {
 	return nil, &NotLoadedError{edge: "payment_orders"}
 }
 
+// GlobalPlanSubscriptionsOrErr returns the GlobalPlanSubscriptions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) GlobalPlanSubscriptionsOrErr() ([]*UserGlobalPlanSubscription, error) {
+	if e.loadedTypes[10] {
+		return e.GlobalPlanSubscriptions, nil
+	}
+	return nil, &NotLoadedError{edge: "global_plan_subscriptions"}
+}
+
+// AssignedGlobalPlanSubscriptionsOrErr returns the AssignedGlobalPlanSubscriptions value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) AssignedGlobalPlanSubscriptionsOrErr() ([]*UserGlobalPlanSubscription, error) {
+	if e.loadedTypes[11] {
+		return e.AssignedGlobalPlanSubscriptions, nil
+	}
+	return nil, &NotLoadedError{edge: "assigned_global_plan_subscriptions"}
+}
+
 // AuthIdentitiesOrErr returns the AuthIdentities value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
-	if e.loadedTypes[10] {
+	if e.loadedTypes[12] {
 		return e.AuthIdentities, nil
 	}
 	return nil, &NotLoadedError{edge: "auth_identities"}
@@ -208,7 +230,7 @@ func (e UserEdges) AuthIdentitiesOrErr() ([]*AuthIdentity, error) {
 // PendingAuthSessionsOrErr returns the PendingAuthSessions value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
-	if e.loadedTypes[11] {
+	if e.loadedTypes[13] {
 		return e.PendingAuthSessions, nil
 	}
 	return nil, &NotLoadedError{edge: "pending_auth_sessions"}
@@ -217,7 +239,7 @@ func (e UserEdges) PendingAuthSessionsOrErr() ([]*PendingAuthSession, error) {
 // PlatformQuotasOrErr returns the PlatformQuotas value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
-	if e.loadedTypes[12] {
+	if e.loadedTypes[14] {
 		return e.PlatformQuotas, nil
 	}
 	return nil, &NotLoadedError{edge: "platform_quotas"}
@@ -226,7 +248,7 @@ func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[13] {
+	if e.loadedTypes[15] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -479,6 +501,16 @@ func (_m *User) QueryPromoCodeUsages() *PromoCodeUsageQuery {
 // QueryPaymentOrders queries the "payment_orders" edge of the User entity.
 func (_m *User) QueryPaymentOrders() *PaymentOrderQuery {
 	return NewUserClient(_m.config).QueryPaymentOrders(_m)
+}
+
+// QueryGlobalPlanSubscriptions queries the "global_plan_subscriptions" edge of the User entity.
+func (_m *User) QueryGlobalPlanSubscriptions() *UserGlobalPlanSubscriptionQuery {
+	return NewUserClient(_m.config).QueryGlobalPlanSubscriptions(_m)
+}
+
+// QueryAssignedGlobalPlanSubscriptions queries the "assigned_global_plan_subscriptions" edge of the User entity.
+func (_m *User) QueryAssignedGlobalPlanSubscriptions() *UserGlobalPlanSubscriptionQuery {
+	return NewUserClient(_m.config).QueryAssignedGlobalPlanSubscriptions(_m)
 }
 
 // QueryAuthIdentities queries the "auth_identities" edge of the User entity.

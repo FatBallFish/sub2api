@@ -15,14 +15,26 @@ import (
 
 // ChannelHandler handles admin channel management
 type ChannelHandler struct {
-	channelService *service.ChannelService
-	billingService *service.BillingService
-	pricingService *service.PricingService
+	channelService      *service.ChannelService
+	billingService      *service.BillingService
+	pricingService      *service.PricingService
+	modelPricingDisplay *service.ModelPricingDisplayService
 }
 
 // NewChannelHandler creates a new admin channel handler
-func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService) *ChannelHandler {
-	return &ChannelHandler{channelService: channelService, billingService: billingService, pricingService: pricingService}
+func NewChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService, optionalDeps ...any) *ChannelHandler {
+	var modelPricingDisplay *service.ModelPricingDisplayService
+	for _, dep := range optionalDeps {
+		if typed, ok := dep.(*service.ModelPricingDisplayService); ok {
+			modelPricingDisplay = typed
+		}
+	}
+	return &ChannelHandler{
+		channelService:      channelService,
+		billingService:      billingService,
+		pricingService:      pricingService,
+		modelPricingDisplay: modelPricingDisplay,
+	}
 }
 
 // --- Request / Response types ---
@@ -477,6 +489,41 @@ func (h *ChannelHandler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "Channel deleted successfully"})
+}
+
+// GetModelPricingDisplayConfig returns the admin-managed public/console model pricing display config.
+// GET /api/v1/admin/channels/model-pricing-display
+func (h *ChannelHandler) GetModelPricingDisplayConfig(c *gin.Context) {
+	if h.modelPricingDisplay == nil {
+		response.Success(c, service.ModelPricingDisplayConfig{})
+		return
+	}
+	cfg, err := h.modelPricingDisplay.GetConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+// UpdateModelPricingDisplayConfig saves the admin-managed public/console model pricing display config.
+// PUT /api/v1/admin/channels/model-pricing-display
+func (h *ChannelHandler) UpdateModelPricingDisplayConfig(c *gin.Context) {
+	if h.modelPricingDisplay == nil {
+		response.BadRequest(c, "model pricing display service is not available")
+		return
+	}
+	var req service.ModelPricingDisplayConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	cfg, err := h.modelPricingDisplay.UpdateConfig(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
 }
 
 // GetModelDefaultPricing 获取模型的默认定价（用于前端自动填充）

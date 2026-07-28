@@ -113,6 +113,7 @@ type BillingCacheService struct {
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	globalPlanEligibility GlobalPlanEligibilityChecker
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -126,6 +127,12 @@ type BillingCacheService struct {
 	cacheWriteDropFullLastLog   int64
 	cacheWriteDropClosedCount   uint64
 	cacheWriteDropClosedLastLog int64
+}
+
+func (s *BillingCacheService) SetGlobalPlanEligibilityChecker(checker GlobalPlanEligibilityChecker) {
+	if s != nil {
+		s.globalPlanEligibility = checker
+	}
 }
 
 // NewBillingCacheService 创建计费缓存服务
@@ -749,8 +756,25 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 			return err
 		}
 	} else {
-		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
-			return err
+		globalPlanAvailable := false
+		if group != nil && !group.IsSubscriptionType() && s.globalPlanEligibility != nil {
+			var err error
+			globalPlanAvailable, err = s.globalPlanEligibility.HasApplicableRemaining(ctx, user.ID, group.ID, time.Now())
+			if err != nil {
+				if s.circuitBreaker != nil {
+					s.circuitBreaker.OnFailure(err)
+				}
+				logger.LegacyPrintf("service.billing_cache", "ALERT: global plan eligibility check failed for user %d group %d: %v", user.ID, group.ID, err)
+				return ErrBillingServiceUnavailable.WithCause(err)
+			}
+			if s.circuitBreaker != nil {
+				s.circuitBreaker.OnSuccess()
+			}
+		}
+		if !globalPlanAvailable {
+			if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 )
 
@@ -57,6 +58,56 @@ func IDLTE(id int64) predicate.SubscriptionPlan {
 // GroupID applies equality check predicate on the "group_id" field. It's identical to GroupIDEQ.
 func GroupID(v int64) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldGroupID, v))
+}
+
+// PlanScope applies equality check predicate on the "plan_scope" field. It's identical to PlanScopeEQ.
+func PlanScope(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanScope, v))
+}
+
+// PlanCategory applies equality check predicate on the "plan_category" field. It's identical to PlanCategoryEQ.
+func PlanCategory(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanCategory, v))
+}
+
+// ApplicableGroupMode applies equality check predicate on the "applicable_group_mode" field. It's identical to ApplicableGroupModeEQ.
+func ApplicableGroupMode(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldApplicableGroupMode, v))
+}
+
+// TierRank applies equality check predicate on the "tier_rank" field. It's identical to TierRankEQ.
+func TierRank(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTierRank, v))
+}
+
+// QuotaPeriod applies equality check predicate on the "quota_period" field. It's identical to QuotaPeriodEQ.
+func QuotaPeriod(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaPeriod, v))
+}
+
+// QuotaPerPeriodUsd applies equality check predicate on the "quota_per_period_usd" field. It's identical to QuotaPerPeriodUsdEQ.
+func QuotaPerPeriodUsd(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaPerPeriodUsd, v))
+}
+
+// MonthlyMaxUsd applies equality check predicate on the "monthly_max_usd" field. It's identical to MonthlyMaxUsdEQ.
+func MonthlyMaxUsd(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldMonthlyMaxUsd, v))
+}
+
+// SpeedTier applies equality check predicate on the "speed_tier" field. It's identical to SpeedTierEQ.
+func SpeedTier(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSpeedTier, v))
+}
+
+// SupportTier applies equality check predicate on the "support_tier" field. It's identical to SupportTierEQ.
+func SupportTier(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSupportTier, v))
+}
+
+// PublicBadge applies equality check predicate on the "public_badge" field. It's identical to PublicBadgeEQ.
+func PublicBadge(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPublicBadge, v))
 }
 
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
@@ -162,6 +213,591 @@ func GroupIDLT(v int64) predicate.SubscriptionPlan {
 // GroupIDLTE applies the LTE predicate on the "group_id" field.
 func GroupIDLTE(v int64) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldLTE(FieldGroupID, v))
+}
+
+// GroupIDIsNil applies the IsNil predicate on the "group_id" field.
+func GroupIDIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldGroupID))
+}
+
+// GroupIDNotNil applies the NotNil predicate on the "group_id" field.
+func GroupIDNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldGroupID))
+}
+
+// PlanScopeEQ applies the EQ predicate on the "plan_scope" field.
+func PlanScopeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanScope, v))
+}
+
+// PlanScopeNEQ applies the NEQ predicate on the "plan_scope" field.
+func PlanScopeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldPlanScope, v))
+}
+
+// PlanScopeIn applies the In predicate on the "plan_scope" field.
+func PlanScopeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldPlanScope, vs...))
+}
+
+// PlanScopeNotIn applies the NotIn predicate on the "plan_scope" field.
+func PlanScopeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldPlanScope, vs...))
+}
+
+// PlanScopeGT applies the GT predicate on the "plan_scope" field.
+func PlanScopeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldPlanScope, v))
+}
+
+// PlanScopeGTE applies the GTE predicate on the "plan_scope" field.
+func PlanScopeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldPlanScope, v))
+}
+
+// PlanScopeLT applies the LT predicate on the "plan_scope" field.
+func PlanScopeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldPlanScope, v))
+}
+
+// PlanScopeLTE applies the LTE predicate on the "plan_scope" field.
+func PlanScopeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldPlanScope, v))
+}
+
+// PlanScopeContains applies the Contains predicate on the "plan_scope" field.
+func PlanScopeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldPlanScope, v))
+}
+
+// PlanScopeHasPrefix applies the HasPrefix predicate on the "plan_scope" field.
+func PlanScopeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldPlanScope, v))
+}
+
+// PlanScopeHasSuffix applies the HasSuffix predicate on the "plan_scope" field.
+func PlanScopeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldPlanScope, v))
+}
+
+// PlanScopeEqualFold applies the EqualFold predicate on the "plan_scope" field.
+func PlanScopeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldPlanScope, v))
+}
+
+// PlanScopeContainsFold applies the ContainsFold predicate on the "plan_scope" field.
+func PlanScopeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldPlanScope, v))
+}
+
+// PlanCategoryEQ applies the EQ predicate on the "plan_category" field.
+func PlanCategoryEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPlanCategory, v))
+}
+
+// PlanCategoryNEQ applies the NEQ predicate on the "plan_category" field.
+func PlanCategoryNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldPlanCategory, v))
+}
+
+// PlanCategoryIn applies the In predicate on the "plan_category" field.
+func PlanCategoryIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldPlanCategory, vs...))
+}
+
+// PlanCategoryNotIn applies the NotIn predicate on the "plan_category" field.
+func PlanCategoryNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldPlanCategory, vs...))
+}
+
+// PlanCategoryGT applies the GT predicate on the "plan_category" field.
+func PlanCategoryGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldPlanCategory, v))
+}
+
+// PlanCategoryGTE applies the GTE predicate on the "plan_category" field.
+func PlanCategoryGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldPlanCategory, v))
+}
+
+// PlanCategoryLT applies the LT predicate on the "plan_category" field.
+func PlanCategoryLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldPlanCategory, v))
+}
+
+// PlanCategoryLTE applies the LTE predicate on the "plan_category" field.
+func PlanCategoryLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldPlanCategory, v))
+}
+
+// PlanCategoryContains applies the Contains predicate on the "plan_category" field.
+func PlanCategoryContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldPlanCategory, v))
+}
+
+// PlanCategoryHasPrefix applies the HasPrefix predicate on the "plan_category" field.
+func PlanCategoryHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldPlanCategory, v))
+}
+
+// PlanCategoryHasSuffix applies the HasSuffix predicate on the "plan_category" field.
+func PlanCategoryHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldPlanCategory, v))
+}
+
+// PlanCategoryEqualFold applies the EqualFold predicate on the "plan_category" field.
+func PlanCategoryEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldPlanCategory, v))
+}
+
+// PlanCategoryContainsFold applies the ContainsFold predicate on the "plan_category" field.
+func PlanCategoryContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldPlanCategory, v))
+}
+
+// ApplicableGroupModeEQ applies the EQ predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeNEQ applies the NEQ predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeIn applies the In predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldApplicableGroupMode, vs...))
+}
+
+// ApplicableGroupModeNotIn applies the NotIn predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldApplicableGroupMode, vs...))
+}
+
+// ApplicableGroupModeGT applies the GT predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeGTE applies the GTE predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeLT applies the LT predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeLTE applies the LTE predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeContains applies the Contains predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeHasPrefix applies the HasPrefix predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeHasSuffix applies the HasSuffix predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeEqualFold applies the EqualFold predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldApplicableGroupMode, v))
+}
+
+// ApplicableGroupModeContainsFold applies the ContainsFold predicate on the "applicable_group_mode" field.
+func ApplicableGroupModeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldApplicableGroupMode, v))
+}
+
+// TierRankEQ applies the EQ predicate on the "tier_rank" field.
+func TierRankEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTierRank, v))
+}
+
+// TierRankNEQ applies the NEQ predicate on the "tier_rank" field.
+func TierRankNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldTierRank, v))
+}
+
+// TierRankIn applies the In predicate on the "tier_rank" field.
+func TierRankIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldTierRank, vs...))
+}
+
+// TierRankNotIn applies the NotIn predicate on the "tier_rank" field.
+func TierRankNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldTierRank, vs...))
+}
+
+// TierRankGT applies the GT predicate on the "tier_rank" field.
+func TierRankGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldTierRank, v))
+}
+
+// TierRankGTE applies the GTE predicate on the "tier_rank" field.
+func TierRankGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldTierRank, v))
+}
+
+// TierRankLT applies the LT predicate on the "tier_rank" field.
+func TierRankLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldTierRank, v))
+}
+
+// TierRankLTE applies the LTE predicate on the "tier_rank" field.
+func TierRankLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldTierRank, v))
+}
+
+// QuotaPeriodEQ applies the EQ predicate on the "quota_period" field.
+func QuotaPeriodEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodNEQ applies the NEQ predicate on the "quota_period" field.
+func QuotaPeriodNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodIn applies the In predicate on the "quota_period" field.
+func QuotaPeriodIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaPeriod, vs...))
+}
+
+// QuotaPeriodNotIn applies the NotIn predicate on the "quota_period" field.
+func QuotaPeriodNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaPeriod, vs...))
+}
+
+// QuotaPeriodGT applies the GT predicate on the "quota_period" field.
+func QuotaPeriodGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodGTE applies the GTE predicate on the "quota_period" field.
+func QuotaPeriodGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodLT applies the LT predicate on the "quota_period" field.
+func QuotaPeriodLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodLTE applies the LTE predicate on the "quota_period" field.
+func QuotaPeriodLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodContains applies the Contains predicate on the "quota_period" field.
+func QuotaPeriodContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodHasPrefix applies the HasPrefix predicate on the "quota_period" field.
+func QuotaPeriodHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodHasSuffix applies the HasSuffix predicate on the "quota_period" field.
+func QuotaPeriodHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodEqualFold applies the EqualFold predicate on the "quota_period" field.
+func QuotaPeriodEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldQuotaPeriod, v))
+}
+
+// QuotaPeriodContainsFold applies the ContainsFold predicate on the "quota_period" field.
+func QuotaPeriodContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldQuotaPeriod, v))
+}
+
+// QuotaPerPeriodUsdEQ applies the EQ predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaPerPeriodUsd, v))
+}
+
+// QuotaPerPeriodUsdNEQ applies the NEQ predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdNEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaPerPeriodUsd, v))
+}
+
+// QuotaPerPeriodUsdIn applies the In predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaPerPeriodUsd, vs...))
+}
+
+// QuotaPerPeriodUsdNotIn applies the NotIn predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdNotIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaPerPeriodUsd, vs...))
+}
+
+// QuotaPerPeriodUsdGT applies the GT predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdGT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaPerPeriodUsd, v))
+}
+
+// QuotaPerPeriodUsdGTE applies the GTE predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdGTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaPerPeriodUsd, v))
+}
+
+// QuotaPerPeriodUsdLT applies the LT predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdLT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaPerPeriodUsd, v))
+}
+
+// QuotaPerPeriodUsdLTE applies the LTE predicate on the "quota_per_period_usd" field.
+func QuotaPerPeriodUsdLTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaPerPeriodUsd, v))
+}
+
+// MonthlyMaxUsdEQ applies the EQ predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldMonthlyMaxUsd, v))
+}
+
+// MonthlyMaxUsdNEQ applies the NEQ predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdNEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldMonthlyMaxUsd, v))
+}
+
+// MonthlyMaxUsdIn applies the In predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldMonthlyMaxUsd, vs...))
+}
+
+// MonthlyMaxUsdNotIn applies the NotIn predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdNotIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldMonthlyMaxUsd, vs...))
+}
+
+// MonthlyMaxUsdGT applies the GT predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdGT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldMonthlyMaxUsd, v))
+}
+
+// MonthlyMaxUsdGTE applies the GTE predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdGTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldMonthlyMaxUsd, v))
+}
+
+// MonthlyMaxUsdLT applies the LT predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdLT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldMonthlyMaxUsd, v))
+}
+
+// MonthlyMaxUsdLTE applies the LTE predicate on the "monthly_max_usd" field.
+func MonthlyMaxUsdLTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldMonthlyMaxUsd, v))
+}
+
+// SpeedTierEQ applies the EQ predicate on the "speed_tier" field.
+func SpeedTierEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSpeedTier, v))
+}
+
+// SpeedTierNEQ applies the NEQ predicate on the "speed_tier" field.
+func SpeedTierNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldSpeedTier, v))
+}
+
+// SpeedTierIn applies the In predicate on the "speed_tier" field.
+func SpeedTierIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldSpeedTier, vs...))
+}
+
+// SpeedTierNotIn applies the NotIn predicate on the "speed_tier" field.
+func SpeedTierNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldSpeedTier, vs...))
+}
+
+// SpeedTierGT applies the GT predicate on the "speed_tier" field.
+func SpeedTierGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldSpeedTier, v))
+}
+
+// SpeedTierGTE applies the GTE predicate on the "speed_tier" field.
+func SpeedTierGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldSpeedTier, v))
+}
+
+// SpeedTierLT applies the LT predicate on the "speed_tier" field.
+func SpeedTierLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldSpeedTier, v))
+}
+
+// SpeedTierLTE applies the LTE predicate on the "speed_tier" field.
+func SpeedTierLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldSpeedTier, v))
+}
+
+// SpeedTierContains applies the Contains predicate on the "speed_tier" field.
+func SpeedTierContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldSpeedTier, v))
+}
+
+// SpeedTierHasPrefix applies the HasPrefix predicate on the "speed_tier" field.
+func SpeedTierHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldSpeedTier, v))
+}
+
+// SpeedTierHasSuffix applies the HasSuffix predicate on the "speed_tier" field.
+func SpeedTierHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldSpeedTier, v))
+}
+
+// SpeedTierEqualFold applies the EqualFold predicate on the "speed_tier" field.
+func SpeedTierEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldSpeedTier, v))
+}
+
+// SpeedTierContainsFold applies the ContainsFold predicate on the "speed_tier" field.
+func SpeedTierContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldSpeedTier, v))
+}
+
+// SupportTierEQ applies the EQ predicate on the "support_tier" field.
+func SupportTierEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldSupportTier, v))
+}
+
+// SupportTierNEQ applies the NEQ predicate on the "support_tier" field.
+func SupportTierNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldSupportTier, v))
+}
+
+// SupportTierIn applies the In predicate on the "support_tier" field.
+func SupportTierIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldSupportTier, vs...))
+}
+
+// SupportTierNotIn applies the NotIn predicate on the "support_tier" field.
+func SupportTierNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldSupportTier, vs...))
+}
+
+// SupportTierGT applies the GT predicate on the "support_tier" field.
+func SupportTierGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldSupportTier, v))
+}
+
+// SupportTierGTE applies the GTE predicate on the "support_tier" field.
+func SupportTierGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldSupportTier, v))
+}
+
+// SupportTierLT applies the LT predicate on the "support_tier" field.
+func SupportTierLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldSupportTier, v))
+}
+
+// SupportTierLTE applies the LTE predicate on the "support_tier" field.
+func SupportTierLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldSupportTier, v))
+}
+
+// SupportTierContains applies the Contains predicate on the "support_tier" field.
+func SupportTierContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldSupportTier, v))
+}
+
+// SupportTierHasPrefix applies the HasPrefix predicate on the "support_tier" field.
+func SupportTierHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldSupportTier, v))
+}
+
+// SupportTierHasSuffix applies the HasSuffix predicate on the "support_tier" field.
+func SupportTierHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldSupportTier, v))
+}
+
+// SupportTierEqualFold applies the EqualFold predicate on the "support_tier" field.
+func SupportTierEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldSupportTier, v))
+}
+
+// SupportTierContainsFold applies the ContainsFold predicate on the "support_tier" field.
+func SupportTierContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldSupportTier, v))
+}
+
+// PublicBadgeEQ applies the EQ predicate on the "public_badge" field.
+func PublicBadgeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldPublicBadge, v))
+}
+
+// PublicBadgeNEQ applies the NEQ predicate on the "public_badge" field.
+func PublicBadgeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldPublicBadge, v))
+}
+
+// PublicBadgeIn applies the In predicate on the "public_badge" field.
+func PublicBadgeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldPublicBadge, vs...))
+}
+
+// PublicBadgeNotIn applies the NotIn predicate on the "public_badge" field.
+func PublicBadgeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldPublicBadge, vs...))
+}
+
+// PublicBadgeGT applies the GT predicate on the "public_badge" field.
+func PublicBadgeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldPublicBadge, v))
+}
+
+// PublicBadgeGTE applies the GTE predicate on the "public_badge" field.
+func PublicBadgeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldPublicBadge, v))
+}
+
+// PublicBadgeLT applies the LT predicate on the "public_badge" field.
+func PublicBadgeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldPublicBadge, v))
+}
+
+// PublicBadgeLTE applies the LTE predicate on the "public_badge" field.
+func PublicBadgeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldPublicBadge, v))
+}
+
+// PublicBadgeContains applies the Contains predicate on the "public_badge" field.
+func PublicBadgeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldPublicBadge, v))
+}
+
+// PublicBadgeHasPrefix applies the HasPrefix predicate on the "public_badge" field.
+func PublicBadgeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldPublicBadge, v))
+}
+
+// PublicBadgeHasSuffix applies the HasSuffix predicate on the "public_badge" field.
+func PublicBadgeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldPublicBadge, v))
+}
+
+// PublicBadgeEqualFold applies the EqualFold predicate on the "public_badge" field.
+func PublicBadgeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldPublicBadge, v))
+}
+
+// PublicBadgeContainsFold applies the ContainsFold predicate on the "public_badge" field.
+func PublicBadgeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldPublicBadge, v))
 }
 
 // NameEQ applies the EQ predicate on the "name" field.
@@ -812,6 +1448,29 @@ func UpdatedAtLT(v time.Time) predicate.SubscriptionPlan {
 // UpdatedAtLTE applies the LTE predicate on the "updated_at" field.
 func UpdatedAtLTE(v time.Time) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldLTE(FieldUpdatedAt, v))
+}
+
+// HasGlobalPlanSubscriptions applies the HasEdge predicate on the "global_plan_subscriptions" edge.
+func HasGlobalPlanSubscriptions() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, GlobalPlanSubscriptionsTable, GlobalPlanSubscriptionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGlobalPlanSubscriptionsWith applies the HasEdge predicate on the "global_plan_subscriptions" edge with a given conditions (other predicates).
+func HasGlobalPlanSubscriptionsWith(preds ...predicate.UserGlobalPlanSubscription) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(func(s *sql.Selector) {
+		step := newGlobalPlanSubscriptionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

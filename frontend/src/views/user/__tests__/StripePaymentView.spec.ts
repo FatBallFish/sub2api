@@ -131,4 +131,27 @@ describe('StripePaymentView', () => {
     expect(loadStripe).toHaveBeenCalledWith('pk_test')
     expect(wrapper.text()).toContain(formatPaymentAmount(103, 'HKD', 'zh-CN'))
   })
+
+  it('使用订单快照中的 Apple Pay 和 Google Pay 展示策略创建 Payment Element', async () => {
+    getOrder.mockResolvedValue({
+      data: {
+        ...orderFactory({ currency: 'USD' }),
+        stripe_wallets: {
+          apple_pay: 'never',
+          google_pay: 'auto',
+        },
+      },
+    })
+
+    mountView()
+    await flushPromises()
+    await flushPromises()
+
+    expect(stripeElements.create).toHaveBeenCalledWith('payment', expect.objectContaining({
+      wallets: {
+        applePay: 'never',
+        googlePay: 'auto',
+      },
+    }))
+  })
 })

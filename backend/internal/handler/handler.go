@@ -62,10 +62,12 @@ type Handlers struct {
 	Passkey          *PasskeyHandler
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
+	ModelPricing     *ModelPricingHandler
 	AvailableChannel *AvailableChannelHandler
 	ModelPlaza       *ModelPlazaHandler
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
+	Console          *ConsoleHandler
 }
 
 // BuildInfo contains build-time information

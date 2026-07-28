@@ -1615,6 +1615,52 @@ func HasPaymentOrdersWith(preds ...predicate.PaymentOrder) predicate.User {
 	})
 }
 
+// HasGlobalPlanSubscriptions applies the HasEdge predicate on the "global_plan_subscriptions" edge.
+func HasGlobalPlanSubscriptions() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, GlobalPlanSubscriptionsTable, GlobalPlanSubscriptionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasGlobalPlanSubscriptionsWith applies the HasEdge predicate on the "global_plan_subscriptions" edge with a given conditions (other predicates).
+func HasGlobalPlanSubscriptionsWith(preds ...predicate.UserGlobalPlanSubscription) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newGlobalPlanSubscriptionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAssignedGlobalPlanSubscriptions applies the HasEdge predicate on the "assigned_global_plan_subscriptions" edge.
+func HasAssignedGlobalPlanSubscriptions() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AssignedGlobalPlanSubscriptionsTable, AssignedGlobalPlanSubscriptionsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAssignedGlobalPlanSubscriptionsWith applies the HasEdge predicate on the "assigned_global_plan_subscriptions" edge with a given conditions (other predicates).
+func HasAssignedGlobalPlanSubscriptionsWith(preds ...predicate.UserGlobalPlanSubscription) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newAssignedGlobalPlanSubscriptionsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasAuthIdentities applies the HasEdge predicate on the "auth_identities" edge.
 func HasAuthIdentities() predicate.User {
 	return predicate.User(func(s *sql.Selector) {

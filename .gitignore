@@ -1,5 +1,6 @@
 docs/claude-relay-service/
 .codex
+.playwright-mcp/
 
 # ===================
 # Go 后端
@@ -136,6 +137,7 @@ docs/*
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/ASYNC_IMAGE_TASKS.md
+!docs/GPT_IMAGE_2_API_CN.md
 !docs/legal/
 !docs/legal/*.md
 .serena/
@@ -146,3 +148,6 @@ output/
 
 # Vitest / Vite cache at repo root
 .vite/
+
+# Mikiko Pool has moved to the standalone account_pool_console repository.
+/mikiko-pool/

@@ -880,10 +880,16 @@ export default {
       expiresAt: 'Expires At',
       expiresAtHint: 'Leave empty for no expiration',
       higherPriorityFirst: 'Lower value means higher priority',
+      accountSchedulingThresholdOverride: 'Account Auto-Pause Threshold Override',
+      accountSchedulingThresholdOverrideHint: 'Override the platform auto-pause threshold for this account only. Disable to use platform settings.',
+      accountSchedulingThresholdOverrideValue: 'Account threshold percent',
+      accountSchedulingThresholdOverrideDisabledHint: 'Use 1-100. The account becomes temporarily unschedulable after reaching this usage percent; 100 disables it for this account.',
       mixedScheduling: 'Use in /v1/messages',
       mixedSchedulingHint: 'Enable to participate in Anthropic/Gemini group scheduling',
       mixedSchedulingTooltip:
         '!! WARNING !! Antigravity Claude and Anthropic Claude cannot be used in the same context. If you have both Anthropic and Antigravity accounts, enabling this option will cause frequent 400 errors. When enabled, please use the group feature to isolate Antigravity accounts from Anthropic accounts. Make sure you understand this before enabling!!',
+      fromModel: 'Source model',
+      toModel: 'Target model',
       aiCreditsBalance: 'AI Credits',
       allowOverages: 'Allow Overages (AI Credits)',
       allowOveragesTooltip:
@@ -894,6 +900,9 @@ export default {
       accountUpdated: 'Account updated successfully',
       failedToCreate: 'Failed to create account',
       failedToUpdate: 'Failed to update account',
+      messages: {
+        accountCreated: 'Account created successfully'
+      },
       pleaseSelectStatus: 'Please select a valid account status',
       mixedChannelWarningTitle: 'Mixed Channel Warning',
       mixedChannelWarning: 'Warning: Group "{groupName}" contains both {currentPlatform} and {otherPlatform} accounts. Mixing different channels may cause thinking block signature validation issues, which will fallback to non-thinking mode. Are you sure you want to continue?',

@@ -34,6 +34,7 @@ type userRepoStub struct {
 	domainCountErr       error
 	domainLimitErr       error
 	domainLimitedCreates int
+	balanceUpdates       map[int64]float64
 }
 
 func (s *userRepoStub) CountUsersByEmailDomain(_ context.Context, domain string) (int, error) {
@@ -168,7 +169,27 @@ func (s *userRepoStub) UpdateUserLastActiveAt(ctx context.Context, userID int64,
 }
 
 func (s *userRepoStub) UpdateBalance(ctx context.Context, id int64, amount float64) error {
-	panic("unexpected UpdateBalance call")
+	if s.balanceUpdates == nil {
+		s.balanceUpdates = make(map[int64]float64)
+	}
+	s.balanceUpdates[id] += amount
+	updated := map[*User]struct{}{}
+	if s.user != nil && s.user.ID == id {
+		s.user.Balance += amount
+		updated[s.user] = struct{}{}
+	}
+	if s.usersByEmail != nil {
+		for _, user := range s.usersByEmail {
+			if user != nil && user.ID == id {
+				if _, ok := updated[user]; ok {
+					continue
+				}
+				user.Balance += amount
+				updated[user] = struct{}{}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *userRepoStub) DeductBalance(ctx context.Context, id int64, amount float64) error {
@@ -480,6 +501,10 @@ func (s *redeemRepoStub) ListByUserPaginated(ctx context.Context, userID int64, 
 
 func (s *redeemRepoStub) SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error) {
 	panic("unexpected SumPositiveBalanceByUser call")
+}
+
+func (s *redeemRepoStub) SumByUserAndType(ctx context.Context, userID int64, codeType string) (float64, error) {
+	panic("unexpected SumByUserAndType call")
 }
 
 type subscriptionInvalidateCall struct {

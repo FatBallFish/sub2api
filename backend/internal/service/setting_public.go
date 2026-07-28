@@ -237,6 +237,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
+		SettingKeyRegionBlockEnabled,
+		SettingKeyRegionBlockFrontendEnabled,
 	}
 
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
@@ -366,6 +368,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
+
+		RegionBlockFrontendEnabled: settings[SettingKeyRegionBlockEnabled] == "true" && settings[SettingKeyRegionBlockFrontendEnabled] == "true",
 	}, nil
 }
 
@@ -605,13 +609,16 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	// ChannelMonitorHideThroughput is public so the user UI can hide RPM/TPM
 	// without waiting for API redaction alone (defense in depth).
-	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
-	AvailableChannelsEnabled     bool `json:"available_channels_enabled"`
-	ModelPlazaEnabled            bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth        bool `json:"model_plaza_require_auth"`
-	AffiliateEnabled             bool `json:"affiliate_enabled"`
-	RiskControlEnabled           bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests   bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorHideThroughput bool   `json:"channel_monitor_hide_throughput"`
+	AvailableChannelsEnabled     bool   `json:"available_channels_enabled"`
+	ModelPlazaEnabled            bool   `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth        bool   `json:"model_plaza_require_auth"`
+	AffiliateEnabled             bool   `json:"affiliate_enabled"`
+	RiskControlEnabled           bool   `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests   bool   `json:"allow_user_view_error_requests"`
+	RegionBlockFrontendEnabled   bool   `json:"region_block_frontend_enabled"`
+	RegionBlockFrontendBlocked   bool   `json:"region_block_frontend_blocked"`
+	RegionBlockCurrentRegion     string `json:"region_block_current_region"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -691,6 +698,9 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
+		RegionBlockFrontendEnabled:           settings.RegionBlockFrontendEnabled,
+		RegionBlockFrontendBlocked:           false,
+		RegionBlockCurrentRegion:             "",
 	}, nil
 }
 
