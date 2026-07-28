@@ -257,6 +257,80 @@
     .margin-negative { background: var(--red-soft); color: var(--red); font-weight: 750; }
     .margin-low { background: var(--amber-soft); color: var(--amber); font-weight: 750; }
     .margin-healthy { background: var(--green-soft); color: var(--green); font-weight: 750; }
+    .tool-dialog {
+      width: min(860px, calc(100vw - 32px));
+      max-height: min(760px, calc(100vh - 32px));
+      overflow: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+      padding: 0;
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(23, 25, 22, 0.24);
+    }
+    .tool-dialog::backdrop { background: rgba(23, 25, 22, 0.42); backdrop-filter: blur(2px); }
+    .dialog-header {
+      position: sticky;
+      z-index: 4;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--line-strong);
+      background: var(--paper-strong);
+      padding: 18px 20px;
+    }
+    .dialog-header h2 { margin: 0; font-family: var(--display-font); font-size: 24px; }
+    .icon-button {
+      display: inline-grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .dialog-body { padding: 20px; }
+    .dialog-caption { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+    .group-manager-list { border-top: 2px solid var(--line-strong); }
+    .group-manager-row {
+      display: grid;
+      grid-template-columns: minmax(135px, 0.8fr) minmax(210px, 1.4fr) minmax(95px, 0.5fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .group-manager-row .managed-category { color: var(--muted); font-size: 12px; }
+    .group-manager-row .managed-name { min-width: 0; font-weight: 650; }
+    .group-manager-row .managed-name small { display: block; overflow: hidden; margin-top: 3px; color: var(--muted); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+    .group-manager-row .managed-price { text-align: right; font-variant-numeric: tabular-nums; }
+    .group-add-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr 0.55fr;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line-strong);
+    }
+    .group-add-form h3 { grid-column: 1 / -1; margin: 0; font-family: var(--display-font); font-size: 18px; }
+    .group-add-form .field { margin: 0; }
+    .group-add-form .wide { grid-column: 1 / -1; }
+    .dialog-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
 
     .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
     .view-panel { animation: reveal 220ms ease both; }
@@ -333,6 +407,13 @@
       .metric:nth-child(2) { border-right: 0; }
       .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
       .profit-editor { grid-template-columns: 1fr; }
+      .group-manager-row { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; }
+      .group-manager-row .managed-category, .group-manager-row .managed-name { grid-column: 1; }
+      .group-manager-row .managed-price, .group-manager-row .button { grid-column: 2; }
+      .group-manager-row .managed-price { grid-row: 1; }
+      .group-manager-row .button { grid-row: 2 / span 2; }
+      .group-add-form { grid-template-columns: 1fr; }
+      .group-add-form h3, .group-add-form .wide { grid-column: auto; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -391,6 +472,7 @@
           <div><h2>每日价格</h2><p>复制历史版本、调整各分组美元价格，并按上一日变化导出公告图。</p></div>
           <div class="view-actions">
             <select id="price-day-select" aria-label="选择价格日期"></select>
+            <button class="button" id="manage-price-groups" type="button">管理分组</button>
             <button class="button" id="duplicate-day" type="button">复制当天</button>
             <button class="button danger" id="delete-day" type="button">删除</button>
             <button class="button primary" id="export-price-image" type="button">导出图片</button>
@@ -462,6 +544,28 @@
       </section>
     </div>
   </main>
+  <dialog class="tool-dialog" id="group-manager-dialog" aria-labelledby="group-manager-title">
+    <div class="dialog-header">
+      <div><h2 id="group-manager-title">管理每日分组</h2><p class="dialog-caption" id="group-manager-date"></p></div>
+      <button class="icon-button" id="close-group-manager" type="button" aria-label="关闭分组管理">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="dialog-caption">分组调整仅作用于当前日期，新增、删除和恢复默认都会自动保存。</p>
+      <div class="group-manager-list" id="group-manager-list"></div>
+      <form class="group-add-form" id="add-group-form">
+        <h3>新增分组</h3>
+        <div class="field"><label for="new-group-category">类型</label><input id="new-group-category" required placeholder="例如：语言分组 · 自定义"></div>
+        <div class="field"><label for="new-group-name">分组名称</label><input id="new-group-name" required placeholder="例如：custom - fast"></div>
+        <div class="field"><label for="new-group-price">美元价格</label><input id="new-group-price" type="number" min="0" step="0.000001" inputmode="decimal" required value="0"></div>
+        <div class="field wide"><label for="new-group-note">说明（可选）</label><input id="new-group-note" placeholder="线路、画质或其他备注"></div>
+        <div class="wide"><button class="button primary" id="add-price-group" type="submit">添加并保存</button></div>
+      </form>
+      <div class="dialog-footer">
+        <button class="button danger" id="restore-default-groups" type="button">恢复内置分组</button>
+        <button class="button" id="done-group-manager" type="button">完成</button>
+      </div>
+    </div>
+  </dialog>
   <div class="status-toast" id="status-toast" role="status" aria-live="polite" hidden></div>
 
   <script id="calculator-core">
@@ -968,6 +1072,20 @@
         : `这是最早一条价格记录；所有分组标记为新增。人民币按 ${state.exchangeRate} 汇率换算。`;
     }
 
+    function renderGroupManager() {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      document.querySelector("#group-manager-date").textContent = `${day.date} · ${day.groups.length} 个分组`;
+      document.querySelector("#group-manager-list").innerHTML = day.groups.length ? day.groups.map((item) => `
+        <div class="group-manager-row" data-managed-group-id="${escapeHtml(item.id)}">
+          <span class="managed-category">${escapeHtml(item.category)}</span>
+          <span class="managed-name">${escapeHtml(item.name)}${item.note ? `<small>${escapeHtml(item.note)}</small>` : ""}</span>
+          <span class="managed-price">${formatUsd(item.price)}</span>
+          <button class="button compact danger" type="button" data-delete-group="${escapeHtml(item.id)}" aria-label="删除 ${escapeHtml(item.name)}">删除</button>
+        </div>
+      `).join("") : '<p class="dialog-caption" style="padding:18px 10px">当前没有分组，可新增或恢复内置分组。</p>';
+    }
+
     function renderStripe() {
       const amount = Number(state.stripe.customAmount) > 0 ? Number(state.stripe.customAmount) : 1;
       const custom = core.calculateStripe(amount, state.stripe.rate, state.stripe.fixedFee);
@@ -1218,6 +1336,33 @@
         showStatus("备份已导出");
       }
       if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
+      if (event.target.closest("#manage-price-groups")) {
+        renderGroupManager();
+        document.querySelector("#group-manager-dialog").showModal();
+      }
+      if (event.target.closest("#close-group-manager") || event.target.closest("#done-group-manager")) {
+        document.querySelector("#group-manager-dialog").close();
+      }
+      const deleteGroupButton = event.target.closest("[data-delete-group]");
+      if (deleteGroupButton) {
+        const day = state.days.find((item) => item.id === state.selectedDayId);
+        const target = day?.groups.find((item) => item.id === deleteGroupButton.dataset.deleteGroup);
+        if (target && window.confirm(`删除分组“${target.name}”？`)) {
+          core.removePriceGroup(day, target.id);
+          persist();
+          renderDailyPrices();
+          renderGroupManager();
+          showStatus("分组已删除并保存");
+        }
+      }
+      if (event.target.closest("#restore-default-groups") && window.confirm("恢复内置 12 个分组？自定义分组将被移除。")) {
+        const day = state.days.find((item) => item.id === state.selectedDayId);
+        core.restoreDefaultGroups(day);
+        persist();
+        renderDailyPrices();
+        renderGroupManager();
+        showStatus("已恢复内置分组");
+      }
       if (event.target.closest("#create-profit-template")) {
         const template = core.createProfitTemplate(state.templates);
         state.templates.push(template);
@@ -1394,6 +1539,28 @@
         showStatus("备份无效，未修改现有数据", "error");
       } finally {
         event.target.value = "";
+      }
+    });
+
+    document.querySelector("#add-group-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      try {
+        const created = core.createPriceGroup({
+          category: document.querySelector("#new-group-category").value,
+          name: document.querySelector("#new-group-name").value,
+          price: Number(document.querySelector("#new-group-price").value),
+          note: document.querySelector("#new-group-note").value,
+        }, state.days);
+        day.groups.push(created);
+        persist();
+        event.target.reset();
+        document.querySelector("#new-group-price").value = "0";
+        renderDailyPrices();
+        renderGroupManager();
+        showStatus("分组已新增并保存");
+      } catch (error) {
+        showStatus(error.message || "无法新增分组", "error");
       }
     });
 

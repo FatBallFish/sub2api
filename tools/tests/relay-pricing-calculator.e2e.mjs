@@ -37,6 +37,36 @@ try {
   await page.reload({ waitUntil: "networkidle" });
   assert.equal(await page.locator("#price-day-select").inputValue(), "day-2026-07-27");
 
+  await page.locator("#manage-price-groups").click();
+  await page.locator("#new-group-category").fill("语言分组 · 自定义");
+  await page.locator("#new-group-name").fill("custom - fast");
+  await page.locator("#new-group-price").fill("0.012");
+  await page.locator("#new-group-note").fill("测试线路");
+  await page.locator("#add-price-group").click();
+  assert.equal(await page.locator("#group-manager-list [data-managed-group-id]").count(), 13);
+  await page.locator("#close-group-manager").click();
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator("#price-groups-body tr").count(), 13);
+
+  await page.locator("#manage-price-groups").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator('[data-managed-group-id="custom-1"] [data-delete-group]').click();
+  await page.locator("#close-group-manager").click();
+  await page.reload({ waitUntil: "networkidle" });
+  assert.equal(await page.locator("#price-groups-body tr").count(), 12);
+
+  await page.locator('[data-group-id="gpt-offer"]').fill("0.777");
+  await page.locator('[data-group-id="gpt-offer"]').blur();
+  await page.locator("#manage-price-groups").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator('[data-managed-group-id="gpt-normal"] [data-delete-group]').click();
+  assert.equal(await page.locator("#group-manager-list [data-managed-group-id]").count(), 11);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#restore-default-groups").click();
+  assert.equal(await page.locator("#group-manager-list [data-managed-group-id]").count(), 12);
+  await page.locator("#close-group-manager").click();
+  assert.equal(await page.locator('[data-group-id="gpt-offer"]').inputValue(), "0.777");
+
   await page.getByRole("button", { name: "Stripe 收款" }).click();
   assert.equal(await page.locator("#stripe-table-body tr").count(), 50);
   await page.locator("#stripe-custom-amount").fill("1");
