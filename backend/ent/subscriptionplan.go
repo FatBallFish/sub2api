@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -18,7 +19,29 @@ type SubscriptionPlan struct {
 	// ID of the ent.
 	ID int64 `json:"id,omitempty"`
 	// GroupID holds the value of the "group_id" field.
-	GroupID int64 `json:"group_id,omitempty"`
+	GroupID *int64 `json:"group_id,omitempty"`
+	// PlanScope holds the value of the "plan_scope" field.
+	PlanScope string `json:"plan_scope,omitempty"`
+	// PlanCategory holds the value of the "plan_category" field.
+	PlanCategory string `json:"plan_category,omitempty"`
+	// ApplicableGroupMode holds the value of the "applicable_group_mode" field.
+	ApplicableGroupMode string `json:"applicable_group_mode,omitempty"`
+	// ApplicableGroupIds holds the value of the "applicable_group_ids" field.
+	ApplicableGroupIds []int64 `json:"applicable_group_ids,omitempty"`
+	// TierRank holds the value of the "tier_rank" field.
+	TierRank int `json:"tier_rank,omitempty"`
+	// QuotaPeriod holds the value of the "quota_period" field.
+	QuotaPeriod string `json:"quota_period,omitempty"`
+	// QuotaPerPeriodUsd holds the value of the "quota_per_period_usd" field.
+	QuotaPerPeriodUsd float64 `json:"quota_per_period_usd,omitempty"`
+	// MonthlyMaxUsd holds the value of the "monthly_max_usd" field.
+	MonthlyMaxUsd float64 `json:"monthly_max_usd,omitempty"`
+	// SpeedTier holds the value of the "speed_tier" field.
+	SpeedTier string `json:"speed_tier,omitempty"`
+	// SupportTier holds the value of the "support_tier" field.
+	SupportTier string `json:"support_tier,omitempty"`
+	// PublicBadge holds the value of the "public_badge" field.
+	PublicBadge string `json:"public_badge,omitempty"`
 	// Name holds the value of the "name" field.
 	Name string `json:"name,omitempty"`
 	// Description holds the value of the "description" field.
@@ -44,8 +67,29 @@ type SubscriptionPlan struct {
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the SubscriptionPlanQuery when eager-loading is set.
+	Edges        SubscriptionPlanEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// SubscriptionPlanEdges holds the relations/edges for other nodes in the graph.
+type SubscriptionPlanEdges struct {
+	// GlobalPlanSubscriptions holds the value of the global_plan_subscriptions edge.
+	GlobalPlanSubscriptions []*UserGlobalPlanSubscription `json:"global_plan_subscriptions,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// GlobalPlanSubscriptionsOrErr returns the GlobalPlanSubscriptions value or an error if the edge
+// was not loaded in eager-loading.
+func (e SubscriptionPlanEdges) GlobalPlanSubscriptionsOrErr() ([]*UserGlobalPlanSubscription, error) {
+	if e.loadedTypes[0] {
+		return e.GlobalPlanSubscriptions, nil
+	}
+	return nil, &NotLoadedError{edge: "global_plan_subscriptions"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -53,13 +97,15 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case subscriptionplan.FieldApplicableGroupIds:
+			values[i] = new([]byte)
 		case subscriptionplan.FieldForSale:
 			values[i] = new(sql.NullBool)
-		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
+		case subscriptionplan.FieldQuotaPerPeriodUsd, subscriptionplan.FieldMonthlyMaxUsd, subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldTierRank, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
+		case subscriptionplan.FieldPlanScope, subscriptionplan.FieldPlanCategory, subscriptionplan.FieldApplicableGroupMode, subscriptionplan.FieldQuotaPeriod, subscriptionplan.FieldSpeedTier, subscriptionplan.FieldSupportTier, subscriptionplan.FieldPublicBadge, subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
 			values[i] = new(sql.NullString)
 		case subscriptionplan.FieldCreatedAt, subscriptionplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -88,7 +134,76 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field group_id", values[i])
 			} else if value.Valid {
-				_m.GroupID = value.Int64
+				_m.GroupID = new(int64)
+				*_m.GroupID = value.Int64
+			}
+		case subscriptionplan.FieldPlanScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field plan_scope", values[i])
+			} else if value.Valid {
+				_m.PlanScope = value.String
+			}
+		case subscriptionplan.FieldPlanCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field plan_category", values[i])
+			} else if value.Valid {
+				_m.PlanCategory = value.String
+			}
+		case subscriptionplan.FieldApplicableGroupMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field applicable_group_mode", values[i])
+			} else if value.Valid {
+				_m.ApplicableGroupMode = value.String
+			}
+		case subscriptionplan.FieldApplicableGroupIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field applicable_group_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ApplicableGroupIds); err != nil {
+					return fmt.Errorf("unmarshal field applicable_group_ids: %w", err)
+				}
+			}
+		case subscriptionplan.FieldTierRank:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field tier_rank", values[i])
+			} else if value.Valid {
+				_m.TierRank = int(value.Int64)
+			}
+		case subscriptionplan.FieldQuotaPeriod:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field quota_period", values[i])
+			} else if value.Valid {
+				_m.QuotaPeriod = value.String
+			}
+		case subscriptionplan.FieldQuotaPerPeriodUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field quota_per_period_usd", values[i])
+			} else if value.Valid {
+				_m.QuotaPerPeriodUsd = value.Float64
+			}
+		case subscriptionplan.FieldMonthlyMaxUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field monthly_max_usd", values[i])
+			} else if value.Valid {
+				_m.MonthlyMaxUsd = value.Float64
+			}
+		case subscriptionplan.FieldSpeedTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field speed_tier", values[i])
+			} else if value.Valid {
+				_m.SpeedTier = value.String
+			}
+		case subscriptionplan.FieldSupportTier:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field support_tier", values[i])
+			} else if value.Valid {
+				_m.SupportTier = value.String
+			}
+		case subscriptionplan.FieldPublicBadge:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field public_badge", values[i])
+			} else if value.Valid {
+				_m.PublicBadge = value.String
 			}
 		case subscriptionplan.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -182,6 +297,11 @@ func (_m *SubscriptionPlan) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
 }
 
+// QueryGlobalPlanSubscriptions queries the "global_plan_subscriptions" edge of the SubscriptionPlan entity.
+func (_m *SubscriptionPlan) QueryGlobalPlanSubscriptions() *UserGlobalPlanSubscriptionQuery {
+	return NewSubscriptionPlanClient(_m.config).QueryGlobalPlanSubscriptions(_m)
+}
+
 // Update returns a builder for updating this SubscriptionPlan.
 // Note that you need to call SubscriptionPlan.Unwrap() before calling this method if this SubscriptionPlan
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -205,8 +325,43 @@ func (_m *SubscriptionPlan) String() string {
 	var builder strings.Builder
 	builder.WriteString("SubscriptionPlan(")
 	builder.WriteString(fmt.Sprintf("id=%v, ", _m.ID))
-	builder.WriteString("group_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.GroupID))
+	if v := _m.GroupID; v != nil {
+		builder.WriteString("group_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("plan_scope=")
+	builder.WriteString(_m.PlanScope)
+	builder.WriteString(", ")
+	builder.WriteString("plan_category=")
+	builder.WriteString(_m.PlanCategory)
+	builder.WriteString(", ")
+	builder.WriteString("applicable_group_mode=")
+	builder.WriteString(_m.ApplicableGroupMode)
+	builder.WriteString(", ")
+	builder.WriteString("applicable_group_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ApplicableGroupIds))
+	builder.WriteString(", ")
+	builder.WriteString("tier_rank=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TierRank))
+	builder.WriteString(", ")
+	builder.WriteString("quota_period=")
+	builder.WriteString(_m.QuotaPeriod)
+	builder.WriteString(", ")
+	builder.WriteString("quota_per_period_usd=")
+	builder.WriteString(fmt.Sprintf("%v", _m.QuotaPerPeriodUsd))
+	builder.WriteString(", ")
+	builder.WriteString("monthly_max_usd=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MonthlyMaxUsd))
+	builder.WriteString(", ")
+	builder.WriteString("speed_tier=")
+	builder.WriteString(_m.SpeedTier)
+	builder.WriteString(", ")
+	builder.WriteString("support_tier=")
+	builder.WriteString(_m.SupportTier)
+	builder.WriteString(", ")
+	builder.WriteString("public_badge=")
+	builder.WriteString(_m.PublicBadge)
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)

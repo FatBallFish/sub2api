@@ -94,12 +94,12 @@
           <!-- Right: Actions -->
           <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
             <button
-              @click="loadSubscriptions"
-              :disabled="loading"
+              @click="refreshSubscriptions"
+              :disabled="loading || globalPlanLoading"
               class="btn btn-secondary"
               :title="t('common.refresh')"
             >
-              <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
+              <Icon name="refresh" size="md" :class="loading || globalPlanLoading ? 'animate-spin' : ''" />
             </button>
             <!-- Column Settings Dropdown -->
             <div class="relative" ref="columnDropdownRef">
@@ -195,20 +195,37 @@
 
       <!-- Subscriptions Table -->
       <template #table>
-        <DataTable
-          :columns="columns"
-          :data="subscriptions"
-          :loading="loading"
-          row-key="id"
-          selectable
-          :selected-keys="selectedIds"
-          :selection-label="getSubscriptionSelectionLabel"
-          :server-side-sort="true"
-          default-sort-key="created_at"
-          default-sort-order="desc"
-          @sort="handleSort"
-          @update:selected-keys="handleSelectedKeysUpdate"
-        >
+        <div class="space-y-4">
+          <div class="flex border-b border-gray-200 dark:border-gray-700">
+            <button
+              v-for="tab in subscriptionTabs"
+              :key="tab.value"
+              type="button"
+              class="-mb-px border-b-2 px-4 py-3 text-sm font-medium transition-colors"
+              :class="activeSubscriptionTab === tab.value
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="activeSubscriptionTab = tab.value"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <section v-if="activeSubscriptionTab === 'group'">
+            <DataTable
+              :columns="columns"
+              :data="subscriptions"
+              :loading="loading"
+              row-key="id"
+              selectable
+              :selected-keys="selectedIds"
+              :selection-label="getSubscriptionSelectionLabel"
+              :server-side-sort="true"
+              default-sort-key="created_at"
+              default-sort-order="desc"
+              @sort="handleSort"
+              @update:selected-keys="handleSelectedKeysUpdate"
+            >
           <template #cell-user="{ row }">
             <div class="flex items-center gap-2">
               <div
@@ -462,13 +479,146 @@
               @action="showAssignModal = true"
             />
           </template>
-        </DataTable>
+            </DataTable>
+          </section>
+
+          <section v-else class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ t('admin.subscriptions.globalAssignmentsDescription') }}
+              </p>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="globalPlanLoading"
+                @click="loadGlobalPlanAssignments"
+              >
+                <Icon name="refresh" size="sm" :class="globalPlanLoading ? 'animate-spin' : ''" />
+              </button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.user') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.globalPlan') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.globalQuota') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.usageWindow') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.periodEnd') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.expires') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.assignedBy') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.status') }}</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">{{ t('admin.subscriptions.columns.actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                  <tr v-if="globalPlanLoading">
+                    <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      {{ t('common.loading') }}
+                    </td>
+                  </tr>
+                  <tr v-else-if="globalPlanAssignments.length === 0">
+                    <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                      {{ t('admin.subscriptions.noGlobalAssignments') }}
+                    </td>
+                  </tr>
+                  <tr v-for="item in globalPlanAssignments" v-else :key="item.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                    <td class="px-4 py-3">
+                      <div class="font-medium text-gray-900 dark:text-white">{{ item.user_email || t('admin.redeem.userPrefix', { id: item.user_id }) }}</div>
+                      <div class="text-xs text-gray-500">#{{ item.user_id }}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="font-medium text-gray-900 dark:text-white">{{ item.plan_name }}</div>
+                      <div class="text-xs text-gray-500">{{ item.configured_plan_name || '-' }}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="min-w-[220px] space-y-1">
+                        <div class="flex items-center gap-2">
+                          <span class="usage-label">{{ globalQuotaPeriodLabel(item.quota_period) }}</span>
+                          <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                            <div
+                              class="h-1.5 rounded-full transition-all"
+                              :class="getProgressClass(item.quota_used_usd, item.quota_limit_usd)"
+                              :style="{ width: getProgressWidth(item.quota_used_usd, item.quota_limit_usd) }"
+                            ></div>
+                          </div>
+                          <span class="usage-amount">
+                            ${{ item.quota_used_usd.toFixed(2) }}
+                            <span class="text-gray-400">/</span>
+                            ${{ item.quota_limit_usd.toFixed(2) }}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ formatDateOnly(item.current_period_start) }} - {{ formatDateOnly(item.current_period_end) }}
+                      </div>
+                      <div class="mt-1 text-[10px] text-blue-600 dark:text-blue-400">
+                        {{ t('admin.subscriptions.remaining') }} ${{ item.quota_remaining_usd.toFixed(2) }}
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDateOnly(item.current_period_end) }}</td>
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDateOnly(item.expires_at) }}</td>
+                    <td class="px-4 py-3">
+                      <div class="text-gray-700 dark:text-gray-300">{{ item.assigned_by_email || '-' }}</div>
+                      <div v-if="item.notes" class="max-w-[220px] truncate text-xs text-gray-500" :title="item.notes">{{ item.notes }}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <span
+                        :class="[
+                          'badge',
+                          item.status === 'active'
+                            ? 'badge-success'
+                            : item.status === 'expired'
+                              ? 'badge-warning'
+                              : 'badge-danger'
+                        ]"
+                      >
+                        {{ t(`admin.subscriptions.status.${item.status}`) }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex items-center gap-1">
+                        <button
+                          v-if="item.status === 'active' || item.status === 'expired'"
+                          @click="handleExtendGlobalPlan(item)"
+                          class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                        >
+                          <Icon name="calendar" size="sm" />
+                          <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
+                        </button>
+                        <button
+                          v-if="item.status === 'active'"
+                          @click="handleResetGlobalPlanQuota(item)"
+                          :disabled="resettingQuota && resettingGlobalPlan?.id === item.id"
+                          class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Icon name="refresh" size="sm" />
+                          <span class="text-xs">{{ t('admin.subscriptions.resetQuota') }}</span>
+                        </button>
+                        <button
+                          v-if="item.status === 'active'"
+                          @click="handleRevokeGlobalPlan(item)"
+                          class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                        >
+                          <Icon name="ban" size="sm" />
+                          <span class="text-xs">{{ t('admin.subscriptions.revoke') }}</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       </template>
 
       <!-- Pagination -->
       <template #pagination>
       <Pagination
-        v-if="pagination.total > 0"
+        v-if="activeSubscriptionTab === 'group' && pagination.total > 0"
         :page="pagination.page"
         :total="pagination.total"
         :page-size="pagination.page_size"
@@ -576,8 +726,16 @@
           </div>
         </div>
         <div>
-          <label class="input-label">{{ t('admin.subscriptions.form.group') }}</label>
+          <label class="input-label">{{ t('admin.subscriptions.form.entitlementType') }}</label>
           <Select
+            v-model="assignForm.entitlement_type"
+            :options="entitlementTypeOptions"
+          />
+        </div>
+        <div>
+          <label class="input-label">{{ assignForm.entitlement_type === 'group' ? t('admin.subscriptions.form.group') : t('admin.subscriptions.form.globalPlan') }}</label>
+          <Select
+            v-if="assignForm.entitlement_type === 'group'"
             v-model="assignForm.group_id"
             :disabled="submitting"
             :options="subscriptionGroupOptions"
@@ -604,9 +762,15 @@
               />
             </template>
           </Select>
-          <p class="input-hint">{{ t('admin.subscriptions.groupHint') }}</p>
+          <Select
+            v-else
+            v-model="assignForm.plan_id"
+            :options="globalPlanOptions"
+            :placeholder="t('admin.subscriptions.selectGlobalPlan')"
+          />
+          <p class="input-hint">{{ assignForm.entitlement_type === 'group' ? t('admin.subscriptions.groupHint') : t('admin.subscriptions.globalPlanHint') }}</p>
         </div>
-        <div>
+        <div v-if="assignForm.entitlement_type === 'group'">
           <label class="input-label">{{ t('admin.subscriptions.form.validityDays') }}</label>
           <input v-model.number="assignForm.validity_days" type="number" min="1" max="36500" step="1" :disabled="submitting" class="input" />
           <p class="input-hint">{{ t('admin.subscriptions.validityHint') }}</p>
@@ -617,6 +781,9 @@
             <li v-for="(error, index) in batchAssignResult.errors" :key="index">{{ error }}</li>
           </ul>
           <p v-if="batchAssignResult.failed_count > 0" class="input-hint">{{ t('admin.subscriptions.batchAssign.retryHint') }}</p>
+        </div>
+        <div v-else-if="assignForm.entitlement_type === 'global'" class="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
+          {{ t('admin.subscriptions.globalPlanValidityHint') }}
         </div>
       </form>
       <template #footer>
@@ -664,7 +831,7 @@
       @close="closeExtendModal"
     >
       <form
-        v-if="extendingSubscription"
+        v-if="extendingSubscription || extendingGlobalPlan"
         id="extend-subscription-form"
         @submit.prevent="handleExtendSubscription"
         class="space-y-5"
@@ -673,23 +840,23 @@
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ t('admin.subscriptions.adjustingFor') }}
             <span class="font-medium text-gray-900 dark:text-white">{{
-              extendingSubscription.user?.email
+              activeOperationUserLabel
             }}</span>
           </p>
           <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
             {{ t('admin.subscriptions.currentExpiration') }}:
             <span class="font-medium text-gray-900 dark:text-white">
               {{
-                extendingSubscription.expires_at
-                  ? formatDateTimeToMinute(extendingSubscription.expires_at)
+				activeExtendExpiresAt
+				  ? formatDateTimeToMinute(activeExtendExpiresAt)
                   : t('admin.subscriptions.noExpiration')
               }}
             </span>
           </p>
-          <p v-if="extendingSubscription.expires_at" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          <p v-if="activeExtendExpiresAt" class="mt-1 text-sm text-gray-600 dark:text-gray-400">
             {{ t('admin.subscriptions.remainingDays') }}:
             <span class="font-medium text-gray-900 dark:text-white">
-              {{ getDaysRemaining(extendingSubscription.expires_at) ?? 0 }}
+              {{ getDaysRemaining(activeExtendExpiresAt) ?? 0 }}
             </span>
           </p>
         </div>
@@ -708,7 +875,7 @@
         </div>
       </form>
       <template #footer>
-        <div v-if="extendingSubscription" class="flex justify-end gap-3">
+        <div v-if="extendingSubscription || extendingGlobalPlan" class="flex justify-end gap-3">
           <button @click="closeExtendModal" type="button" class="btn btn-secondary">
             {{ t('common.cancel') }}
           </button>
@@ -728,7 +895,7 @@
     <ConfirmDialog
       :show="showRevokeDialog"
       :title="t('admin.subscriptions.revokeSubscription')"
-      :message="t('admin.subscriptions.revokeConfirm', { user: revokingSubscription?.user?.email })"
+      :message="t('admin.subscriptions.revokeConfirm', { user: activeOperationUserLabel })"
       :confirm-text="t('admin.subscriptions.revoke')"
       :cancel-text="t('common.cancel')"
       :danger="true"
@@ -751,7 +918,7 @@
     <ConfirmDialog
       :show="showResetQuotaConfirm"
       :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
+      :message="t('admin.subscriptions.resetQuotaConfirm', { user: activeOperationUserLabel })"
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
@@ -844,13 +1011,16 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
+import { adminPaymentAPI } from '@/api/admin/payment'
 import type { AdminUser, UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
+import type { AdminGlobalPlanAssignment } from '@/api/admin/subscriptions'
+import type { SubscriptionPlan } from '@/types/payment'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { SubscriptionBulkAction, SubscriptionBulkActionResult, BulkAssignSubscriptionResult } from '@/api/admin/subscriptions'
 import { useTableSelection } from '@/composables/useTableSelection'
 import BulkSubscriptionActionDialog from '@/components/admin/subscription/BulkSubscriptionActionDialog.vue'
 import type { Column } from '@/components/common/types'
-import { formatDateTimeToMinute } from '@/utils/format'
+import { formatDateOnly, formatDateTimeToMinute } from '@/utils/format'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -885,6 +1055,12 @@ interface GroupOption {
 
 // Guide modal state
 const showGuideModal = ref(false)
+const activeSubscriptionTab = ref<'group' | 'global'>('group')
+
+const subscriptionTabs = computed(() => [
+  { value: 'group' as const, label: t('admin.subscriptions.groupSubscriptionsTitle') },
+  { value: 'global' as const, label: t('admin.subscriptions.globalAssignmentsTitle') }
+])
 
 const guideActionRows = computed(() => [
   { action: t('admin.subscriptions.guide.actions.adjust'), desc: t('admin.subscriptions.guide.actions.adjustDesc') },
@@ -1008,8 +1184,10 @@ const statusOptions = computed(() => [
 ])
 
 const subscriptions = ref<UserSubscription[]>([])
+const globalPlanAssignments = ref<AdminGlobalPlanAssignment[]>([])
 const groups = ref<Group[]>([])
 const loading = ref(false)
+const globalPlanLoading = ref(false)
 let abortController: AbortController | null = null
 
 const { selectedIds, selectedCount, setSelectedIds, clear: clearSelection, removeMany: removeSelectedIds } =
@@ -1088,20 +1266,41 @@ const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
 const submitting = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
+const resettingGlobalPlan = ref<AdminGlobalPlanAssignment | null>(null)
 const resettingQuota = ref(false)
 const extendingSubscription = ref<UserSubscription | null>(null)
+const extendingGlobalPlan = ref<AdminGlobalPlanAssignment | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
 const restoringSubscription = ref<UserSubscription | null>(null)
+const revokingGlobalPlan = ref<AdminGlobalPlanAssignment | null>(null)
 
 const assignForm = reactive({
+  entitlement_type: 'group' as 'group' | 'global',
   user_id: null as number | null,
   group_id: null as number | null,
+  plan_id: null as number | null,
   validity_days: 30
 })
 
 const extendForm = reactive({
   days: 30
 })
+
+const plans = ref<SubscriptionPlan[]>([])
+
+const activeOperationUserLabel = computed(() =>
+  extendingSubscription.value?.user?.email ||
+  extendingGlobalPlan.value?.user_email ||
+  revokingSubscription.value?.user?.email ||
+  revokingGlobalPlan.value?.user_email ||
+  resettingSubscription.value?.user?.email ||
+  resettingGlobalPlan.value?.user_email ||
+  '-'
+)
+
+const activeExtendExpiresAt = computed(() =>
+  extendingSubscription.value?.expires_at || extendingGlobalPlan.value?.expires_at || ''
+)
 
 // Group options for filter (all groups)
 const groupOptions = computed(() => [
@@ -1112,6 +1311,11 @@ const groupOptions = computed(() => [
 const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allPlatforms') },
   ...GROUP_PLATFORM_OPTIONS
+])
+
+const entitlementTypeOptions = computed(() => [
+  { value: 'group', label: t('admin.subscriptions.entitlementTypes.group') },
+  { value: 'global', label: t('admin.subscriptions.entitlementTypes.global') }
 ])
 
 // Group options for assign (only subscription type groups)
@@ -1128,10 +1332,25 @@ const subscriptionGroupOptions = computed(() =>
     }))
 )
 
+const globalPlanOptions = computed(() =>
+  plans.value
+    .filter((p) => (p.plan_scope || (p.group_id ? 'group' : 'global')) === 'global')
+    .map((p) => ({
+      value: p.id,
+      label: `${p.name} — $${p.price.toFixed(2)} / ${p.validity_days} ${t('payment.admin.' + (p.validity_unit || 'days'))}`
+    }))
+)
+
 const applyFilters = () => {
   clearSelection()
   pagination.page = 1
   loadSubscriptions()
+  loadGlobalPlanAssignments()
+}
+
+const refreshSubscriptions = () => {
+  loadSubscriptions()
+  loadGlobalPlanAssignments()
 }
 
 const loadSubscriptions = async () => {
@@ -1179,11 +1398,45 @@ const loadSubscriptions = async () => {
   }
 }
 
+const loadGlobalPlanAssignments = async () => {
+  globalPlanLoading.value = true
+  try {
+    const globalStatus = filters.status === 'revoked' ? 'cancelled' : filters.status
+    const response = await adminAPI.subscriptions.listGlobalPlans(
+      1,
+      200,
+      {
+        status: (globalStatus as any) || undefined,
+        user_id: filters.user_id || undefined
+      }
+    )
+    globalPlanAssignments.value = response.items
+  } catch (error) {
+    console.error('Error loading global plan assignments:', error)
+  } finally {
+    globalPlanLoading.value = false
+  }
+}
+
 const loadGroups = async () => {
   try {
     groups.value = await adminAPI.groups.getAll()
   } catch (error) {
     console.error('Error loading groups:', error)
+  }
+}
+
+const loadPlans = async () => {
+  try {
+    const res = await adminPaymentAPI.getPlans()
+    plans.value = (res.data || []).map((p: Omit<SubscriptionPlan, 'features'> & { features: string | string[] }) => ({
+      ...p,
+      features: typeof p.features === 'string'
+        ? p.features.split('\n').map((f: string) => f.trim()).filter(Boolean)
+        : (p.features || []),
+    }))
+  } catch (error) {
+    console.error('Error loading plans:', error)
   }
 }
 
@@ -1307,6 +1560,7 @@ const handlePageChange = (page: number) => {
   clearSelection()
   pagination.page = page
   loadSubscriptions()
+  loadGlobalPlanAssignments()
 }
 
 const handlePageSizeChange = (pageSize: number) => {
@@ -1314,6 +1568,7 @@ const handlePageSizeChange = (pageSize: number) => {
   pagination.page_size = pageSize
   pagination.page = 1
   loadSubscriptions()
+  loadGlobalPlanAssignments()
 }
 
 const handleSort = (key: string, order: 'asc' | 'desc') => {
@@ -1322,6 +1577,7 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
   sortState.sort_order = order
   pagination.page = 1
   loadSubscriptions()
+  loadGlobalPlanAssignments()
 }
 
 const closeAssignModal = () => {
@@ -1330,8 +1586,10 @@ const closeAssignModal = () => {
   batchAssignEnabled.value = false
   assignUsers.value = []
   batchAssignResult.value = null
+  assignForm.entitlement_type = 'group'
   assignForm.user_id = null
   assignForm.group_id = null
+  assignForm.plan_id = null
   assignForm.validity_days = 30
   // Clear user search state
   selectedUser.value = null
@@ -1346,18 +1604,22 @@ const handleAssignSubscription = async () => {
     appStore.showError(t('admin.subscriptions.pleaseSelectUser'))
     return
   }
-  if (!assignForm.group_id) {
+  if (assignForm.entitlement_type === 'group' && !assignForm.group_id) {
     appStore.showError(t('admin.subscriptions.pleaseSelectGroup'))
     return
   }
-  if (!Number.isInteger(assignForm.validity_days) || assignForm.validity_days < 1 || assignForm.validity_days > 36500) {
+  if (assignForm.entitlement_type === 'global' && !assignForm.plan_id) {
+    appStore.showError(t('admin.subscriptions.pleaseSelectGlobalPlan'))
+    return
+  }
+  if (assignForm.entitlement_type === 'group' && (!Number.isInteger(assignForm.validity_days) || assignForm.validity_days < 1 || assignForm.validity_days > 36500)) {
     appStore.showError(t('admin.subscriptions.validityDaysRequired'))
     return
   }
 
   submitting.value = true
   try {
-    if (batchAssignEnabled.value) {
+    if (batchAssignEnabled.value && assignForm.entitlement_type === 'group') {
       batchAssignResult.value = await adminAPI.subscriptions.bulkAssign({
         user_ids: assignUsers.value.map((user) => user.id),
         group_id: assignForm.group_id,
@@ -1372,15 +1634,23 @@ const handleAssignSubscription = async () => {
       }
       return
     }
-    await adminAPI.subscriptions.assign({
-      user_id: assignForm.user_id!,
-      group_id: assignForm.group_id,
-      validity_days: assignForm.validity_days
-    })
+    if (assignForm.entitlement_type === 'global') {
+      await adminAPI.subscriptions.assignGlobalPlan({
+        user_id: assignForm.user_id,
+        plan_id: assignForm.plan_id!
+      })
+    } else {
+      await adminAPI.subscriptions.assign({
+        user_id: assignForm.user_id,
+        group_id: assignForm.group_id!,
+        validity_days: assignForm.validity_days
+      })
+    }
     appStore.showSuccess(t('admin.subscriptions.subscriptionAssigned'))
     submitting.value = false
     closeAssignModal()
     loadSubscriptions()
+    loadGlobalPlanAssignments()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAssign'))
     console.error('Error assigning subscription:', error)
@@ -1391,6 +1661,14 @@ const handleAssignSubscription = async () => {
 
 const handleExtend = (subscription: UserSubscription) => {
   extendingSubscription.value = subscription
+  extendingGlobalPlan.value = null
+  extendForm.days = 30
+  showExtendModal.value = true
+}
+
+const handleExtendGlobalPlan = (assignment: AdminGlobalPlanAssignment) => {
+  extendingGlobalPlan.value = assignment
+  extendingSubscription.value = null
   extendForm.days = 30
   showExtendModal.value = true
 }
@@ -1398,14 +1676,15 @@ const handleExtend = (subscription: UserSubscription) => {
 const closeExtendModal = () => {
   showExtendModal.value = false
   extendingSubscription.value = null
+  extendingGlobalPlan.value = null
 }
 
 const handleExtendSubscription = async () => {
-  if (!extendingSubscription.value) return
+  if (!extendingSubscription.value && !extendingGlobalPlan.value) return
 
   // 前端验证：调整后的过期时间必须在未来
-  if (extendingSubscription.value.expires_at) {
-    const expiresAt = new Date(extendingSubscription.value.expires_at)
+  if (activeExtendExpiresAt.value) {
+    const expiresAt = new Date(activeExtendExpiresAt.value)
     const newExpiresAt = new Date(expiresAt.getTime() + extendForm.days * 24 * 60 * 60 * 1000)
     if (newExpiresAt <= new Date()) {
       appStore.showError(t('admin.subscriptions.adjustWouldExpire'))
@@ -1415,12 +1694,18 @@ const handleExtendSubscription = async () => {
 
   submitting.value = true
   try {
-    await adminAPI.subscriptions.extend(extendingSubscription.value.id, {
-      days: extendForm.days
-    })
+    if (extendingGlobalPlan.value) {
+      await adminAPI.subscriptions.extendGlobalPlan(extendingGlobalPlan.value.id, {
+        days: extendForm.days
+      })
+    } else if (extendingSubscription.value) {
+      await adminAPI.subscriptions.extend(extendingSubscription.value.id, {
+        days: extendForm.days
+      })
+    }
     appStore.showSuccess(t('admin.subscriptions.subscriptionAdjusted'))
     closeExtendModal()
-    loadSubscriptions()
+    await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAdjust'))
     console.error('Error adjusting subscription:', error)
@@ -1431,18 +1716,30 @@ const handleExtendSubscription = async () => {
 
 const handleRevoke = (subscription: UserSubscription) => {
   revokingSubscription.value = subscription
+  revokingGlobalPlan.value = null
+  showRevokeDialog.value = true
+}
+
+const handleRevokeGlobalPlan = (assignment: AdminGlobalPlanAssignment) => {
+  revokingGlobalPlan.value = assignment
+  revokingSubscription.value = null
   showRevokeDialog.value = true
 }
 
 const confirmRevoke = async () => {
-  if (!revokingSubscription.value) return
+  if (!revokingSubscription.value && !revokingGlobalPlan.value) return
 
   try {
-    await adminAPI.subscriptions.revoke(revokingSubscription.value.id)
+    if (revokingGlobalPlan.value) {
+      await adminAPI.subscriptions.revokeGlobalPlan(revokingGlobalPlan.value.id)
+    } else if (revokingSubscription.value) {
+      await adminAPI.subscriptions.revoke(revokingSubscription.value.id)
+    }
     appStore.showSuccess(t('admin.subscriptions.subscriptionRevoked'))
     showRevokeDialog.value = false
     revokingSubscription.value = null
-    loadSubscriptions()
+    revokingGlobalPlan.value = null
+    await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToRevoke'))
     console.error('Error revoking subscription:', error)
@@ -1471,19 +1768,31 @@ const confirmRestore = async () => {
 
 const handleResetQuota = (subscription: UserSubscription) => {
   resettingSubscription.value = subscription
+  resettingGlobalPlan.value = null
+  showResetQuotaConfirm.value = true
+}
+
+const handleResetGlobalPlanQuota = (assignment: AdminGlobalPlanAssignment) => {
+  resettingGlobalPlan.value = assignment
+  resettingSubscription.value = null
   showResetQuotaConfirm.value = true
 }
 
 const confirmResetQuota = async () => {
-  if (!resettingSubscription.value) return
+  if (!resettingSubscription.value && !resettingGlobalPlan.value) return
   if (resettingQuota.value) return
   resettingQuota.value = true
   try {
-    await adminAPI.subscriptions.resetQuota(resettingSubscription.value.id, { daily: true, weekly: true, monthly: true })
+    if (resettingGlobalPlan.value) {
+      await adminAPI.subscriptions.resetGlobalPlanQuota(resettingGlobalPlan.value.id)
+    } else if (resettingSubscription.value) {
+      await adminAPI.subscriptions.resetQuota(resettingSubscription.value.id, { daily: true, weekly: true, monthly: true })
+    }
     appStore.showSuccess(t('admin.subscriptions.quotaResetSuccess'))
     showResetQuotaConfirm.value = false
     resettingSubscription.value = null
-    await loadSubscriptions()
+    resettingGlobalPlan.value = null
+    await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToResetQuota'))
     console.error('Error resetting quota:', error)
@@ -1570,6 +1879,10 @@ const formatDailyUsageWindow = (subscription: UserSubscription): string => {
   return formatResetTime(subscription.daily_window_start, 'daily')
 }
 
+const globalQuotaPeriodLabel = (period: string): string => {
+  return period === 'month' ? t('admin.subscriptions.monthly') : t('admin.subscriptions.weekly')
+}
+
 // Format reset time based on window start and period type
 const formatResetTime = (windowStart: string | null, period: 'daily' | 'weekly' | 'monthly'): string => {
   if (!windowStart) return t('admin.subscriptions.windowNotActive')
@@ -1610,7 +1923,9 @@ onMounted(() => {
   loadUserColumnMode()
   loadSavedColumns()
   loadSubscriptions()
+  loadGlobalPlanAssignments()
   loadGroups()
+  loadPlans()
   document.addEventListener('click', handleClickOutside)
 })
 

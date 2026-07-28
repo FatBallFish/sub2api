@@ -87,6 +87,70 @@ func (s *UsageLogRepoSuite) TestCreate() {
 	s.Require().NotZero(log.ID)
 }
 
+func (s *UsageLogRepoSuite) TestCreatePersistsFundingFields() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "funding@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-funding", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-funding"})
+	now := time.Now().UTC()
+	plan, err := s.client.SubscriptionPlan.Create().
+		SetPlanScope(service.PlanScopeGlobal).
+		SetName("Funding Pro").
+		SetPrice(49).
+		SetValidityDays(30).
+		SetValidityUnit("day").
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaPerPeriodUsd(10).
+		SetMonthlyMaxUsd(40).
+		SetTierRank(20).
+		Save(s.ctx)
+	s.Require().NoError(err)
+	globalSub, err := s.client.UserGlobalPlanSubscription.Create().
+		SetUserID(user.ID).
+		SetPlanID(plan.ID).
+		SetStatus(service.GlobalPlanStatusActive).
+		SetStartsAt(now.Add(-time.Hour)).
+		SetExpiresAt(now.Add(30 * 24 * time.Hour)).
+		SetCurrentPeriodStart(now.Add(-time.Hour)).
+		SetCurrentPeriodEnd(now.Add(7 * 24 * time.Hour)).
+		SetQuotaPeriod(service.GlobalPlanQuotaPeriodWeek).
+		SetQuotaLimitUsd(10).
+		SetQuotaUsedUsd(2).
+		SetTierRank(20).
+		SetPlanNameSnapshot("Funding Pro").
+		Save(s.ctx)
+	s.Require().NoError(err)
+
+	log := &service.UsageLog{
+		UserID:                   user.ID,
+		APIKeyID:                 apiKey.ID,
+		AccountID:                account.ID,
+		RequestID:                uuid.NewString(),
+		Model:                    "claude-3",
+		InputTokens:              10,
+		OutputTokens:             20,
+		TotalCost:                3,
+		ActualCost:               3,
+		FundingSource:            service.UsageFundingSourceMixed,
+		GlobalPlanSubscriptionID: &globalSub.ID,
+		GlobalPlanCost:           2,
+		BalanceCost:              1,
+		GroupSubscriptionCost:    0,
+	}
+
+	inserted, err := s.repo.Create(s.ctx, log)
+	s.Require().NoError(err)
+	s.Require().True(inserted)
+
+	stored, err := s.repo.GetByID(s.ctx, log.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(service.UsageFundingSourceMixed, stored.FundingSource)
+	s.Require().NotNil(stored.GlobalPlanSubscriptionID)
+	s.Require().Equal(globalSub.ID, *stored.GlobalPlanSubscriptionID)
+	s.Require().InDelta(2, stored.GlobalPlanCost, 0.000001)
+	s.Require().InDelta(1, stored.BalanceCost, 0.000001)
+	s.Require().InDelta(0, stored.GroupSubscriptionCost, 0.000001)
+}
+
 func TestUsageLogRepositoryCreate_BatchPathConcurrent(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

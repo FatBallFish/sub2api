@@ -3018,6 +3018,10 @@ func (r *oauthPendingFlowRedeemCodeRepo) SumPositiveBalanceByUser(context.Contex
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
+func (r *oauthPendingFlowRedeemCodeRepo) SumByUserAndType(context.Context, int64, string) (float64, error) {
+	panic("unexpected SumByUserAndType call")
+}
+
 func decodeJSONResponseData(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
 	t.Helper()
 

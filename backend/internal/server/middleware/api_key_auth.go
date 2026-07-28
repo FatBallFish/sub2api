@@ -261,8 +261,15 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			} else {
 				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
 				if apiKeyBalanceBelowAuthThreshold(apiKey.User.Balance, cfg) {
-					AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
-					return
+					globalPlanAvailable, globalPlanErr := apiKeyHasApplicableGlobalPlan(c.Request.Context(), apiKeyService, apiKey)
+					if globalPlanErr != nil {
+						AbortWithError(c, http.StatusServiceUnavailable, "BILLING_SERVICE_ERROR", "Billing service temporarily unavailable")
+						return
+					}
+					if !globalPlanAvailable {
+						AbortWithError(c, 403, "INSUFFICIENT_BALANCE", "Insufficient account balance")
+						return
+					}
 				}
 			}
 		}
@@ -396,6 +403,13 @@ func setGroupContext(c *gin.Context, group *service.Group) {
 // 否则已配置该值的存量部署升级后，0 < balance < reserve 的用户会在所有端点被静默 403。
 func apiKeyBalanceBelowAuthThreshold(balance float64, _ *config.Config) bool {
 	return balance <= 0
+}
+
+func apiKeyHasApplicableGlobalPlan(ctx context.Context, apiKeyService *service.APIKeyService, apiKey *service.APIKey) (bool, error) {
+	if apiKeyService == nil || apiKey == nil || apiKey.User == nil || apiKey.Group == nil || apiKey.Group.IsSubscriptionType() {
+		return false, nil
+	}
+	return apiKeyService.HasApplicableGlobalPlanRemaining(ctx, apiKey.User.ID, apiKey.Group.ID)
 }
 
 func abortIfAPIKeyGroupUnavailable(c *gin.Context, apiKey *service.APIKey) bool {

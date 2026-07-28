@@ -78,6 +78,10 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.String("order_type").
 			MaxLen(20).
 			Default("balance"),
+		field.String("plan_scope").
+			Optional().
+			Nillable().
+			MaxLen(20),
 		field.Int64("plan_id").
 			Optional().
 			Nillable(),
@@ -87,6 +91,18 @@ func (PaymentOrder) Fields() []ent.Field {
 		field.Int("subscription_days").
 			Optional().
 			Nillable(),
+		field.JSON("plan_snapshot", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.Int64("global_plan_subscription_id").
+			Optional().
+			Nillable(),
+		field.Int64("upgrade_from_subscription_id").
+			Optional().
+			Nillable(),
+		field.JSON("upgrade_proration", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 		field.String("provider_instance_id").
 			Optional().
 			Nillable().
@@ -96,6 +112,9 @@ func (PaymentOrder) Fields() []ent.Field {
 			Nillable().
 			MaxLen(30),
 		field.JSON("provider_snapshot", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.JSON("refund_snapshot", map[string]any{}).
 			Optional().
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 
@@ -180,6 +199,7 @@ func (PaymentOrder) Edges() []ent.Edge {
 			Field("user_id").
 			Unique().
 			Required(),
+		edge.To("global_plan_subscriptions", UserGlobalPlanSubscription.Type),
 	}
 }
 
@@ -195,5 +215,7 @@ func (PaymentOrder) Indexes() []ent.Index {
 		index.Fields("paid_at"),
 		index.Fields("payment_type", "paid_at"),
 		index.Fields("order_type"),
+		index.Fields("plan_scope"),
+		index.Fields("global_plan_subscription_id"),
 	}
 }

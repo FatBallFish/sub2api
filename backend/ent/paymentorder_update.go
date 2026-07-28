@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 )
 
 // PaymentOrderUpdate is the builder for updating PaymentOrder entities.
@@ -284,6 +285,26 @@ func (_u *PaymentOrderUpdate) SetNillableOrderType(v *string) *PaymentOrderUpdat
 	return _u
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (_u *PaymentOrderUpdate) SetPlanScope(v string) *PaymentOrderUpdate {
+	_u.mutation.SetPlanScope(v)
+	return _u
+}
+
+// SetNillablePlanScope sets the "plan_scope" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillablePlanScope(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetPlanScope(*v)
+	}
+	return _u
+}
+
+// ClearPlanScope clears the value of the "plan_scope" field.
+func (_u *PaymentOrderUpdate) ClearPlanScope() *PaymentOrderUpdate {
+	_u.mutation.ClearPlanScope()
+	return _u
+}
+
 // SetPlanID sets the "plan_id" field.
 func (_u *PaymentOrderUpdate) SetPlanID(v int64) *PaymentOrderUpdate {
 	_u.mutation.ResetPlanID()
@@ -365,6 +386,84 @@ func (_u *PaymentOrderUpdate) ClearSubscriptionDays() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (_u *PaymentOrderUpdate) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderUpdate {
+	_u.mutation.SetPlanSnapshot(v)
+	return _u
+}
+
+// ClearPlanSnapshot clears the value of the "plan_snapshot" field.
+func (_u *PaymentOrderUpdate) ClearPlanSnapshot() *PaymentOrderUpdate {
+	_u.mutation.ClearPlanSnapshot()
+	return _u
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdate) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderUpdate {
+	_u.mutation.ResetGlobalPlanSubscriptionID()
+	_u.mutation.SetGlobalPlanSubscriptionID(v)
+	return _u
+}
+
+// SetNillableGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableGlobalPlanSubscriptionID(v *int64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetGlobalPlanSubscriptionID(*v)
+	}
+	return _u
+}
+
+// AddGlobalPlanSubscriptionID adds value to the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdate) AddGlobalPlanSubscriptionID(v int64) *PaymentOrderUpdate {
+	_u.mutation.AddGlobalPlanSubscriptionID(v)
+	return _u
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdate) ClearGlobalPlanSubscriptionID() *PaymentOrderUpdate {
+	_u.mutation.ClearGlobalPlanSubscriptionID()
+	return _u
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdate) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderUpdate {
+	_u.mutation.ResetUpgradeFromSubscriptionID()
+	_u.mutation.SetUpgradeFromSubscriptionID(v)
+	return _u
+}
+
+// SetNillableUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableUpgradeFromSubscriptionID(v *int64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetUpgradeFromSubscriptionID(*v)
+	}
+	return _u
+}
+
+// AddUpgradeFromSubscriptionID adds value to the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdate) AddUpgradeFromSubscriptionID(v int64) *PaymentOrderUpdate {
+	_u.mutation.AddUpgradeFromSubscriptionID(v)
+	return _u
+}
+
+// ClearUpgradeFromSubscriptionID clears the value of the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdate) ClearUpgradeFromSubscriptionID() *PaymentOrderUpdate {
+	_u.mutation.ClearUpgradeFromSubscriptionID()
+	return _u
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (_u *PaymentOrderUpdate) SetUpgradeProration(v map[string]interface{}) *PaymentOrderUpdate {
+	_u.mutation.SetUpgradeProration(v)
+	return _u
+}
+
+// ClearUpgradeProration clears the value of the "upgrade_proration" field.
+func (_u *PaymentOrderUpdate) ClearUpgradeProration() *PaymentOrderUpdate {
+	_u.mutation.ClearUpgradeProration()
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdate) SetProviderInstanceID(v string) *PaymentOrderUpdate {
 	_u.mutation.SetProviderInstanceID(v)
@@ -414,6 +513,18 @@ func (_u *PaymentOrderUpdate) SetProviderSnapshot(v map[string]interface{}) *Pay
 // ClearProviderSnapshot clears the value of the "provider_snapshot" field.
 func (_u *PaymentOrderUpdate) ClearProviderSnapshot() *PaymentOrderUpdate {
 	_u.mutation.ClearProviderSnapshot()
+	return _u
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (_u *PaymentOrderUpdate) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderUpdate {
+	_u.mutation.SetRefundSnapshot(v)
+	return _u
+}
+
+// ClearRefundSnapshot clears the value of the "refund_snapshot" field.
+func (_u *PaymentOrderUpdate) ClearRefundSnapshot() *PaymentOrderUpdate {
+	_u.mutation.ClearRefundSnapshot()
 	return _u
 }
 
@@ -719,6 +830,21 @@ func (_u *PaymentOrderUpdate) SetUser(v *User) *PaymentOrderUpdate {
 	return _u.SetUserID(v.ID)
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *PaymentOrderUpdate) AddGlobalPlanSubscriptionIDs(ids ...int64) *PaymentOrderUpdate {
+	_u.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *PaymentOrderUpdate) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *PaymentOrderUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
 // Mutation returns the PaymentOrderMutation object of the builder.
 func (_u *PaymentOrderUpdate) Mutation() *PaymentOrderMutation {
 	return _u.mutation
@@ -728,6 +854,27 @@ func (_u *PaymentOrderUpdate) Mutation() *PaymentOrderMutation {
 func (_u *PaymentOrderUpdate) ClearUser() *PaymentOrderUpdate {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearGlobalPlanSubscriptions clears all "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *PaymentOrderUpdate) ClearGlobalPlanSubscriptions() *PaymentOrderUpdate {
+	_u.mutation.ClearGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptionIDs removes the "global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *PaymentOrderUpdate) RemoveGlobalPlanSubscriptionIDs(ids ...int64) *PaymentOrderUpdate {
+	_u.mutation.RemoveGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptions removes "global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *PaymentOrderUpdate) RemoveGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *PaymentOrderUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGlobalPlanSubscriptionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -801,6 +948,11 @@ func (_u *PaymentOrderUpdate) check() error {
 	if v, ok := _u.mutation.OrderType(); ok {
 		if err := paymentorder.OrderTypeValidator(v); err != nil {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PlanScope(); ok {
+		if err := paymentorder.PlanScopeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_scope": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.ProviderInstanceID(); ok {
@@ -914,6 +1066,12 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.OrderType(); ok {
 		_spec.SetField(paymentorder.FieldOrderType, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PlanScope(); ok {
+		_spec.SetField(paymentorder.FieldPlanScope, field.TypeString, value)
+	}
+	if _u.mutation.PlanScopeCleared() {
+		_spec.ClearField(paymentorder.FieldPlanScope, field.TypeString)
+	}
 	if value, ok := _u.mutation.PlanID(); ok {
 		_spec.SetField(paymentorder.FieldPlanID, field.TypeInt64, value)
 	}
@@ -941,6 +1099,36 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
 	}
+	if value, ok := _u.mutation.PlanSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldPlanSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.PlanSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldPlanSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GlobalPlanSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGlobalPlanSubscriptionID(); ok {
+		_spec.AddField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64, value)
+	}
+	if _u.mutation.GlobalPlanSubscriptionIDCleared() {
+		_spec.ClearField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.UpgradeFromSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUpgradeFromSubscriptionID(); ok {
+		_spec.AddField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64, value)
+	}
+	if _u.mutation.UpgradeFromSubscriptionIDCleared() {
+		_spec.ClearField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.UpgradeProration(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeProration, field.TypeJSON, value)
+	}
+	if _u.mutation.UpgradeProrationCleared() {
+		_spec.ClearField(paymentorder.FieldUpgradeProration, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
 	}
@@ -958,6 +1146,12 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ProviderSnapshotCleared() {
 		_spec.ClearField(paymentorder.FieldProviderSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RefundSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldRefundSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.RefundSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldRefundSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
@@ -1065,6 +1259,51 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
@@ -1347,6 +1586,26 @@ func (_u *PaymentOrderUpdateOne) SetNillableOrderType(v *string) *PaymentOrderUp
 	return _u
 }
 
+// SetPlanScope sets the "plan_scope" field.
+func (_u *PaymentOrderUpdateOne) SetPlanScope(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetPlanScope(v)
+	return _u
+}
+
+// SetNillablePlanScope sets the "plan_scope" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillablePlanScope(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetPlanScope(*v)
+	}
+	return _u
+}
+
+// ClearPlanScope clears the value of the "plan_scope" field.
+func (_u *PaymentOrderUpdateOne) ClearPlanScope() *PaymentOrderUpdateOne {
+	_u.mutation.ClearPlanScope()
+	return _u
+}
+
 // SetPlanID sets the "plan_id" field.
 func (_u *PaymentOrderUpdateOne) SetPlanID(v int64) *PaymentOrderUpdateOne {
 	_u.mutation.ResetPlanID()
@@ -1428,6 +1687,84 @@ func (_u *PaymentOrderUpdateOne) ClearSubscriptionDays() *PaymentOrderUpdateOne 
 	return _u
 }
 
+// SetPlanSnapshot sets the "plan_snapshot" field.
+func (_u *PaymentOrderUpdateOne) SetPlanSnapshot(v map[string]interface{}) *PaymentOrderUpdateOne {
+	_u.mutation.SetPlanSnapshot(v)
+	return _u
+}
+
+// ClearPlanSnapshot clears the value of the "plan_snapshot" field.
+func (_u *PaymentOrderUpdateOne) ClearPlanSnapshot() *PaymentOrderUpdateOne {
+	_u.mutation.ClearPlanSnapshot()
+	return _u
+}
+
+// SetGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) SetGlobalPlanSubscriptionID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetGlobalPlanSubscriptionID()
+	_u.mutation.SetGlobalPlanSubscriptionID(v)
+	return _u
+}
+
+// SetNillableGlobalPlanSubscriptionID sets the "global_plan_subscription_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableGlobalPlanSubscriptionID(v *int64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetGlobalPlanSubscriptionID(*v)
+	}
+	return _u
+}
+
+// AddGlobalPlanSubscriptionID adds value to the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) AddGlobalPlanSubscriptionID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddGlobalPlanSubscriptionID(v)
+	return _u
+}
+
+// ClearGlobalPlanSubscriptionID clears the value of the "global_plan_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) ClearGlobalPlanSubscriptionID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearGlobalPlanSubscriptionID()
+	return _u
+}
+
+// SetUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) SetUpgradeFromSubscriptionID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetUpgradeFromSubscriptionID()
+	_u.mutation.SetUpgradeFromSubscriptionID(v)
+	return _u
+}
+
+// SetNillableUpgradeFromSubscriptionID sets the "upgrade_from_subscription_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableUpgradeFromSubscriptionID(v *int64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetUpgradeFromSubscriptionID(*v)
+	}
+	return _u
+}
+
+// AddUpgradeFromSubscriptionID adds value to the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) AddUpgradeFromSubscriptionID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddUpgradeFromSubscriptionID(v)
+	return _u
+}
+
+// ClearUpgradeFromSubscriptionID clears the value of the "upgrade_from_subscription_id" field.
+func (_u *PaymentOrderUpdateOne) ClearUpgradeFromSubscriptionID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearUpgradeFromSubscriptionID()
+	return _u
+}
+
+// SetUpgradeProration sets the "upgrade_proration" field.
+func (_u *PaymentOrderUpdateOne) SetUpgradeProration(v map[string]interface{}) *PaymentOrderUpdateOne {
+	_u.mutation.SetUpgradeProration(v)
+	return _u
+}
+
+// ClearUpgradeProration clears the value of the "upgrade_proration" field.
+func (_u *PaymentOrderUpdateOne) ClearUpgradeProration() *PaymentOrderUpdateOne {
+	_u.mutation.ClearUpgradeProration()
+	return _u
+}
+
 // SetProviderInstanceID sets the "provider_instance_id" field.
 func (_u *PaymentOrderUpdateOne) SetProviderInstanceID(v string) *PaymentOrderUpdateOne {
 	_u.mutation.SetProviderInstanceID(v)
@@ -1477,6 +1814,18 @@ func (_u *PaymentOrderUpdateOne) SetProviderSnapshot(v map[string]interface{}) *
 // ClearProviderSnapshot clears the value of the "provider_snapshot" field.
 func (_u *PaymentOrderUpdateOne) ClearProviderSnapshot() *PaymentOrderUpdateOne {
 	_u.mutation.ClearProviderSnapshot()
+	return _u
+}
+
+// SetRefundSnapshot sets the "refund_snapshot" field.
+func (_u *PaymentOrderUpdateOne) SetRefundSnapshot(v map[string]interface{}) *PaymentOrderUpdateOne {
+	_u.mutation.SetRefundSnapshot(v)
+	return _u
+}
+
+// ClearRefundSnapshot clears the value of the "refund_snapshot" field.
+func (_u *PaymentOrderUpdateOne) ClearRefundSnapshot() *PaymentOrderUpdateOne {
+	_u.mutation.ClearRefundSnapshot()
 	return _u
 }
 
@@ -1782,6 +2131,21 @@ func (_u *PaymentOrderUpdateOne) SetUser(v *User) *PaymentOrderUpdateOne {
 	return _u.SetUserID(v.ID)
 }
 
+// AddGlobalPlanSubscriptionIDs adds the "global_plan_subscriptions" edge to the UserGlobalPlanSubscription entity by IDs.
+func (_u *PaymentOrderUpdateOne) AddGlobalPlanSubscriptionIDs(ids ...int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// AddGlobalPlanSubscriptions adds the "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *PaymentOrderUpdateOne) AddGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *PaymentOrderUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddGlobalPlanSubscriptionIDs(ids...)
+}
+
 // Mutation returns the PaymentOrderMutation object of the builder.
 func (_u *PaymentOrderUpdateOne) Mutation() *PaymentOrderMutation {
 	return _u.mutation
@@ -1791,6 +2155,27 @@ func (_u *PaymentOrderUpdateOne) Mutation() *PaymentOrderMutation {
 func (_u *PaymentOrderUpdateOne) ClearUser() *PaymentOrderUpdateOne {
 	_u.mutation.ClearUser()
 	return _u
+}
+
+// ClearGlobalPlanSubscriptions clears all "global_plan_subscriptions" edges to the UserGlobalPlanSubscription entity.
+func (_u *PaymentOrderUpdateOne) ClearGlobalPlanSubscriptions() *PaymentOrderUpdateOne {
+	_u.mutation.ClearGlobalPlanSubscriptions()
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptionIDs removes the "global_plan_subscriptions" edge to UserGlobalPlanSubscription entities by IDs.
+func (_u *PaymentOrderUpdateOne) RemoveGlobalPlanSubscriptionIDs(ids ...int64) *PaymentOrderUpdateOne {
+	_u.mutation.RemoveGlobalPlanSubscriptionIDs(ids...)
+	return _u
+}
+
+// RemoveGlobalPlanSubscriptions removes "global_plan_subscriptions" edges to UserGlobalPlanSubscription entities.
+func (_u *PaymentOrderUpdateOne) RemoveGlobalPlanSubscriptions(v ...*UserGlobalPlanSubscription) *PaymentOrderUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveGlobalPlanSubscriptionIDs(ids...)
 }
 
 // Where appends a list predicates to the PaymentOrderUpdate builder.
@@ -1877,6 +2262,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.OrderType(); ok {
 		if err := paymentorder.OrderTypeValidator(v); err != nil {
 			return &ValidationError{Name: "order_type", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.order_type": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PlanScope(); ok {
+		if err := paymentorder.PlanScopeValidator(v); err != nil {
+			return &ValidationError{Name: "plan_scope", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.plan_scope": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.ProviderInstanceID(); ok {
@@ -2007,6 +2397,12 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	if value, ok := _u.mutation.OrderType(); ok {
 		_spec.SetField(paymentorder.FieldOrderType, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PlanScope(); ok {
+		_spec.SetField(paymentorder.FieldPlanScope, field.TypeString, value)
+	}
+	if _u.mutation.PlanScopeCleared() {
+		_spec.ClearField(paymentorder.FieldPlanScope, field.TypeString)
+	}
 	if value, ok := _u.mutation.PlanID(); ok {
 		_spec.SetField(paymentorder.FieldPlanID, field.TypeInt64, value)
 	}
@@ -2034,6 +2430,36 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	if _u.mutation.SubscriptionDaysCleared() {
 		_spec.ClearField(paymentorder.FieldSubscriptionDays, field.TypeInt)
 	}
+	if value, ok := _u.mutation.PlanSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldPlanSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.PlanSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldPlanSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GlobalPlanSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGlobalPlanSubscriptionID(); ok {
+		_spec.AddField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64, value)
+	}
+	if _u.mutation.GlobalPlanSubscriptionIDCleared() {
+		_spec.ClearField(paymentorder.FieldGlobalPlanSubscriptionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.UpgradeFromSubscriptionID(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUpgradeFromSubscriptionID(); ok {
+		_spec.AddField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64, value)
+	}
+	if _u.mutation.UpgradeFromSubscriptionIDCleared() {
+		_spec.ClearField(paymentorder.FieldUpgradeFromSubscriptionID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.UpgradeProration(); ok {
+		_spec.SetField(paymentorder.FieldUpgradeProration, field.TypeJSON, value)
+	}
+	if _u.mutation.UpgradeProrationCleared() {
+		_spec.ClearField(paymentorder.FieldUpgradeProration, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ProviderInstanceID(); ok {
 		_spec.SetField(paymentorder.FieldProviderInstanceID, field.TypeString, value)
 	}
@@ -2051,6 +2477,12 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.ProviderSnapshotCleared() {
 		_spec.ClearField(paymentorder.FieldProviderSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RefundSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldRefundSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.RefundSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldRefundSnapshot, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(paymentorder.FieldStatus, field.TypeString, value)
@@ -2158,6 +2590,51 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedGlobalPlanSubscriptionsIDs(); len(nodes) > 0 && !_u.mutation.GlobalPlanSubscriptionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.GlobalPlanSubscriptionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   paymentorder.GlobalPlanSubscriptionsTable,
+			Columns: []string{paymentorder.GlobalPlanSubscriptionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(userglobalplansubscription.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

@@ -562,6 +562,8 @@ export default {
       generatePassword: 'Generate random password',
       copyPassword: 'Copy password',
       passwordCopied: 'Password copied',
+      typeAffiliateInviterSignupReward: 'Inviter signup reward',
+      typeAffiliateInviteeSignupReward: 'Invitee signup reward',
       creating: 'Creating...',
       updating: 'Updating...',
       form: {

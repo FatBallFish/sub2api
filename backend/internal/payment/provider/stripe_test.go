@@ -68,3 +68,76 @@ func TestStripeRefundUsesStableAmountSpecificIdempotencyKey(t *testing.T) {
 	require.Equal(t, "re-sub2_order_456-1235", *backend.params[2].IdempotencyKey)
 	require.NotEqual(t, *backend.params[0].IdempotencyKey, *backend.params[2].IdempotencyKey)
 }
+
+func TestNewStripeNormalizesWalletPreferences(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		config     map[string]string
+		wantApple  string
+		wantGoogle string
+	}{
+		{
+			name:       "missing values use Stripe defaults",
+			config:     map[string]string{"secretKey": "sk_test"},
+			wantApple:  stripeWalletAuto,
+			wantGoogle: stripeWalletAuto,
+		},
+		{
+			name: "explicit values are normalized",
+			config: map[string]string{
+				"secretKey": "sk_test",
+				"applePay":  " NEVER ",
+				"googlePay": "auto",
+			},
+			wantApple:  stripeWalletNever,
+			wantGoogle: stripeWalletAuto,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			stripeProvider, err := NewStripe("test", tt.config)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.wantApple, stripeProvider.config[stripeConfigApplePay])
+			require.Equal(t, tt.wantGoogle, stripeProvider.config[stripeConfigGooglePay])
+		})
+	}
+}
+
+func TestNewStripeRejectsInvalidWalletPreference(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{stripeConfigApplePay, stripeConfigGooglePay} {
+		key := key
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewStripe("test", map[string]string{
+				"secretKey": "sk_test",
+				key:         "always",
+			})
+
+			require.ErrorContains(t, err, key)
+			require.ErrorContains(t, err, "auto or never")
+		})
+	}
+}
+
+func TestNewStripeRejectsMissingSecretAndInvalidCurrency(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewStripe("test", map[string]string{})
+	require.ErrorContains(t, err, "secretKey")
+
+	_, err = NewStripe("test", map[string]string{
+		"secretKey": "sk_test",
+		"currency":  "US1",
+	})
+	require.ErrorContains(t, err, "currency")
+}

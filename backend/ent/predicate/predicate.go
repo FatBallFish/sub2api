@@ -51,6 +51,12 @@ type ChannelMonitorRequestTemplate func(*sql.Selector)
 // CompositeModelRoute is the predicate function for compositemodelroute builders.
 type CompositeModelRoute func(*sql.Selector)
 
+// CreemProductBinding is the predicate function for creemproductbinding builders.
+type CreemProductBinding func(*sql.Selector)
+
+// CreemRefundEvent is the predicate function for creemrefundevent builders.
+type CreemRefundEvent func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 
@@ -116,6 +122,9 @@ type UserAttributeDefinition func(*sql.Selector)
 
 // UserAttributeValue is the predicate function for userattributevalue builders.
 type UserAttributeValue func(*sql.Selector)
+
+// UserGlobalPlanSubscription is the predicate function for userglobalplansubscription builders.
+type UserGlobalPlanSubscription func(*sql.Selector)
 
 // UserPlatformQuota is the predicate function for userplatformquota builders.
 type UserPlatformQuota func(*sql.Selector)

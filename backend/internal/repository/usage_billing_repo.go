@@ -176,15 +176,38 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
 			return err
 		}
+		result.SubscriptionCost = cmd.SubscriptionCost
+		result.GroupSubscriptionCost = cmd.SubscriptionCost
+		result.FundingSource = service.UsageFundingSourceSubscription
 	}
 
-	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+	balanceCost := cmd.BalanceCost
+	if balanceCost > 0 && cmd.SubscriptionCost <= 0 {
+		globalPlanID, globalPlanCost, err := consumeUsageBillingGlobalPlan(ctx, tx, cmd.UserID, cmd.GroupID, balanceCost)
+		if err != nil {
+			return err
+		}
+		if globalPlanCost > 0 {
+			result.GlobalPlanSubscriptionID = &globalPlanID
+			result.GlobalPlanCost = globalPlanCost
+			balanceCost -= globalPlanCost
+			if balanceCost < 0 {
+				balanceCost = 0
+			}
+		}
+	}
+
+	if balanceCost > 0 {
+		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, balanceCost)
 		if err != nil {
 			return err
 		}
 		result.NewBalance = &newBalance
 		result.BalanceOverdrafted = !sufficient
+		result.BalanceCost = balanceCost
+	}
+	if result.FundingSource == "" {
+		result.FundingSource = resolveUsageBillingFundingSource(result)
 	}
 
 	if cmd.APIKeyQuotaCost > 0 {
@@ -210,6 +233,106 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	return nil
+}
+
+func consumeUsageBillingGlobalPlan(ctx context.Context, tx *sql.Tx, userID int64, groupID int64, requestedCost float64) (int64, float64, error) {
+	if requestedCost <= 0 {
+		return 0, 0, nil
+	}
+
+	var (
+		subID     int64
+		remaining float64
+	)
+	err := tx.QueryRowContext(ctx, `
+		SELECT id, GREATEST(quota_limit_usd - quota_used_usd, 0)
+		FROM user_global_plan_subscriptions
+		WHERE user_id = $1
+			AND status = $2
+			AND deleted_at IS NULL
+			AND starts_at <= NOW()
+			AND expires_at > NOW()
+			AND current_period_start <= NOW()
+			AND current_period_end > NOW()
+			AND quota_limit_usd > quota_used_usd
+			AND (
+				applicable_group_mode = 'all'
+				OR (
+					applicable_group_mode = 'whitelist'
+					AND $3 > 0
+					AND EXISTS (
+						SELECT 1
+						FROM jsonb_array_elements_text(applicable_group_ids) AS applicable_group_id(value)
+						WHERE applicable_group_id.value = $3::text
+					)
+				)
+				OR (
+					applicable_group_mode = 'blacklist'
+					AND (
+						$3 <= 0
+						OR NOT EXISTS (
+							SELECT 1
+							FROM jsonb_array_elements_text(applicable_group_ids) AS applicable_group_id(value)
+							WHERE applicable_group_id.value = $3::text
+						)
+					)
+				)
+			)
+		ORDER BY created_at ASC, id ASC
+		LIMIT 1
+		FOR UPDATE
+	`, userID, service.GlobalPlanStatusActive, groupID).Scan(&subID, &remaining)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, 0, nil
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+
+	consumeCost := requestedCost
+	if remaining < consumeCost {
+		consumeCost = remaining
+	}
+	if consumeCost <= 0 {
+		return 0, 0, nil
+	}
+	res, err := tx.ExecContext(ctx, `
+		UPDATE user_global_plan_subscriptions
+		SET quota_used_usd = quota_used_usd + $1,
+			updated_at = NOW()
+		WHERE id = $2
+			AND deleted_at IS NULL
+	`, consumeCost, subID)
+	if err != nil {
+		return 0, 0, err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, 0, err
+	}
+	if affected == 0 {
+		return 0, 0, service.ErrSubscriptionNotFound
+	}
+	return subID, consumeCost, nil
+}
+
+func resolveUsageBillingFundingSource(result *service.UsageBillingApplyResult) string {
+	if result == nil {
+		return ""
+	}
+	if result.SubscriptionCost > 0 {
+		return service.UsageFundingSourceSubscription
+	}
+	if result.GlobalPlanCost > 0 && result.BalanceCost > 0 {
+		return service.UsageFundingSourceMixed
+	}
+	if result.GlobalPlanCost > 0 {
+		return service.UsageFundingSourceGlobalPlan
+	}
+	if result.BalanceCost > 0 {
+		return service.UsageFundingSourceBalance
+	}
+	return service.UsageFundingSourceFree
 }
 
 func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {

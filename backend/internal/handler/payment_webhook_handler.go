@@ -67,6 +67,17 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 	h.handleNotify(c, payment.TypeAirwallex)
 }
 
+// JeepayNotify handles Jeepay payment notifications.
+// POST /api/v1/payment/webhook/jeepay
+func (h *PaymentWebhookHandler) JeepayNotify(c *gin.Context) {
+	h.handleNotify(c, payment.TypeJeepay)
+}
+
+// CreemWebhook handles payment and externally initiated refund events.
+func (h *PaymentWebhookHandler) CreemWebhook(c *gin.Context) {
+	h.handleNotify(c, payment.TypeCreem)
+}
+
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
 	var rawBody string
@@ -153,6 +164,19 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		if err == nil {
 			return values.Get("out_trade_no")
 		}
+	case payment.TypeJeepay:
+		values, err := url.ParseQuery(rawBody)
+		if err == nil {
+			if outTradeNo := strings.TrimSpace(values.Get("mchOrderNo")); outTradeNo != "" {
+				return outTradeNo
+			}
+		}
+		var payload struct {
+			MchOrderNo string `json:"mchOrderNo"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			return strings.TrimSpace(payload.MchOrderNo)
+		}
 	case payment.TypeAirwallex:
 		var payload struct {
 			Data struct {
@@ -163,6 +187,21 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		}
 		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
 			return strings.TrimSpace(payload.Data.Object.MerchantOrderID)
+		}
+	case payment.TypeCreem:
+		var payload struct {
+			Object struct {
+				RequestID string `json:"request_id"`
+				Checkout  struct {
+					RequestID string `json:"request_id"`
+				} `json:"checkout"`
+			} `json:"object"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			if requestID := strings.TrimSpace(payload.Object.RequestID); requestID != "" {
+				return requestID
+			}
+			return strings.TrimSpace(payload.Object.Checkout.RequestID)
 		}
 	}
 	// For other providers (Stripe, Alipay direct, WxPay direct), the registry
@@ -208,7 +247,7 @@ func writeSuccessResponse(c *gin.Context, providerKey string) {
 	switch providerKey {
 	case payment.TypeWxpay:
 		c.JSON(http.StatusOK, wxpaySuccessResponse{Code: wxpaySuccessCode, Message: wxpaySuccessMessage})
-	case payment.TypeStripe, payment.TypeAirwallex:
+	case payment.TypeStripe, payment.TypeAirwallex, payment.TypeCreem:
 		c.String(http.StatusOK, "")
 	default:
 		c.String(http.StatusOK, "success")

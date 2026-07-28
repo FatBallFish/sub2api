@@ -178,6 +178,18 @@ func TestExtractOutTradeNo(t *testing.T) {
 			rawBody:     `{"name":"payment_intent.succeeded","data":{"object":{"merchant_order_id":"sub2_awx_123"}}}`,
 			want:        "sub2_awx_123",
 		},
+		{
+			name:        "creem checkout completed payload",
+			providerKey: payment.TypeCreem,
+			rawBody:     `{"object":{"request_id":"sub2_creem_pay"}}`,
+			want:        "sub2_creem_pay",
+		},
+		{
+			name:        "creem refund payload",
+			providerKey: payment.TypeCreem,
+			rawBody:     `{"object":{"checkout":{"request_id":"sub2_creem_refund"}}}`,
+			want:        "sub2_creem_refund",
+		},
 	}
 
 	for _, tt := range tests {

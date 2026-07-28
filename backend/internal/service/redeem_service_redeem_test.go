@@ -77,6 +77,10 @@ func (r *redeemRejectRepo) SumPositiveBalanceByUser(ctx context.Context, userID 
 	panic("unexpected SumPositiveBalanceByUser call")
 }
 
+func (r *redeemRejectRepo) SumByUserAndType(ctx context.Context, userID int64, codeType string) (float64, error) {
+	panic("unexpected SumByUserAndType call")
+}
+
 func TestRedeemRejectsInvitationCodeBeforeTransaction(t *testing.T) {
 	ctx := context.Background()
 	redeemRepo := &redeemRejectRepo{
