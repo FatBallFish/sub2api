@@ -145,6 +145,22 @@ test("builds daily comparisons against the chronologically previous day", async 
   );
 });
 
+test("filters price comparisons for export while preserving display order", async () => {
+  const core = await loadCore();
+  const state = core.createDefaultState();
+  const day = state.days.at(-1);
+  const model = core.buildPriceComparison(day, state.days);
+  const selectedIds = new Set([day.groups[4].id, day.groups[1].id, day.groups[9].id]);
+
+  const filtered = core.filterPriceComparison(model, selectedIds);
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(filtered.rows.map((row) => row.group.id))),
+    [day.groups[1].id, day.groups[4].id, day.groups[9].id],
+  );
+  assert.throws(() => core.filterPriceComparison(model, new Set()), /at least one group/i);
+});
+
 test("ships the complete twelve-group daily price template", async () => {
   const core = await loadCore();
   const state = core.createDefaultState();

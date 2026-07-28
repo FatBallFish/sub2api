@@ -83,8 +83,27 @@ try {
   await page.screenshot({ path: new URL("profit-desktop.png", outputDir).pathname, fullPage: true });
 
   await page.getByRole("button", { name: "每日价格" }).click();
-  const downloadPromise = page.waitForEvent("download");
   await page.locator("#export-price-image").click();
+  assert.equal(await page.locator("#export-groups-dialog").getAttribute("open") !== null, true);
+  assert.equal(await page.locator("[data-export-group-id]:checked").count(), 12);
+  await page.locator("#clear-export-groups").click();
+  assert.equal(await page.locator("#confirm-price-export").isDisabled(), true);
+  const exportCheckboxes = page.locator("[data-export-group-id]");
+  await exportCheckboxes.nth(0).check();
+  await exportCheckboxes.nth(2).check();
+  await exportCheckboxes.nth(4).check();
+  const subsetDownloadPromise = page.waitForEvent("download");
+  await page.locator("#confirm-price-export").click();
+  const subsetDownload = await subsetDownloadPromise;
+  const subsetPngPath = new URL("price-export-subset.png", outputDir);
+  await subsetDownload.saveAs(subsetPngPath.pathname);
+  const subsetPng = await readFile(subsetPngPath);
+  assert.equal(subsetPng.readUInt32BE(16), 1400);
+
+  await page.locator("#export-price-image").click();
+  assert.equal(await page.locator("[data-export-group-id]:checked").count(), 12);
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#confirm-price-export").click();
   const download = await downloadPromise;
   const pngPath = new URL("price-export.png", outputDir);
   await download.saveAs(pngPath.pathname);
@@ -92,6 +111,7 @@ try {
   assert.equal(png.subarray(1, 4).toString("ascii"), "PNG");
   assert.equal(png.readUInt32BE(16), 1400);
   assert.ok(png.readUInt32BE(20) > 900);
+  assert.ok(png.readUInt32BE(20) > subsetPng.readUInt32BE(20));
   assert.ok((await stat(pngPath)).size > 40_000);
 
   await page.screenshot({ path: new URL("desktop.png", outputDir).pathname, fullPage: true });

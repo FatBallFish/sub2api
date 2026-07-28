@@ -331,6 +331,32 @@
       padding-top: 18px;
       border-top: 1px solid var(--line);
     }
+    .selection-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .selection-toolbar .view-actions { flex-wrap: nowrap; }
+    .selection-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .export-group-list { border-top: 2px solid var(--line-strong); }
+    .export-group-row {
+      display: grid;
+      grid-template-columns: 22px minmax(130px, 0.7fr) minmax(220px, 1.4fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 50px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .export-group-row:hover { background: #f6f8f7; }
+    .export-group-row input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+    .export-group-row .export-category { color: var(--muted); font-size: 12px; }
+    .export-group-row .export-name { font-weight: 650; }
+    .export-group-row .export-price { text-align: right; font-variant-numeric: tabular-nums; }
 
     .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
     .view-panel { animation: reveal 220ms ease both; }
@@ -414,6 +440,11 @@
       .group-manager-row .button { grid-row: 2 / span 2; }
       .group-add-form { grid-template-columns: 1fr; }
       .group-add-form h3, .group-add-form .wide { grid-column: auto; }
+      .export-group-row { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 5px 10px; }
+      .export-group-row input { grid-row: 1 / span 2; }
+      .export-group-row .export-category { grid-column: 2; }
+      .export-group-row .export-name { grid-column: 2; }
+      .export-group-row .export-price { grid-column: 3; grid-row: 1 / span 2; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -566,6 +597,26 @@
       </div>
     </div>
   </dialog>
+  <dialog class="tool-dialog" id="export-groups-dialog" aria-labelledby="export-groups-title">
+    <div class="dialog-header">
+      <div><h2 id="export-groups-title">选择导出分组</h2><p class="dialog-caption" id="export-groups-date"></p></div>
+      <button class="icon-button" id="close-export-groups" type="button" aria-label="关闭导出选择">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="selection-toolbar">
+        <span class="selection-count" id="export-group-count"></span>
+        <div class="view-actions">
+          <button class="button compact" id="select-all-export-groups" type="button">全选</button>
+          <button class="button compact" id="clear-export-groups" type="button">清空</button>
+        </div>
+      </div>
+      <div class="export-group-list" id="export-group-list"></div>
+      <div class="dialog-footer">
+        <button class="button" id="cancel-price-export" type="button">取消</button>
+        <button class="button primary" id="confirm-price-export" type="button">导出选中分组</button>
+      </div>
+    </div>
+  </dialog>
   <div class="status-toast" id="status-toast" role="status" aria-live="polite" hidden></div>
 
   <script id="calculator-core">
@@ -688,6 +739,11 @@
           };
         }),
       };
+    }
+
+    function filterPriceComparison(model, selectedIds) {
+      if (!selectedIds || selectedIds.size < 1) throw new RangeError("Select at least one group for export");
+      return { ...model, rows: model.rows.filter((row) => selectedIds.has(row.group.id)) };
     }
 
     function cloneJson(value) {
@@ -957,6 +1013,7 @@
       comparePrice,
       findPreviousDay,
       buildPriceComparison,
+      filterPriceComparison,
       clonePriceDay,
       cloneProfitTemplate,
       createProfitTemplate,
@@ -1086,6 +1143,28 @@
       `).join("") : '<p class="dialog-caption" style="padding:18px 10px">当前没有分组，可新增或恢复内置分组。</p>';
     }
 
+    function updateExportSelectionState() {
+      const checkboxes = [...document.querySelectorAll("[data-export-group-id]")];
+      const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+      document.querySelector("#export-group-count").textContent = `已选择 ${selectedCount} / ${checkboxes.length} 个分组`;
+      document.querySelector("#confirm-price-export").disabled = selectedCount === 0;
+    }
+
+    function renderExportGroupSelector() {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      document.querySelector("#export-groups-date").textContent = `${day.date} · 每次打开默认全选`;
+      document.querySelector("#export-group-list").innerHTML = day.groups.length ? day.groups.map((item) => `
+        <label class="export-group-row">
+          <input type="checkbox" data-export-group-id="${escapeHtml(item.id)}" checked>
+          <span class="export-category">${escapeHtml(item.category)}</span>
+          <span class="export-name">${escapeHtml(item.name)}</span>
+          <span class="export-price">${formatUsd(item.price)}</span>
+        </label>
+      `).join("") : '<p class="dialog-caption" style="padding:18px 10px">当前没有可导出的分组。</p>';
+      updateExportSelectionState();
+    }
+
     function renderStripe() {
       const amount = Number(state.stripe.customAmount) > 0 ? Number(state.stripe.customAmount) : 1;
       const custom = core.calculateStripe(amount, state.stripe.rate, state.stripe.fixedFee);
@@ -1201,9 +1280,9 @@
       lines.forEach((line, index) => context.fillText(line, x, y + index * lineHeight));
     }
 
-    async function exportPriceImage() {
+    async function exportPriceImage(selectedIds) {
       const day = state.days.find((item) => item.id === state.selectedDayId);
-      const model = core.buildPriceComparison(day, state.days);
+      const model = core.filterPriceComparison(core.buildPriceComparison(day, state.days), selectedIds);
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
       const width = 1400;
@@ -1340,6 +1419,17 @@
         renderGroupManager();
         document.querySelector("#group-manager-dialog").showModal();
       }
+      if (event.target.closest("#close-export-groups") || event.target.closest("#cancel-price-export")) {
+        document.querySelector("#export-groups-dialog").close();
+      }
+      if (event.target.closest("#select-all-export-groups")) {
+        document.querySelectorAll("[data-export-group-id]").forEach((checkbox) => { checkbox.checked = true; });
+        updateExportSelectionState();
+      }
+      if (event.target.closest("#clear-export-groups")) {
+        document.querySelectorAll("[data-export-group-id]").forEach((checkbox) => { checkbox.checked = false; });
+        updateExportSelectionState();
+      }
       if (event.target.closest("#close-group-manager") || event.target.closest("#done-group-manager")) {
         document.querySelector("#group-manager-dialog").close();
       }
@@ -1404,16 +1494,24 @@
       }
       const exportButton = event.target.closest("#export-price-image");
       if (exportButton) {
-        exportButton.disabled = true;
-        exportButton.textContent = "正在生成…";
+        renderExportGroupSelector();
+        document.querySelector("#export-groups-dialog").showModal();
+      }
+      const confirmExportButton = event.target.closest("#confirm-price-export");
+      if (confirmExportButton) {
+        const selectedIds = new Set([...document.querySelectorAll("[data-export-group-id]:checked")]
+          .map((checkbox) => checkbox.dataset.exportGroupId));
+        confirmExportButton.disabled = true;
+        confirmExportButton.textContent = "正在生成…";
         try {
-          await exportPriceImage();
+          await exportPriceImage(selectedIds);
+          document.querySelector("#export-groups-dialog").close();
           showStatus("价格公告图片已导出");
         } catch {
           showStatus("图片导出失败，请重试", "error");
         } finally {
-          exportButton.disabled = false;
-          exportButton.textContent = "导出图片";
+          confirmExportButton.textContent = "导出选中分组";
+          updateExportSelectionState();
         }
       }
       if (event.target.closest("#delete-day")) {
@@ -1439,6 +1537,10 @@
     });
 
     document.addEventListener("change", (event) => {
+      if (event.target.matches("[data-export-group-id]")) {
+        updateExportSelectionState();
+        return;
+      }
       if (event.target.matches("#price-day-select")) {
         state.selectedDayId = event.target.value;
         persist();
