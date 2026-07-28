@@ -16,6 +16,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func expectRemainingCreditInventoryQueries(mock sqlmock.Sqlmock, remainingBalance, remainingGlobalPlan, remainingGroupSubscription float64) {
+	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(GREATEST\\(balance, 0\\)\\), 0\\)").
+		WillReturnRows(sqlmock.NewRows([]string{"remaining_balance"}).AddRow(remainingBalance))
+	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(GREATEST\\(\\s+CASE\\s+WHEN current_period_end <= NOW\\(\\) THEN quota_limit_usd").
+		WillReturnRows(sqlmock.NewRows([]string{"remaining_global_plan"}).AddRow(remainingGlobalPlan))
+	mock.ExpectQuery("SELECT COALESCE\\(SUM\\(GREATEST\\([\\s\\S]*THEN LEAST\\(").
+		WillReturnRows(sqlmock.NewRows([]string{"remaining_group_subscription"}).AddRow(remainingGroupSubscription))
+}
+
 func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
@@ -644,12 +653,15 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestedModelSource(t *testing.T)
 			AddRow(0, 1, "/v1/responses", nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0).
 			AddRow(1, 0, nil, "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0).
 			AddRow(0, 0, "/v1/responses", "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0))
+	expectRemainingCreditInventoryQueries(mock, 12.5, 80, 60)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), stats.TotalRequests)
 	require.Equal(t, "/v1/responses", stats.Endpoints[0].Endpoint)
 	require.Equal(t, "/v1/responses -> /v1/responses", stats.EndpointPaths[0].Endpoint)
+	require.Equal(t, 12.5, stats.RemainingBalanceCredits)
+	require.Equal(t, 140.0, stats.RemainingSubscriptionCredits)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -681,6 +693,7 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"account_cost",
 			"avg_duration_ms",
 		}).AddRow(1, 1, nil, nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0))
+	expectRemainingCreditInventoryQueries(mock, 12.5, 80, 60)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -688,6 +701,8 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 	require.Equal(t, int64(9), stats.TotalTokens)
 	require.NotNil(t, stats.TotalAccountCost, "TotalAccountCost should always be returned")
 	require.Equal(t, 1.2, *stats.TotalAccountCost)
+	require.Equal(t, 12.5, stats.RemainingBalanceCredits)
+	require.Equal(t, 140.0, stats.RemainingSubscriptionCredits)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -807,11 +822,14 @@ func TestUsageLogRepositoryGetStatsWithFiltersAlwaysReturnsAccountCost(t *testin
 			"requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens",
 			"cost", "actual_cost", "account_cost", "avg_duration_ms",
 		}).AddRow(1, 1, nil, nil, int64(50), int64(1000), int64(2000), int64(60), int64(40), 15.0, 12.5, 11.0, 100.0))
+	expectRemainingCreditInventoryQueries(mock, 10, 20, 30)
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.NotNil(t, stats.TotalAccountCost, "TotalAccountCost must always be returned, even without AccountID filter")
 	require.Equal(t, 11.0, *stats.TotalAccountCost)
+	require.Equal(t, 10.0, stats.RemainingBalanceCredits)
+	require.Equal(t, 50.0, stats.RemainingSubscriptionCredits)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

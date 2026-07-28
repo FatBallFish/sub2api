@@ -150,7 +150,7 @@ export default {
         '24h': 'Last 24 hours',
         '7d': 'Last 7 days',
         '30d': 'Last 30 days',
-        custom: 'Custom Range'
+        custom: 'Custom'
       },
       customTimeRange: {
         startTime: 'Start Time',

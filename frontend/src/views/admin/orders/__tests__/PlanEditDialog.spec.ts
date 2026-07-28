@@ -53,7 +53,8 @@ const SelectStub = defineComponent({
   setup(_props, { emit }) {
     const onChange = (event: Event) => {
       const value = (event.target as HTMLSelectElement).value
-      emit('update:modelValue', value === '' ? null : Number(value))
+      const numericValue = Number(value)
+      emit('update:modelValue', value === '' ? null : Number.isNaN(numericValue) ? value : numericValue)
     }
     return { onChange }
   },
@@ -169,7 +170,7 @@ describe('PlanEditDialog', () => {
     expect(wrapper.text()).not.toContain('¥71.43')
   })
 
-  it('allows composite subscription groups for payment plans', () => {
+  it('allows composite subscription groups for payment plans', async () => {
     const wrapper = mountDialog({
       groups: [
         groupFixture({
@@ -188,9 +189,11 @@ describe('PlanEditDialog', () => {
       ],
     })
 
+    await wrapper.find('select').setValue('group')
+
     const options = wrapper.findAll('option').map(option => option.text())
 
-    expect(options).toContain('OpenAI + Claude + Gemini + Grok — composite (1.2x)')
-    expect(options).not.toContain('Standard OpenAI — openai (1x)')
+    expect(options.some(option => option.includes('OpenAI + Claude + Gemini + Grok — composite (1.2x'))).toBe(true)
+    expect(options.some(option => option.includes('Standard OpenAI — openai (1x'))).toBe(false)
   })
 })

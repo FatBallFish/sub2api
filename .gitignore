@@ -1,6 +1,7 @@
 # 本地杂项文档、测试数据和外部项目副本
 /docs-local/
 .codex
+.playwright-mcp/
 
 # ===================
 # Go 后端
@@ -141,6 +142,7 @@ docs/*
 !docs/COMPOSITE_GROUPS.md
 !docs/PLUGIN_DEVELOPMENT.md
 !docs/channel-monitor-v2-safe-defaults.md
+!docs/GPT_IMAGE_2_API_CN.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/
@@ -157,3 +159,6 @@ output/
 .vite/
 # 本地闭源插件开发目录及构建产物不进入 Sub2API 仓库
 /plugins/
+
+# Mikiko Pool has moved to the standalone account_pool_console repository.
+/mikiko-pool/

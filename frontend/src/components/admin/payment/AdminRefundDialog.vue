@@ -47,7 +47,7 @@
         </div>
       </div>
 
-      <!-- Deduct Balance -->
+      <!-- Deduct Entitlement -->
       <div>
         <div class="flex items-center gap-2">
           <input
@@ -57,9 +57,9 @@
             class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
           <label for="deduct-balance" class="text-sm text-gray-700 dark:text-gray-300">
-            {{ t('payment.admin.deductBalance') }}
+            {{ deductLabel }}
           </label>
-          <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.deductBalanceHint') }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400">{{ deductHint }}</span>
         </div>
 
         <!-- User Balance Info (when deduct_balance is checked) -->
@@ -212,8 +212,18 @@ const maxRefundable = computed(() => {
   return props.order.amount - actuallyRefunded.value
 })
 
+const isBalanceOrder = computed(() => props.order?.order_type === 'balance')
+
+const deductLabel = computed(() => isBalanceOrder.value
+  ? t('payment.admin.deductBalance')
+  : t('payment.admin.deductSubscriptionEntitlement'))
+
+const deductHint = computed(() => isBalanceOrder.value
+  ? t('payment.admin.deductBalanceHint')
+  : t('payment.admin.deductSubscriptionEntitlementHint'))
+
 const balanceInsufficient = computed(() => {
-  if (props.userBalance == null || !props.order) return false
+  if (props.userBalance == null || !props.order || !isBalanceOrder.value) return false
   return props.userBalance < props.order.amount
 })
 

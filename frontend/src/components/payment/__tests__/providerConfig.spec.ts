@@ -56,6 +56,14 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
     expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
     expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
   })
+
+  it.each(['applePay', 'googlePay'])('adds %s with Stripe wallet display enums', (key) => {
+    const field = findField('stripe', key)
+
+    expect(field?.defaultValue).toBe('auto')
+    expect(field?.hintKey).toBe('admin.settings.payment.field_stripeWalletHint')
+    expect(field?.options?.map(option => option.value)).toEqual(['auto', 'never'])
+  })
 })
 
 describe('EasyPay custom methods config', () => {

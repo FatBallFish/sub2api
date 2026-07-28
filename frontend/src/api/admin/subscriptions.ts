@@ -13,6 +13,39 @@ import type {
   PaginatedResponse
 } from '@/types'
 
+export interface AssignGlobalPlanRequest {
+  user_id: number
+  plan_id: number
+  notes?: string
+}
+
+export interface AdminGlobalPlanAssignment {
+  id: number
+  user_id: number
+  plan_id: number
+  plan_name: string
+  status: string
+  starts_at: string
+  expires_at: string
+  current_period_start: string
+  current_period_end: string
+  quota_period: string
+  quota_limit_usd: number
+  quota_used_usd: number
+  quota_remaining_usd: number
+  tier_rank: number
+  assigned_by?: number
+  assigned_at?: string
+  notes?: string
+  source_order_id?: number
+  user_email?: string
+  user_username?: string
+  assigned_by_email?: string
+  assigned_by_username?: string
+  configured_plan_name?: string
+  configured_plan_for_sale?: boolean
+}
+
 /**
  * List all subscriptions with pagination
  * @param page - Page number (default: 1)
@@ -80,6 +113,41 @@ export async function assign(request: AssignSubscriptionRequest): Promise<UserSu
 }
 
 /**
+ * Assign a global plan to user
+ * @param request - Global plan assignment request
+ * @returns Created or renewed global plan subscription
+ */
+export async function assignGlobalPlan(request: AssignGlobalPlanRequest): Promise<unknown> {
+  const { data } = await apiClient.post('/admin/subscriptions/global-plan/assign', request)
+  return data
+}
+
+export async function listGlobalPlans(
+  page: number = 1,
+  pageSize: number = 20,
+  filters?: {
+    status?: 'active' | 'expired' | 'cancelled' | 'revoked'
+    user_id?: number
+  },
+  options?: {
+    signal?: AbortSignal
+  }
+): Promise<PaginatedResponse<AdminGlobalPlanAssignment>> {
+  const { data } = await apiClient.get<PaginatedResponse<AdminGlobalPlanAssignment>>(
+    '/admin/subscriptions/global-plans',
+    {
+      params: {
+        page,
+        page_size: pageSize,
+        ...filters
+      },
+      signal: options?.signal
+    }
+  )
+  return data
+}
+
+/**
  * Bulk assign subscriptions to multiple users
  * @param request - Bulk assignment request
  * @returns Created subscriptions
@@ -111,6 +179,17 @@ export async function extend(
   return data
 }
 
+export async function extendGlobalPlan(
+  id: number,
+  request: ExtendSubscriptionRequest
+): Promise<AdminGlobalPlanAssignment> {
+  const { data } = await apiClient.post<AdminGlobalPlanAssignment>(
+    `/admin/subscriptions/global-plans/${id}/extend`,
+    request
+  )
+  return data
+}
+
 /**
  * Revoke subscription
  * @param id - Subscription ID
@@ -118,6 +197,13 @@ export async function extend(
  */
 export async function revoke(id: number): Promise<{ message: string }> {
   const { data } = await apiClient.post<{ message: string }>(`/admin/subscriptions/${id}/revoke`)
+  return data
+}
+
+export async function revokeGlobalPlan(id: number): Promise<{ message: string }> {
+  const { data } = await apiClient.delete<{ message: string }>(
+    `/admin/subscriptions/global-plans/${id}`
+  )
   return data
 }
 
@@ -144,6 +230,13 @@ export async function resetQuota(
   const { data } = await apiClient.post<UserSubscription>(
     `/admin/subscriptions/${id}/reset-quota`,
     options
+  )
+  return data
+}
+
+export async function resetGlobalPlanQuota(id: number): Promise<AdminGlobalPlanAssignment> {
+  const { data } = await apiClient.post<AdminGlobalPlanAssignment>(
+    `/admin/subscriptions/global-plans/${id}/reset-quota`
   )
   return data
 }
@@ -195,11 +288,16 @@ export const subscriptionsAPI = {
   getById,
   getProgress,
   assign,
+  assignGlobalPlan,
+  listGlobalPlans,
   bulkAssign,
   extend,
+  extendGlobalPlan,
   revoke,
   restore,
+  revokeGlobalPlan,
   resetQuota,
+  resetGlobalPlanQuota,
   listByGroup,
   listByUser
 }

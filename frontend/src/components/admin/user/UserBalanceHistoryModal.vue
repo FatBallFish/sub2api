@@ -200,6 +200,8 @@ const typeOptions = computed(() => [
   { value: '', label: t('admin.users.allTypes') },
   { value: 'balance', label: t('admin.users.typeBalance') },
   { value: 'affiliate_balance', label: t('admin.users.typeAffiliateBalance') },
+  { value: 'aff_inviter_signup', label: t('admin.users.typeAffiliateInviterSignupReward') },
+  { value: 'aff_invitee_signup', label: t('admin.users.typeAffiliateInviteeSignupReward') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
   { value: 'admin_concurrency', label: t('admin.users.typeAdminConcurrency') },
@@ -239,7 +241,13 @@ const loadHistory = async (page: number) => {
 const isAdminType = (type: string) => type === 'admin_balance' || type === 'admin_concurrency'
 
 // Helper: check if balance type (includes admin_balance)
-const isBalanceType = (type: string) => type === 'balance' || type === 'admin_balance' || type === 'affiliate_balance'
+const isBalanceType = (type: string) => (
+  type === 'balance' ||
+  type === 'admin_balance' ||
+  type === 'affiliate_balance' ||
+  type === 'aff_inviter_signup' ||
+  type === 'aff_invitee_signup'
+)
 
 // Helper: check if subscription type
 const isSubscriptionType = (type: string) => type === 'subscription'
@@ -297,6 +305,10 @@ const getItemTitle = (item: BalanceHistoryItem) => {
       return t('redeem.balanceAddedRedeem')
     case 'affiliate_balance':
       return t('redeem.balanceAddedAffiliate')
+    case 'aff_inviter_signup':
+      return t('redeem.balanceAddedAffiliateInviterSignup')
+    case 'aff_invitee_signup':
+      return t('redeem.balanceAddedAffiliateInviteeSignup')
     case 'admin_balance':
       return item.value >= 0 ? t('redeem.balanceAddedAdmin') : t('redeem.balanceDeductedAdmin')
     case 'concurrency':

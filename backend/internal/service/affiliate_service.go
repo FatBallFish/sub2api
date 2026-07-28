@@ -266,49 +266,50 @@ func (s *AffiliateService) GetAffiliateDetail(ctx context.Context, userID int64)
 	}, nil
 }
 
-func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, rawCode string) error {
+func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, rawCode string) (*int64, error) {
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
 	if code == "" {
-		return nil
+		return nil, nil
 	}
 	if s == nil || s.repo == nil {
-		return infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
 	// 总开关关闭时，注册阶段静默忽略 aff 参数（不报错，避免阻断注册流程）
 	if !s.IsEnabled(ctx) {
-		return nil
+		return nil, nil
 	}
 	if !isValidAffiliateCodeFormat(code) {
-		return ErrAffiliateCodeInvalid
+		return nil, ErrAffiliateCodeInvalid
 	}
 
 	selfSummary, err := s.repo.EnsureUserAffiliate(ctx, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if selfSummary.InviterID != nil {
-		return nil
+		return selfSummary.InviterID, nil
 	}
 
 	inviterSummary, err := s.repo.GetAffiliateByCode(ctx, code)
 	if err != nil {
 		if errors.Is(err, ErrAffiliateProfileNotFound) {
-			return ErrAffiliateCodeInvalid
+			return nil, ErrAffiliateCodeInvalid
 		}
-		return err
+		return nil, err
 	}
 	if inviterSummary == nil || inviterSummary.UserID <= 0 || inviterSummary.UserID == userID {
-		return ErrAffiliateCodeInvalid
+		return nil, ErrAffiliateCodeInvalid
 	}
 
 	bound, err := s.repo.BindInviter(ctx, userID, inviterSummary.UserID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !bound {
-		return ErrAffiliateAlreadyBound
+		return nil, ErrAffiliateAlreadyBound
 	}
-	return nil
+	inviterID := inviterSummary.UserID
+	return &inviterID, nil
 }
 
 func (s *AffiliateService) AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error) {

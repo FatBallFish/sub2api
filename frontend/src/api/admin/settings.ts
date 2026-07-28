@@ -125,8 +125,10 @@ export type PaymentVisibleMethodSource =
   | ""
   | "official_alipay"
   | "easypay_alipay"
+  | "jeepay_alipay"
   | "official_wxpay"
-  | "easypay_wxpay";
+  | "easypay_wxpay"
+  | "jeepay_wxpay";
 export type WeChatConnectMode = "open" | "mp" | "mobile";
 
 export interface PaymentVisibleMethodSourceOption {
@@ -168,6 +170,11 @@ const PAYMENT_VISIBLE_METHOD_SOURCE_OPTIONS: Record<
       labelZh: "易支付支付宝",
       labelEn: "EasyPay Alipay",
     },
+    {
+      value: "jeepay_alipay",
+      labelZh: "Jeepay 支付宝",
+      labelEn: "Jeepay Alipay",
+    },
   ],
   wxpay: [
     { value: "", labelZh: "未配置", labelEn: "Not configured" },
@@ -180,6 +187,11 @@ const PAYMENT_VISIBLE_METHOD_SOURCE_OPTIONS: Record<
       value: "easypay_wxpay",
       labelZh: "易支付微信",
       labelEn: "EasyPay WeChat Pay",
+    },
+    {
+      value: "jeepay_wxpay",
+      labelZh: "Jeepay 微信",
+      labelEn: "Jeepay WeChat Pay",
     },
   ],
 };
@@ -194,6 +206,8 @@ const PAYMENT_VISIBLE_METHOD_SOURCE_ALIASES: Record<
     official: "official_alipay",
     easypay_alipay: "easypay_alipay",
     easypay: "easypay_alipay",
+    jeepay_alipay: "jeepay_alipay",
+    jeepay: "jeepay_alipay",
   },
   wxpay: {
     official_wxpay: "official_wxpay",
@@ -203,6 +217,8 @@ const PAYMENT_VISIBLE_METHOD_SOURCE_ALIASES: Record<
     official: "official_wxpay",
     easypay_wxpay: "easypay_wxpay",
     easypay: "easypay_wxpay",
+    jeepay_wxpay: "jeepay_wxpay",
+    jeepay: "jeepay_wxpay",
   },
 };
 const WECHAT_CONNECT_MODE_OPTIONS: WeChatConnectModeOption[] = [
@@ -425,6 +441,14 @@ export interface SystemSettings {
   affiliate_rebate_duration_days: number;
   affiliate_rebate_per_invitee_cap: number;
   affiliate_admin_recharge_enabled: boolean;
+  affiliate_inviter_signup_reward: number;
+  affiliate_inviter_signup_reward_cap: number;
+  affiliate_invitee_signup_reward: number;
+  region_block_enabled: boolean;
+  region_block_frontend_enabled: boolean;
+  region_block_api_enabled: boolean;
+  region_block_codes: string;
+  region_block_headers: string;
   default_concurrency: number;
   default_user_rpm_limit: number;
   default_subscriptions: DefaultSubscriptionSetting[];
@@ -664,6 +688,7 @@ export interface SystemSettings {
   payment_balance_recharge_multiplier: number;
   payment_subscription_usd_to_cny_rate: number;
   payment_recharge_fee_rate: number;
+  payment_currency_exchange_rates: string;
   payment_load_balance_strategy: string;
   payment_product_name_prefix: string;
   payment_product_name_suffix: string;
@@ -767,6 +792,14 @@ export interface UpdateSettingsRequest {
   affiliate_rebate_duration_days?: number;
   affiliate_rebate_per_invitee_cap?: number;
   affiliate_admin_recharge_enabled?: boolean;
+  affiliate_inviter_signup_reward?: number;
+  affiliate_inviter_signup_reward_cap?: number;
+  affiliate_invitee_signup_reward?: number;
+  region_block_enabled?: boolean;
+  region_block_frontend_enabled?: boolean;
+  region_block_api_enabled?: boolean;
+  region_block_codes?: string;
+  region_block_headers?: string;
   default_concurrency?: number;
   default_user_rpm_limit?: number;
   default_subscriptions?: DefaultSubscriptionSetting[];
@@ -978,6 +1011,7 @@ export interface UpdateSettingsRequest {
   payment_balance_recharge_multiplier?: number;
   payment_subscription_usd_to_cny_rate?: number;
   payment_recharge_fee_rate?: number;
+  payment_currency_exchange_rates?: string;
   payment_load_balance_strategy?: string;
   payment_product_name_prefix?: string;
   payment_product_name_suffix?: string;

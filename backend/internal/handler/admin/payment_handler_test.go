@@ -50,11 +50,12 @@ func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
 
 func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.T) {
 	weekly := 25.0
+	groupID := int64(7)
 	now := time.Now()
 	plans := []*dbent.SubscriptionPlan{
 		{
 			ID:           11,
-			GroupID:      7,
+			GroupID:      &groupID,
 			Name:         "All models",
 			Description:  "Composite access",
 			Price:        19.99,

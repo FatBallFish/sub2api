@@ -103,7 +103,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { PAYMENT_RECOVERY_STORAGE_KEY, readPaymentRecoverySnapshot } from '@/components/payment/paymentFlow'
-import type { PaymentOrder } from '@/types/payment'
+import type { PaymentOrder, StripeWalletDisplayPreference } from '@/types/payment'
 import type { Stripe, StripeElements } from '@stripe/stripe-js'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -250,9 +250,17 @@ function mountPaymentElement(stripe: Stripe, clientSecret: string) {
   const paymentElement = elements.create('payment', {
     layout: 'tabs',
     paymentMethodOrder: ['alipay', 'wechat_pay', 'card', 'link'],
+    wallets: {
+      applePay: normalizeStripeWalletPreference(order.value?.stripe_wallets?.apple_pay),
+      googlePay: normalizeStripeWalletPreference(order.value?.stripe_wallets?.google_pay),
+    },
   } as Record<string, unknown>)
   paymentElement.mount('#stripe-payment-element')
   paymentElement.on('ready', () => { stripeReady.value = true })
+}
+
+function normalizeStripeWalletPreference(value: unknown): StripeWalletDisplayPreference {
+  return value === 'never' ? 'never' : 'auto'
 }
 
 async function handleGenericPay() {

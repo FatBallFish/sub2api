@@ -230,6 +230,10 @@ func pcGroupByPaymentType(instances []*dbent.PaymentProviderInstance) map[string
 		}
 	}
 	for _, inst := range instances {
+		// Creem is a fixed-Product method and is exposed only through fixed_offers.
+		if inst.ProviderKey == payment.TypeCreem {
+			continue
+		}
 		// Stripe provider: all sub-types → single "stripe" group
 		if inst.ProviderKey == payment.TypeStripe {
 			add(payment.TypeStripe, inst)
