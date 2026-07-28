@@ -64,6 +64,7 @@ try {
   page.once("dialog", (dialog) => dialog.accept());
   await page.locator("#restore-default-groups").click();
   assert.equal(await page.locator("#group-manager-list [data-managed-group-id]").count(), 12);
+  await page.locator("#group-manager-dialog").screenshot({ path: new URL("group-manager-desktop.png", outputDir).pathname });
   await page.locator("#close-group-manager").click();
   assert.equal(await page.locator('[data-group-id="gpt-offer"]').inputValue(), "0.777");
 
@@ -86,6 +87,7 @@ try {
   await page.locator("#export-price-image").click();
   assert.equal(await page.locator("#export-groups-dialog").getAttribute("open") !== null, true);
   assert.equal(await page.locator("[data-export-group-id]:checked").count(), 12);
+  await page.locator("#export-groups-dialog").screenshot({ path: new URL("export-groups-desktop.png", outputDir).pathname });
   await page.locator("#clear-export-groups").click();
   assert.equal(await page.locator("#confirm-price-export").isDisabled(), true);
   const exportCheckboxes = page.locator("[data-export-group-id]");
@@ -118,6 +120,16 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "networkidle" });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
+  await page.locator("#manage-price-groups").click();
+  const managerBox = await page.locator("#group-manager-dialog").boundingBox();
+  assert.ok(managerBox.width <= 390 && managerBox.height <= 844);
+  await page.locator("#group-manager-dialog").screenshot({ path: new URL("group-manager-mobile.png", outputDir).pathname });
+  await page.locator("#close-group-manager").click();
+  await page.locator("#export-price-image").click();
+  const exportBox = await page.locator("#export-groups-dialog").boundingBox();
+  assert.ok(exportBox.width <= 390 && exportBox.height <= 844);
+  await page.locator("#export-groups-dialog").screenshot({ path: new URL("export-groups-mobile.png", outputDir).pathname });
+  await page.locator("#close-export-groups").click();
   await page.screenshot({ path: new URL("mobile.png", outputDir).pathname, fullPage: true });
   assert.equal(pageErrors.length, 0, pageErrors.join("\n"));
 
