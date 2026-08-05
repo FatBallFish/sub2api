@@ -127,6 +127,53 @@ describe("Auth page", () => {
     });
   });
 
+  it("uses backend-enforced login when public settings cannot be loaded", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("settings network failure"))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            access_token: "fallback-access-token",
+            refresh_token: "fallback-refresh-token",
+            expires_in: 3600,
+            token_type: "Bearer",
+            user: { id: 18, email: "fallback@example.com" },
+          },
+        }),
+      });
+    globalThis.fetch = fetchMock;
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    const submit = screen.getByRole("button", { name: /sign in/i });
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(screen.queryByRole("group", { name: /security verification/i })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "fallback@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "fallback@example.com",
+          password: "secret123",
+        }),
+      }),
+    );
+  });
+
   it.each([undefined, "   "])(
     "does not require Turnstile when its enabled setting has site key %s",
     async (siteKey) => {
@@ -944,6 +991,39 @@ describe("Auth page", () => {
     fireEvent.submit(submit.closest("form")!);
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/send-verify-code", expect.any(Object));
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/register", expect.any(Object));
+  });
+
+  it("blocks programmatic verification requests when an invitation is required but missing", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          registration_enabled: true,
+          email_verify_enabled: true,
+          invitation_code_enabled: true,
+          turnstile_enabled: false,
+        },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    const submit = await screen.findByRole("button", { name: /send verification code/i });
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "invite@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.submit(submit.closest("form")!);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invitation code is required.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/send-verify-code", expect.any(Object));
     expect(fetchMock).not.toHaveBeenCalledWith("/api/v1/auth/register", expect.any(Object));
   });

@@ -177,6 +177,40 @@ describe("TurnstileWidget", () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.any(Error)));
   });
 
+  it("reports when the stable script ID belongs to a non-script element", async () => {
+    const occupiedElement = document.createElement("div");
+    occupiedElement.id = SCRIPT_ID;
+    document.head.appendChild(occupiedElement);
+    const onError = vi.fn();
+
+    render(
+      <TurnstileWidget siteKey="site-key" onVerify={vi.fn()} onError={onError} />,
+    );
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(
+        new Error("Turnstile script ID is already used by another element."),
+      );
+    });
+    expect(document.querySelector(`script#${SCRIPT_ID}`)).not.toBeInTheDocument();
+    occupiedElement.remove();
+  });
+
+  it("forwards the original error when Turnstile rendering throws", async () => {
+    const renderError = new Error("render failed");
+    const turnstile = installTurnstile();
+    turnstile.render.mockImplementation(() => {
+      throw renderError;
+    });
+    const onError = vi.fn();
+
+    render(
+      <TurnstileWidget siteKey="site-key" onVerify={vi.fn()} onError={onError} />,
+    );
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(renderError));
+  });
+
   it("does not remove a failing script that it did not create", async () => {
     const externalScript = document.createElement("script");
     externalScript.id = SCRIPT_ID;

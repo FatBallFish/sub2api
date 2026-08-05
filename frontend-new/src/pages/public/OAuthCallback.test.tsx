@@ -176,6 +176,18 @@ describe("OAuthCallback", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("falls back safely when a fragment redirect contains malformed percent-encoding", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+    window.location.hash = "#access_token=safe-access&redirect=%25";
+
+    renderCallback();
+
+    expect(await screen.findByText("Console landed")).toBeInTheDocument();
+    expect(localStorage.getItem("auth_token")).toBe("safe-access");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["missing", { resolved_email: undefined, email: undefined }],
     ["blank", { resolved_email: "   ", email: "  " }],
