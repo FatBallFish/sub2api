@@ -13,6 +13,8 @@ export interface PublicSettings {
   github_oauth_enabled?: boolean;
   google_oauth_enabled?: boolean;
   affiliate_enabled?: boolean;
+  turnstile_enabled?: boolean;
+  turnstile_site_key?: string;
   site_name?: string;
   site_logo?: string;
   api_base_url?: string;
