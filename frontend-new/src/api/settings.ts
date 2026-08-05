@@ -15,6 +15,12 @@ export interface PublicSettings {
   affiliate_enabled?: boolean;
   turnstile_enabled?: boolean;
   turnstile_site_key?: string;
+  tencent_captcha_enabled?: boolean;
+  tencent_captcha_app_id?: string;
+  aliyun_captcha_enabled?: boolean;
+  aliyun_captcha_scene_id?: string;
+  aliyun_captcha_prefix?: string;
+  aliyun_captcha_region?: string;
   site_name?: string;
   site_logo?: string;
   api_base_url?: string;

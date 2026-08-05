@@ -15,6 +15,16 @@ const turnstileHarness = vi.hoisted(() => ({
   reset: vi.fn(),
 }));
 
+const tencentHarness = vi.hoisted(() => ({
+  verify: vi.fn(),
+  reset: vi.fn(),
+}));
+
+const aliyunHarness = vi.hoisted(() => ({
+  verify: vi.fn(),
+  reset: vi.fn(),
+}));
+
 vi.mock("../../components/auth/TurnstileWidget", async () => {
   const React = await import("react");
 
@@ -29,6 +39,38 @@ vi.mock("../../components/auth/TurnstileWidget", async () => {
         role: "group",
         "aria-label": "Security verification",
       });
+    }),
+  };
+});
+
+vi.mock("../../components/auth/TencentCaptchaWidget", async () => {
+  const React = await import("react");
+  return {
+    default: React.forwardRef(function MockTencentCaptchaWidget(
+      _props: { appId: string },
+      ref: React.ForwardedRef<{ verify(): Promise<unknown>; reset(): void }>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        verify: tencentHarness.verify,
+        reset: tencentHarness.reset,
+      }));
+      return null;
+    }),
+  };
+});
+
+vi.mock("../../components/auth/AliyunCaptchaWidget", async () => {
+  const React = await import("react");
+  return {
+    default: React.forwardRef(function MockAliyunCaptchaWidget(
+      _props: { sceneId: string; prefix: string },
+      ref: React.ForwardedRef<{ verify(): Promise<unknown>; reset(): void }>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        verify: aliyunHarness.verify,
+        reset: aliyunHarness.reset,
+      }));
+      return React.createElement("div", { "data-testid": "aliyun-captcha" });
     }),
   };
 });
@@ -72,6 +114,10 @@ describe("Auth page", () => {
     localStorage.clear();
     turnstileHarness.props = null;
     turnstileHarness.reset.mockReset();
+    tencentHarness.verify.mockReset();
+    tencentHarness.reset.mockReset();
+    aliyunHarness.verify.mockReset();
+    aliyunHarness.reset.mockReset();
   });
 
   it("keeps Turnstile-disabled login request bodies unchanged", async () => {
@@ -175,7 +221,7 @@ describe("Auth page", () => {
   });
 
   it.each([undefined, "   "])(
-    "does not require Turnstile when its enabled setting has site key %s",
+    "fails closed when Turnstile is enabled with site key %s",
     async (siteKey) => {
       const fetchMock = vi
         .fn()
@@ -213,21 +259,13 @@ describe("Auth page", () => {
       );
 
       const submit = screen.getByRole("button", { name: /sign in/i });
-      await waitFor(() => expect(submit).toBeEnabled());
+      expect(await screen.findByText("Security verification is misconfigured.")).toBeInTheDocument();
+      expect(submit).toBeDisabled();
       expect(screen.queryByRole("group", { name: /security verification/i })).not.toBeInTheDocument();
       fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "dev@example.com" } });
       fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
-      fireEvent.click(submit);
-
-      await waitFor(() => {
-        expect(fetchMock).toHaveBeenLastCalledWith(
-          "/api/v1/auth/login",
-          expect.objectContaining({
-            method: "POST",
-            body: JSON.stringify({ email: "dev@example.com", password: "secret123" }),
-          }),
-        );
-      });
+      fireEvent.submit(submit.closest("form")!);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -1263,6 +1301,157 @@ describe("Auth page", () => {
         `/api/v1/auth/oauth/${provider}/start?redirect=%2Fconsole&aff_code=AFF123`,
       );
     });
+  });
+
+  it("acquires and submits a Tencent proof for password login", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: { tencent_captcha_enabled: true, tencent_captcha_app_id: "app-1" },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { access_token: "access" } }),
+      });
+    globalThis.fetch = fetchMock;
+    tencentHarness.verify.mockResolvedValue({
+      provider: "tencent",
+      ticket: "login-ticket",
+      randstr: "@login-rand",
+    });
+
+    render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "dev@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(await screen.findByRole("button", { name: /sign in/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/login",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "dev@example.com",
+          password: "secret123",
+          tencent_captcha_ticket: "login-ticket",
+          tencent_captcha_randstr: "@login-rand",
+        }),
+      }),
+    );
+  });
+
+  it("submits an Aliyun proof when sending a registration code", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            registration_enabled: true,
+            email_verify_enabled: true,
+            aliyun_captcha_enabled: true,
+            aliyun_captcha_scene_id: "scene-1",
+            aliyun_captcha_prefix: "prefix-1",
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: "sent", countdown: 60 } }),
+      });
+    globalThis.fetch = fetchMock;
+    aliyunHarness.verify.mockResolvedValue({ provider: "aliyun", token: "aliyun-param" });
+
+    render(<MemoryRouter initialEntries={["/register"]}><Auth /></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(await screen.findByRole("button", { name: /send verification code/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/send-verify-code",
+      expect.objectContaining({
+        body: JSON.stringify({ email: "new@example.com", turnstile_token: "aliyun-param" }),
+      }),
+    );
+  });
+
+  it("posts a Tencent proof before starting Google OAuth", async () => {
+    await withMutableWindowLocation(async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              google_oauth_enabled: true,
+              tencent_captcha_enabled: true,
+              tencent_captcha_app_id: "app-1",
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: true, data: { authorize_url: "https://google.example/auth" } }),
+        });
+      globalThis.fetch = fetchMock;
+      tencentHarness.verify.mockResolvedValue({
+        provider: "tencent",
+        ticket: "oauth-ticket",
+        randstr: "@oauth-rand",
+      });
+
+      render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
+      fireEvent.click(await screen.findByRole("button", { name: /google/i }));
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        "/api/v1/auth/oauth/google/start?redirect=%2Fconsole",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            tencent_captcha_ticket: "oauth-ticket",
+            tencent_captcha_randstr: "@oauth-rand",
+          }),
+        }),
+      );
+      expect(window.location.href).toBe("https://google.example/auth");
+    });
+  });
+
+  it("does not start OAuth when an action captcha is cancelled", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          github_oauth_enabled: true,
+          tencent_captcha_enabled: true,
+          tencent_captcha_app_id: "app-1",
+        },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+    tencentHarness.verify.mockResolvedValue(null);
+
+    render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole("button", { name: /github/i }));
+
+    await waitFor(() => expect(tencentHarness.verify).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not pass a registration invitation code to Google OAuth as an affiliate code", async () => {
