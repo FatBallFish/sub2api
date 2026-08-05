@@ -15,6 +15,16 @@ const turnstileHarness = vi.hoisted(() => ({
   reset: vi.fn(),
 }));
 
+const tencentHarness = vi.hoisted(() => ({
+  verify: vi.fn(),
+  reset: vi.fn(),
+}));
+
+const aliyunHarness = vi.hoisted(() => ({
+  verify: vi.fn(),
+  reset: vi.fn(),
+}));
+
 vi.mock("../../components/auth/TurnstileWidget", async () => {
   const React = await import("react");
 
@@ -29,6 +39,38 @@ vi.mock("../../components/auth/TurnstileWidget", async () => {
         role: "group",
         "aria-label": "Security verification",
       });
+    }),
+  };
+});
+
+vi.mock("../../components/auth/TencentCaptchaWidget", async () => {
+  const React = await import("react");
+  return {
+    default: React.forwardRef(function MockTencentCaptchaWidget(
+      _props: { appId: string },
+      ref: React.ForwardedRef<{ verify(): Promise<unknown>; reset(): void }>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        verify: tencentHarness.verify,
+        reset: tencentHarness.reset,
+      }));
+      return null;
+    }),
+  };
+});
+
+vi.mock("../../components/auth/AliyunCaptchaWidget", async () => {
+  const React = await import("react");
+  return {
+    default: React.forwardRef(function MockAliyunCaptchaWidget(
+      _props: { sceneId: string; prefix: string },
+      ref: React.ForwardedRef<{ verify(): Promise<unknown>; reset(): void }>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        verify: aliyunHarness.verify,
+        reset: aliyunHarness.reset,
+      }));
+      return React.createElement("div", { "data-testid": "aliyun-captcha" });
     }),
   };
 });
@@ -84,6 +126,10 @@ describe("OAuthCallback", () => {
     sessionStorage.clear();
     turnstileHarness.props = null;
     turnstileHarness.reset.mockReset();
+    tencentHarness.verify.mockReset();
+    tencentHarness.reset.mockReset();
+    aliyunHarness.verify.mockReset();
+    aliyunHarness.reset.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -94,6 +140,10 @@ describe("OAuthCallback", () => {
     window.location.hash = originalHash;
     turnstileHarness.props = null;
     turnstileHarness.reset.mockReset();
+    tencentHarness.verify.mockReset();
+    tencentHarness.reset.mockReset();
+    aliyunHarness.verify.mockReset();
+    aliyunHarness.reset.mockReset();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -481,6 +531,75 @@ describe("OAuthCallback", () => {
     );
     expect(localStorage.getItem("auth_token")).toBe("github-access");
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
+  });
+
+  it("uses a Tencent proof to send a pending OAuth verification code", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        tencent_captcha_enabled: true,
+        tencent_captcha_app_id: "app-1",
+      }))
+      .mockResolvedValueOnce(response({ message: "sent", countdown: 60 }));
+    globalThis.fetch = fetchMock;
+    tencentHarness.verify.mockResolvedValue({
+      provider: "tencent",
+      ticket: "pending-ticket",
+      randstr: "@pending-rand",
+    });
+
+    renderCallback();
+    fireEvent.click(await screen.findByRole("button", { name: /send verification code/i }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/oauth/pending/send-verify-code",
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: "new@example.com",
+          tencent_captcha_ticket: "pending-ticket",
+          tencent_captcha_randstr: "@pending-rand",
+        }),
+      }),
+    );
+    expect(tencentHarness.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("acquires a fresh Aliyun proof when creating a pending OAuth account", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        aliyun_captcha_enabled: true,
+        aliyun_captcha_scene_id: "scene-1",
+        aliyun_captcha_prefix: "prefix-1",
+      }))
+      .mockResolvedValueOnce(response({ access_token: "created-access" }));
+    globalThis.fetch = fetchMock;
+    aliyunHarness.verify.mockResolvedValue({ provider: "aliyun", token: "create-param" });
+
+    renderCallback();
+    await fillPasswords();
+    fireEvent.change(screen.getByLabelText("Verification Code"), { target: { value: "123456" } });
+    fireEvent.click(screen.getByRole("button", { name: "Complete signup" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/oauth/pending/create-account",
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: "new@example.com",
+          password: "secret123",
+          verify_code: "123456",
+          aff_code: undefined,
+          turnstile_token: "create-param",
+        }),
+      }),
+    );
+    expect(aliyunHarness.reset).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to email verification without Turnstile when settings fail", async () => {

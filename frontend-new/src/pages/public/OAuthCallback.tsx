@@ -17,7 +17,12 @@ import {
   type SendVerifyCodeResponse,
 } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
-import TurnstileWidget, { type TurnstileWidgetHandle } from "../../components/auth/TurnstileWidget";
+import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
+import {
+  captchaProofPayload,
+  resolveCaptchaProvider,
+  type CaptchaProof,
+} from "../../components/auth/captcha";
 
 type CallbackState = "processing" | "registration" | "error";
 
@@ -98,15 +103,23 @@ export default function OAuthCallback() {
   const [sendingCode, setSendingCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
+  const captchaRef = useRef<CaptchaChallengeHandle>(null);
   const requestInFlightRef = useRef(false);
 
   const emailVerifyEnabled = settings?.email_verify_enabled !== false;
-  const turnstileSiteKey = settings?.turnstile_site_key?.trim() ?? "";
-  const turnstileRequired = emailVerifyEnabled
-    && settings?.turnstile_enabled === true
-    && turnstileSiteKey.length > 0;
+  let captchaProvider: ReturnType<typeof resolveCaptchaProvider> = null;
+  let captchaConfigurationInvalid = false;
+  if (emailVerifyEnabled) {
+    try {
+      captchaProvider = resolveCaptchaProvider(settings);
+    } catch {
+      captchaConfigurationInvalid = true;
+    }
+  }
+  const captchaRequired = captchaProvider !== null;
+  const actionCaptchaRequired = captchaProvider?.provider === "tencent" || captchaProvider?.provider === "aliyun";
+  const turnstileRequired = captchaProvider?.provider === "turnstile";
   const busy = sendingCode || submitting;
 
   const canSubmit = useMemo(() => {
@@ -204,21 +217,38 @@ export default function OAuthCallback() {
     setState("error");
   }
 
+  function resetCaptcha() {
+    setCaptchaProof(null);
+    captchaRef.current?.reset();
+  }
+
+  async function acquireCaptchaProof() {
+    if (!captchaRequired) return null;
+    if (captchaProof) return captchaProof;
+    if (!actionCaptchaRequired) return null;
+    return captchaRef.current?.verify() ?? null;
+  }
+
   async function handleSendCode() {
     if (requestInFlightRef.current || countdown > 0) return;
-    if (turnstileRequired && !turnstileToken) {
+    if (captchaConfigurationInvalid) {
+      setMessage("Security verification is misconfigured. Please contact support.");
+      return;
+    }
+    if (turnstileRequired && !captchaProof) {
       setMessage("Complete the security verification before continuing.");
       return;
     }
 
-    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
     requestInFlightRef.current = true;
-    if (turnstileRequired) setTurnstileToken(null);
     setSendingCode(true);
     setMessage("");
     setStatus(null);
     try {
-      const response = await sendPendingOAuthVerifyCode(email, requestTurnstileToken);
+      const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
+      if (captchaRequired && !requestCaptchaProof) return;
+      setCaptchaProof(null);
+      const response = await sendPendingOAuthVerifyCode(email, requestCaptchaProof);
       if (isPendingSession(response)) {
         showExistingAccountError();
         return;
@@ -228,10 +258,7 @@ export default function OAuthCallback() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to send verification code.");
     } finally {
-      if (turnstileRequired) {
-        setTurnstileToken(null);
-        turnstileRef.current?.reset();
-      }
+      if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
       setSendingCode(false);
     }
@@ -240,6 +267,14 @@ export default function OAuthCallback() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (requestInFlightRef.current || !canSubmit) return;
+    if (emailVerifyEnabled && captchaConfigurationInvalid) {
+      setMessage("Security verification is misconfigured. Please contact support.");
+      return;
+    }
+    if (emailVerifyEnabled && turnstileRequired && !captchaProof) {
+      setMessage("Complete the security verification before continuing.");
+      return;
+    }
     requestInFlightRef.current = true;
     setSubmitting(true);
     setMessage("");
@@ -257,12 +292,16 @@ export default function OAuthCallback() {
         }
         persistAuth(response);
       } else {
+        const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
+        if (captchaRequired && !requestCaptchaProof) return;
+        setCaptchaProof(null);
         const response = await createPendingOAuthAccount({
           email,
           password,
           verify_code: verifyCode.trim(),
           invitation_code: inviteCode.trim() || undefined,
           aff_code: readOAuthAffiliateCode() || undefined,
+          ...captchaProofPayload(requestCaptchaProof),
         });
         if (isPendingSession(response)) {
           showExistingAccountError();
@@ -279,6 +318,7 @@ export default function OAuthCallback() {
       setMessage(error instanceof Error ? error.message : "Unable to complete signup.");
       setState("registration");
     } finally {
+      if (emailVerifyEnabled && captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
       setSubmitting(false);
     }
@@ -364,27 +404,25 @@ export default function OAuthCallback() {
             ) : null}
             {emailVerifyEnabled ? (
               <>
-                {turnstileRequired ? (
-                  <TurnstileWidget
-                    ref={turnstileRef}
-                    siteKey={turnstileSiteKey}
-                    onVerify={(token) => {
-                      setTurnstileToken(token);
-                      setMessage("");
-                    }}
-                    onExpire={() => {
-                      setTurnstileToken(null);
-                      setMessage("Security verification expired. Please verify again.");
-                    }}
-                    onError={() => {
-                      setTurnstileToken(null);
-                      setMessage("Security verification failed. Please try again.");
-                    }}
-                  />
-                ) : null}
+                <CaptchaChallenge
+                  ref={captchaRef}
+                  settings={settings}
+                  onVerify={(proof) => {
+                    setCaptchaProof(proof);
+                    setMessage("");
+                  }}
+                  onExpire={() => {
+                    setCaptchaProof(null);
+                    setMessage("Security verification expired. Please verify again.");
+                  }}
+                  onError={() => {
+                    setCaptchaProof(null);
+                    setMessage("Security verification failed. Please try again.");
+                  }}
+                />
                 <button
                   className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-semibold text-zinc-900 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
-                  disabled={busy || countdown > 0 || (turnstileRequired && !turnstileToken)}
+                  disabled={busy || countdown > 0 || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   onClick={() => void handleSendCode()}
                   type="button"
                 >
@@ -410,7 +448,7 @@ export default function OAuthCallback() {
             {status ? <p role="status" className="text-sm text-emerald-700">{status}</p> : null}
             <button
               className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
-              disabled={!canSubmit || busy}
+              disabled={!canSubmit || busy || (emailVerifyEnabled && (captchaConfigurationInvalid || (turnstileRequired && !captchaProof)))}
               type="submit"
             >
               {submitting ? "Completing..." : "Complete signup"}
