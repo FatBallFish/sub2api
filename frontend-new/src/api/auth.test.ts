@@ -10,6 +10,7 @@ import {
   startOAuth,
 } from "./auth";
 import type { PendingOAuthSessionStatus } from "./auth";
+import { captchaProofPayload } from "../components/auth/captcha";
 
 describe("auth API", () => {
   const originalFetch = globalThis.fetch;
@@ -114,6 +115,50 @@ describe("auth API", () => {
     });
 
     await expect(sendVerifyCode("new@example.com")).resolves.toEqual({ message: "sent", countdown: 60 });
+  });
+
+  it("serializes Tencent captcha proofs with ticket and randstr", () => {
+    expect(captchaProofPayload({
+      provider: "tencent",
+      ticket: "ticket",
+      randstr: "@rand",
+    })).toEqual({
+      tencent_captcha_ticket: "ticket",
+      tencent_captcha_randstr: "@rand",
+    });
+  });
+
+  it("serializes Aliyun captcha proofs through the compatible token field", () => {
+    expect(captchaProofPayload({ provider: "aliyun", token: "captcha-verify-param" })).toEqual({
+      turnstile_token: "captcha-verify-param",
+    });
+  });
+
+  it("sends Tencent proof fields with a verification-code request", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { message: "sent", countdown: 60 } }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await sendVerifyCode("new@example.com", {
+      provider: "tencent",
+      ticket: "ticket",
+      randstr: "@rand",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/send-verify-code",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "new@example.com",
+          tencent_captcha_ticket: "ticket",
+          tencent_captcha_randstr: "@rand",
+        }),
+      }),
+    );
   });
 
   it("sends a verification code for a pending OAuth registration", async () => {
@@ -247,6 +292,39 @@ describe("auth API", () => {
         `/api/v1/auth/oauth/${provider}/start?redirect=%2Fconsole&aff_code=AFF123`,
       );
       expect(sessionStorage.getItem("oauth_aff_code")).toBe("AFF123");
+    },
+  );
+
+  it.each(["google", "github"] as const)(
+    "posts an action captcha proof before redirecting to %s OAuth",
+    async (provider) => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: { authorize_url: `https://identity.example/${provider}` },
+        }),
+      });
+      globalThis.fetch = fetchMock;
+
+      await startOAuth(provider, "/console", " AFF123 ", {
+        provider: "tencent",
+        ticket: "oauth-ticket",
+        randstr: "@oauth-rand",
+      });
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/v1/auth/oauth/${provider}/start?redirect=%2Fconsole&aff_code=AFF123`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            tencent_captcha_ticket: "oauth-ticket",
+            tencent_captcha_randstr: "@oauth-rand",
+          }),
+        }),
+      );
+      expect(window.location.href).toBe(`https://identity.example/${provider}`);
     },
   );
 

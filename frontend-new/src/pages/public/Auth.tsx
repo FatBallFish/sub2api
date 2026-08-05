@@ -13,7 +13,12 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { login, register, sendVerifyCode, startOAuth } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
-import TurnstileWidget, { type TurnstileWidgetHandle } from "../../components/auth/TurnstileWidget";
+import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
+import {
+  captchaProofPayload,
+  resolveCaptchaProvider,
+  type CaptchaProof,
+} from "../../components/auth/captcha";
 import { isAuthenticated } from "../../utils/authStorage";
 
 type AuthMode = "login" | "register";
@@ -43,8 +48,8 @@ export default function Auth() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
+  const captchaRef = useRef<CaptchaChallengeHandle>(null);
   const requestInFlightRef = useRef(false);
 
   const settingsLoaded = settings !== null;
@@ -54,8 +59,16 @@ export default function Auth() {
   const googleOAuthEnabled = settings?.google_oauth_enabled === true;
   const githubOAuthEnabled = settings?.github_oauth_enabled === true;
   const showOAuth = googleOAuthEnabled || githubOAuthEnabled;
-  const turnstileSiteKey = settings?.turnstile_site_key?.trim() ?? "";
-  const turnstileRequired = settings?.turnstile_enabled === true && turnstileSiteKey.length > 0;
+  let captchaProvider: ReturnType<typeof resolveCaptchaProvider> = null;
+  let captchaConfigurationInvalid = false;
+  try {
+    captchaProvider = resolveCaptchaProvider(settings);
+  } catch {
+    captchaConfigurationInvalid = true;
+  }
+  const captchaRequired = captchaProvider !== null;
+  const actionCaptchaRequired = captchaProvider?.provider === "tencent" || captchaProvider?.provider === "aliyun";
+  const turnstileRequired = captchaProvider?.provider === "turnstile";
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -94,9 +107,9 @@ export default function Auth() {
         ? "Create an account with email verification."
         : "Create an account to start using the console.";
 
-  const resetTurnstile = () => {
-    setTurnstileToken(null);
-    turnstileRef.current?.reset();
+  const resetCaptcha = () => {
+    setCaptchaProof(null);
+    captchaRef.current?.reset();
   };
 
   const requireReadySettings = () => {
@@ -105,15 +118,22 @@ export default function Auth() {
     return false;
   };
 
-  const requireTurnstileVerification = () => {
-    if (!turnstileRequired || turnstileToken) return true;
+  const requireEmbeddedCaptchaVerification = () => {
+    if (!turnstileRequired || captchaProof) return true;
     setError("Complete the security verification before continuing.");
     return false;
   };
 
+  const acquireCaptchaProof = async () => {
+    if (!captchaRequired) return null;
+    if (captchaProof) return captchaProof;
+    if (!actionCaptchaRequired) return null;
+    return captchaRef.current?.verify() ?? null;
+  };
+
   const switchMode = (nextMode: AuthMode) => {
     if (requestInFlightRef.current) return;
-    resetTurnstile();
+    resetCaptcha();
     setMode(nextMode);
     setSent(false);
     setVerifyCode("");
@@ -128,28 +148,28 @@ export default function Auth() {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requestInFlightRef.current) return;
-    if (!requireReadySettings() || !requireTurnstileVerification()) return;
-    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
+    if (!requireReadySettings() || captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification()) return;
     requestInFlightRef.current = true;
-    if (turnstileRequired) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     try {
+      const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
+      if (captchaRequired && !requestCaptchaProof) return;
+      setCaptchaProof(null);
       const response = await login({
         email,
         password,
-        ...(requestTurnstileToken ? { turnstile_token: requestTurnstileToken } : {}),
+        ...captchaProofPayload(requestCaptchaProof),
       });
       if (response.requires_2fa) {
-        if (turnstileRequired) resetTurnstile();
         setError("Two-factor authentication is enabled. Please use the classic console login for now.");
         return;
       }
       finishAuth();
     } catch (reason) {
-      if (turnstileRequired) resetTurnstile();
       setError(reason instanceof Error ? reason.message : "Unable to sign in.");
     } finally {
+      if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
       setLoading(false);
     }
@@ -171,21 +191,22 @@ export default function Auth() {
       await handleRegister(event);
       return;
     }
-    if (!requireTurnstileVerification()) return;
-    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
+    if (captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification()) return;
     requestInFlightRef.current = true;
-    if (turnstileRequired) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     setStatus(null);
     try {
-      await sendVerifyCode(email, requestTurnstileToken);
+      const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
+      if (captchaRequired && !requestCaptchaProof) return;
+      setCaptchaProof(null);
+      await sendVerifyCode(email, requestCaptchaProof);
       setSent(true);
       setStatus("Code sent. Check your inbox.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to send verification code.");
     } finally {
-      if (turnstileRequired) resetTurnstile();
+      if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
       setLoading(false);
     }
@@ -204,18 +225,23 @@ export default function Auth() {
       setError("Invitation code is required.");
       return;
     }
-    if (!emailVerifyEnabled && !requireTurnstileVerification()) return;
-    const requestTurnstileToken = !emailVerifyEnabled && turnstileRequired ? turnstileToken! : undefined;
+    if (!emailVerifyEnabled && (captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification())) return;
     requestInFlightRef.current = true;
-    if (requestTurnstileToken) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     try {
+      const requestCaptchaProof = emailVerifyEnabled
+        ? null
+        : actionCaptchaRequired
+          ? await acquireCaptchaProof()
+          : captchaProof;
+      if (!emailVerifyEnabled && captchaRequired && !requestCaptchaProof) return;
+      if (requestCaptchaProof) setCaptchaProof(null);
       const payload = {
         email,
         password,
         ...(emailVerifyEnabled ? { verify_code: verifyCode } : {}),
-        ...(requestTurnstileToken ? { turnstile_token: requestTurnstileToken } : {}),
+        ...captchaProofPayload(requestCaptchaProof),
         ...(normalizedInviteCode && (invitationCodeRequired || initialInviteCodeKind === "invitation") ? { invitation_code: normalizedInviteCode } : {}),
         ...(normalizedInviteCode && !invitationCodeRequired && initialInviteCodeKind !== "invitation" ? { aff_code: normalizedInviteCode } : {}),
         ...(promoCode ? { promo_code: promoCode } : {}),
@@ -223,9 +249,32 @@ export default function Auth() {
       await register(payload);
       finishAuth();
     } catch (reason) {
-      if (!emailVerifyEnabled && turnstileRequired) resetTurnstile();
       setError(reason instanceof Error ? reason.message : "Unable to create account.");
     } finally {
+      if (!emailVerifyEnabled && captchaRequired) resetCaptcha();
+      requestInFlightRef.current = false;
+      setLoading(false);
+    }
+  };
+
+  const handleOAuthStart = async (provider: "google" | "github") => {
+    if (requestInFlightRef.current || !requireReadySettings() || captchaConfigurationInvalid) return;
+    if (!actionCaptchaRequired) {
+      startOAuth(provider, redirectTo, initialAffiliateCode);
+      return;
+    }
+    requestInFlightRef.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      const requestCaptchaProof = await acquireCaptchaProof();
+      if (!requestCaptchaProof) return;
+      if (requestCaptchaProof) setCaptchaProof(null);
+      await startOAuth(provider, redirectTo, initialAffiliateCode, requestCaptchaProof);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Unable to start OAuth sign in.");
+    } finally {
+      resetCaptcha();
       requestInFlightRef.current = false;
       setLoading(false);
     }
@@ -346,27 +395,25 @@ export default function Auth() {
                     placeholder="Your password"
                     icon={<LockKey size={18} className="text-zinc-400" />}
                   />
-                  {turnstileRequired ? (
-                    <TurnstileWidget
-                      ref={turnstileRef}
-                      siteKey={turnstileSiteKey}
-                      onVerify={(token) => {
-                        setTurnstileToken(token);
-                        setError(null);
-                      }}
-                      onExpire={() => {
-                        setTurnstileToken(null);
-                        setError("Security verification expired. Please verify again.");
-                      }}
-                      onError={() => {
-                        setTurnstileToken(null);
-                        setError("Security verification failed. Please try again.");
-                      }}
-                    />
-                  ) : null}
+                  <CaptchaChallenge
+                    ref={captchaRef}
+                    settings={settings}
+                    onVerify={(proof) => {
+                      setCaptchaProof(proof);
+                      setError(null);
+                    }}
+                    onExpire={() => {
+                      setCaptchaProof(null);
+                      setError("Security verification expired. Please verify again.");
+                    }}
+                    onError={() => {
+                      setCaptchaProof(null);
+                      setError("Security verification failed. Please try again.");
+                    }}
+                  />
                   <SubmitButton
                     loading={loading}
-                    disabled={!settingsLoaded || (turnstileRequired && !turnstileToken)}
+                    disabled={!settingsLoaded || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
                     Sign in
                   </SubmitButton>
@@ -414,27 +461,25 @@ export default function Auth() {
                       Registration is currently closed.
                     </p>
                   ) : null}
-                  {turnstileRequired ? (
-                    <TurnstileWidget
-                      ref={turnstileRef}
-                      siteKey={turnstileSiteKey}
-                      onVerify={(token) => {
-                        setTurnstileToken(token);
-                        setError(null);
-                      }}
-                      onExpire={() => {
-                        setTurnstileToken(null);
-                        setError("Security verification expired. Please verify again.");
-                      }}
-                      onError={() => {
-                        setTurnstileToken(null);
-                        setError("Security verification failed. Please try again.");
-                      }}
-                    />
-                  ) : null}
+                  <CaptchaChallenge
+                    ref={captchaRef}
+                    settings={settings}
+                    onVerify={(proof) => {
+                      setCaptchaProof(proof);
+                      setError(null);
+                    }}
+                    onExpire={() => {
+                      setCaptchaProof(null);
+                      setError("Security verification expired. Please verify again.");
+                    }}
+                    onError={() => {
+                      setCaptchaProof(null);
+                      setError("Security verification failed. Please try again.");
+                    }}
+                  />
                   <SubmitButton
                     loading={loading}
-                    disabled={!registrationEnabled || !settingsLoaded || (turnstileRequired && !turnstileToken)}
+                    disabled={!registrationEnabled || !settingsLoaded || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
                     {!settingsLoaded ? "Loading settings..." : emailVerifyEnabled ? "Send verification code" : "Register account"}
                   </SubmitButton>
@@ -501,9 +546,7 @@ export default function Auth() {
                     <button
                       type="button"
                       disabled={loading}
-                      onClick={() => {
-                        if (!requestInFlightRef.current) startOAuth("google", redirectTo, initialAffiliateCode);
-                      }}
+                      onClick={() => void handleOAuthStart("google")}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
                       <GoogleLogo size={20} weight="bold" />
@@ -514,9 +557,7 @@ export default function Auth() {
                     <button
                       type="button"
                       disabled={loading}
-                      onClick={() => {
-                        if (!requestInFlightRef.current) startOAuth("github", redirectTo, initialAffiliateCode);
-                      }}
+                      onClick={() => void handleOAuthStart("github")}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
                       <GithubLogo size={20} weight="bold" />

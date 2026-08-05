@@ -1,4 +1,9 @@
 import { postJSON } from "./client";
+import {
+  captchaProofPayload,
+  type CaptchaProof,
+  type CaptchaProofPayload,
+} from "../components/auth/captcha";
 
 export interface AuthUser {
   id: number;
@@ -19,17 +24,15 @@ export interface AuthResponse {
   user_email_masked?: string;
 }
 
-export interface LoginRequest {
+export interface LoginRequest extends CaptchaProofPayload {
   email: string;
   password: string;
-  turnstile_token?: string;
 }
 
-export interface RegisterRequest {
+export interface RegisterRequest extends CaptchaProofPayload {
   email: string;
   password: string;
   verify_code?: string;
-  turnstile_token?: string;
   promo_code?: string;
   invitation_code?: string;
   aff_code?: string;
@@ -40,7 +43,7 @@ export interface SendVerifyCodeResponse {
   countdown: number;
 }
 
-export interface CreatePendingOAuthAccountRequest {
+export interface CreatePendingOAuthAccountRequest extends CaptchaProofPayload {
   email: string;
   password: string;
   verify_code?: string;
@@ -104,19 +107,28 @@ export async function register(request: RegisterRequest) {
   return response;
 }
 
-export function sendVerifyCode(email: string, turnstileToken?: string) {
+type CaptchaProofInput = CaptchaProof | string | null | undefined;
+
+function normalizeCaptchaProof(proof: CaptchaProofInput): CaptchaProof | null {
+  if (typeof proof === "string") {
+    return proof ? { provider: "turnstile", token: proof } : null;
+  }
+  return proof ?? null;
+}
+
+export function sendVerifyCode(email: string, proof?: CaptchaProofInput) {
   return postJSON<SendVerifyCodeResponse>("/auth/send-verify-code", {
     email,
-    turnstile_token: turnstileToken,
+    ...captchaProofPayload(normalizeCaptchaProof(proof)),
   });
 }
 
-export function sendPendingOAuthVerifyCode(email: string, turnstileToken?: string) {
+export function sendPendingOAuthVerifyCode(email: string, proof?: CaptchaProofInput) {
   return postJSON<SendVerifyCodeResponse | PendingOAuthSessionStatus>(
     "/auth/oauth/pending/send-verify-code",
     {
       email,
-      turnstile_token: turnstileToken,
+      ...captchaProofPayload(normalizeCaptchaProof(proof)),
     },
   );
 }
@@ -156,7 +168,12 @@ export function clearOAuthAffiliateCode() {
   }
 }
 
-export function startOAuth(provider: OAuthProvider, redirect = "/console", affiliateCode?: string) {
+export function startOAuth(
+  provider: OAuthProvider,
+  redirect = "/console",
+  affiliateCode?: string,
+  proof?: CaptchaProof | null,
+) {
   const params = new URLSearchParams({ redirect });
   const trimmedAffiliateCode = normalizeOAuthAffiliateCode(affiliateCode);
   clearOAuthAffiliateCode();
@@ -170,7 +187,13 @@ export function startOAuth(provider: OAuthProvider, redirect = "/console", affil
   if (trimmedAffiliateCode) {
     params.set("aff_code", trimmedAffiliateCode);
   }
-  window.location.href = `/api/v1/auth/oauth/${provider}/start?${params.toString()}`;
+  const startPath = `/auth/oauth/${provider}/start?${params.toString()}`;
+  if (proof) {
+    return postJSON<{ authorize_url: string }>(startPath, captchaProofPayload(proof)).then((response) => {
+      window.location.href = response.authorize_url;
+    });
+  }
+  window.location.href = `/api/v1${startPath}`;
 }
 
 export interface PendingOAuthCompletion extends Partial<AuthResponse> {
