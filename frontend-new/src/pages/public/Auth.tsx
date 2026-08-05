@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   GithubLogo,
@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { login, register, sendVerifyCode, startOAuth } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
+import TurnstileWidget, { type TurnstileWidgetHandle } from "../../components/auth/TurnstileWidget";
 import { isAuthenticated } from "../../utils/authStorage";
 
 type AuthMode = "login" | "register";
@@ -42,6 +43,9 @@ export default function Auth() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const requestInFlightRef = useRef(false);
 
   const settingsLoaded = settings !== null;
   const emailVerifyEnabled = settings?.email_verify_enabled !== false;
@@ -50,6 +54,8 @@ export default function Auth() {
   const googleOAuthEnabled = settings?.google_oauth_enabled === true;
   const githubOAuthEnabled = settings?.github_oauth_enabled === true;
   const showOAuth = googleOAuthEnabled || githubOAuthEnabled;
+  const turnstileSiteKey = settings?.turnstile_site_key?.trim() ?? "";
+  const turnstileRequired = settings?.turnstile_enabled === true && turnstileSiteKey.length > 0;
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -88,7 +94,26 @@ export default function Auth() {
         ? "Create an account with email verification."
         : "Create an account to start using the console.";
 
+  const resetTurnstile = () => {
+    setTurnstileToken(null);
+    turnstileRef.current?.reset();
+  };
+
+  const requireReadySettings = () => {
+    if (settingsLoaded) return true;
+    setError("Authentication settings are still loading. Please try again.");
+    return false;
+  };
+
+  const requireTurnstileVerification = () => {
+    if (!turnstileRequired || turnstileToken) return true;
+    setError("Complete the security verification before continuing.");
+    return false;
+  };
+
   const switchMode = (nextMode: AuthMode) => {
+    if (requestInFlightRef.current) return;
+    resetTurnstile();
     setMode(nextMode);
     setSent(false);
     setVerifyCode("");
@@ -102,24 +127,42 @@ export default function Auth() {
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (requestInFlightRef.current) return;
+    if (!requireReadySettings() || !requireTurnstileVerification()) return;
+    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
+    requestInFlightRef.current = true;
+    if (turnstileRequired) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     try {
-      const response = await login({ email, password });
+      const response = await login({
+        email,
+        password,
+        ...(requestTurnstileToken ? { turnstile_token: requestTurnstileToken } : {}),
+      });
       if (response.requires_2fa) {
+        if (turnstileRequired) resetTurnstile();
         setError("Two-factor authentication is enabled. Please use the classic console login for now.");
         return;
       }
       finishAuth();
     } catch (reason) {
+      if (turnstileRequired) resetTurnstile();
       setError(reason instanceof Error ? reason.message : "Unable to sign in.");
     } finally {
+      requestInFlightRef.current = false;
       setLoading(false);
     }
   };
 
   const handleSendCode = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (requestInFlightRef.current) return;
+    if (!requireReadySettings()) return;
+    if (!registrationEnabled) {
+      setError(null);
+      return;
+    }
     if (invitationCodeRequired && !inviteCode.trim()) {
       setError("Invitation code is required.");
       return;
@@ -128,27 +171,43 @@ export default function Auth() {
       await handleRegister(event);
       return;
     }
+    if (!requireTurnstileVerification()) return;
+    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
+    requestInFlightRef.current = true;
+    if (turnstileRequired) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     setStatus(null);
     try {
-      await sendVerifyCode(email);
+      await sendVerifyCode(email, requestTurnstileToken);
       setSent(true);
       setStatus("Code sent. Check your inbox.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to send verification code.");
     } finally {
+      if (turnstileRequired) resetTurnstile();
+      requestInFlightRef.current = false;
       setLoading(false);
     }
   };
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (requestInFlightRef.current) return;
+    if (!requireReadySettings()) return;
+    if (!registrationEnabled) {
+      setError(null);
+      return;
+    }
     const normalizedInviteCode = inviteCode.trim();
     if (invitationCodeRequired && !normalizedInviteCode) {
       setError("Invitation code is required.");
       return;
     }
+    if (!emailVerifyEnabled && !requireTurnstileVerification()) return;
+    const requestTurnstileToken = !emailVerifyEnabled && turnstileRequired ? turnstileToken! : undefined;
+    requestInFlightRef.current = true;
+    if (requestTurnstileToken) setTurnstileToken(null);
     setLoading(true);
     setError(null);
     try {
@@ -156,6 +215,7 @@ export default function Auth() {
         email,
         password,
         ...(emailVerifyEnabled ? { verify_code: verifyCode } : {}),
+        ...(requestTurnstileToken ? { turnstile_token: requestTurnstileToken } : {}),
         ...(normalizedInviteCode && (invitationCodeRequired || initialInviteCodeKind === "invitation") ? { invitation_code: normalizedInviteCode } : {}),
         ...(normalizedInviteCode && !invitationCodeRequired && initialInviteCodeKind !== "invitation" ? { aff_code: normalizedInviteCode } : {}),
         ...(promoCode ? { promo_code: promoCode } : {}),
@@ -163,8 +223,10 @@ export default function Auth() {
       await register(payload);
       finishAuth();
     } catch (reason) {
+      if (!emailVerifyEnabled && turnstileRequired) resetTurnstile();
       setError(reason instanceof Error ? reason.message : "Unable to create account.");
     } finally {
+      requestInFlightRef.current = false;
       setLoading(false);
     }
   };
@@ -239,15 +301,17 @@ export default function Auth() {
           <div className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 text-sm font-bold">
             <button
               type="button"
+              disabled={loading}
               onClick={() => switchMode("login")}
-              className={`rounded-lg py-2 transition-colors ${mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+              className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
             >
               Login
             </button>
             <button
               type="button"
+              disabled={loading}
               onClick={() => switchMode("register")}
-              className={`rounded-lg py-2 transition-colors ${mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+              className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
             >
               Create account
             </button>
@@ -282,7 +346,30 @@ export default function Auth() {
                     placeholder="Your password"
                     icon={<LockKey size={18} className="text-zinc-400" />}
                   />
-                  <SubmitButton loading={loading}>Sign in</SubmitButton>
+                  {turnstileRequired ? (
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey}
+                      onVerify={(token) => {
+                        setTurnstileToken(token);
+                        setError(null);
+                      }}
+                      onExpire={() => {
+                        setTurnstileToken(null);
+                        setError("Security verification expired. Please verify again.");
+                      }}
+                      onError={() => {
+                        setTurnstileToken(null);
+                        setError("Security verification failed. Please try again.");
+                      }}
+                    />
+                  ) : null}
+                  <SubmitButton
+                    loading={loading}
+                    disabled={!settingsLoaded || (turnstileRequired && !turnstileToken)}
+                  >
+                    Sign in
+                  </SubmitButton>
                 </motion.form>
               ) : !sent ? (
                 <motion.form
@@ -323,11 +410,32 @@ export default function Auth() {
                     required={invitationCodeRequired}
                   />
                   {!registrationEnabled ? (
-                    <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                    <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
                       Registration is currently closed.
                     </p>
                   ) : null}
-                  <SubmitButton loading={loading} disabled={!registrationEnabled || !settingsLoaded}>
+                  {turnstileRequired ? (
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      siteKey={turnstileSiteKey}
+                      onVerify={(token) => {
+                        setTurnstileToken(token);
+                        setError(null);
+                      }}
+                      onExpire={() => {
+                        setTurnstileToken(null);
+                        setError("Security verification expired. Please verify again.");
+                      }}
+                      onError={() => {
+                        setTurnstileToken(null);
+                        setError("Security verification failed. Please try again.");
+                      }}
+                    />
+                  ) : null}
+                  <SubmitButton
+                    loading={loading}
+                    disabled={!registrationEnabled || !settingsLoaded || (turnstileRequired && !turnstileToken)}
+                  >
                     {!settingsLoaded ? "Loading settings..." : emailVerifyEnabled ? "Send verification code" : "Register account"}
                   </SubmitButton>
                 </motion.form>
@@ -362,8 +470,11 @@ export default function Auth() {
                   <SubmitButton loading={loading}>Verify & Create Account</SubmitButton>
                   <button
                     type="button"
-                    onClick={() => setSent(false)}
-                    className="w-full text-xs font-bold text-zinc-400 transition-colors hover:text-zinc-900"
+                    disabled={loading}
+                    onClick={() => {
+                      if (!requestInFlightRef.current) setSent(false);
+                    }}
+                    className="w-full text-xs font-bold text-zinc-400 transition-colors hover:text-zinc-900 disabled:cursor-not-allowed"
                   >
                     Use a different email
                   </button>
@@ -371,8 +482,8 @@ export default function Auth() {
               )}
             </AnimatePresence>
 
-            {status ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{status}</p> : null}
-            {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p> : null}
+            {status ? <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{status}</p> : null}
+            {error ? <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p> : null}
 
             {showOAuth ? (
               <>
@@ -389,8 +500,11 @@ export default function Auth() {
                   {googleOAuthEnabled ? (
                     <button
                       type="button"
-                      onClick={() => startOAuth("google", redirectTo, initialAffiliateCode)}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50"
+                      disabled={loading}
+                      onClick={() => {
+                        if (!requestInFlightRef.current) startOAuth("google", redirectTo, initialAffiliateCode);
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
                       <GoogleLogo size={20} weight="bold" />
                       Google
@@ -399,8 +513,11 @@ export default function Auth() {
                   {githubOAuthEnabled ? (
                     <button
                       type="button"
-                      onClick={() => startOAuth("github", redirectTo, initialAffiliateCode)}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50"
+                      disabled={loading}
+                      onClick={() => {
+                        if (!requestInFlightRef.current) startOAuth("github", redirectTo, initialAffiliateCode);
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
                       <GithubLogo size={20} weight="bold" />
                       GitHub
