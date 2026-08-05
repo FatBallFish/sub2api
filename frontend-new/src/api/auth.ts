@@ -40,7 +40,42 @@ export interface SendVerifyCodeResponse {
   countdown: number;
 }
 
+export interface CreatePendingOAuthAccountRequest {
+  email: string;
+  password: string;
+  verify_code?: string;
+  invitation_code?: string;
+  aff_code?: string;
+}
+
+export interface PendingOAuthSessionStatus {
+  auth_result: "pending_session";
+  provider?: string;
+  intent?: string;
+  step?: string;
+  error?: string;
+  redirect?: string;
+  email?: string;
+  resolved_email?: string;
+  invitation_required?: boolean;
+  adoption_required?: boolean;
+  force_email_on_signup?: boolean;
+  email_binding_required?: boolean;
+  existing_account_bindable?: boolean;
+  requires_email_completion?: boolean;
+  email_verification_required?: boolean;
+  suggested_display_name?: string;
+  suggested_avatar_url?: string;
+  choice_reason?: string;
+}
+
 export type OAuthProvider = "google" | "github";
+
+const OAUTH_AFFILIATE_CODE_STORAGE_KEY = "oauth_aff_code";
+
+function normalizeOAuthAffiliateCode(value?: string | null) {
+  return value?.trim() || "";
+}
 
 export function persistAuth(response: AuthResponse) {
   if (response.requires_2fa) return;
@@ -76,9 +111,62 @@ export function sendVerifyCode(email: string, turnstileToken?: string) {
   });
 }
 
+export function sendPendingOAuthVerifyCode(email: string, turnstileToken?: string) {
+  return postJSON<SendVerifyCodeResponse | PendingOAuthSessionStatus>(
+    "/auth/oauth/pending/send-verify-code",
+    {
+      email,
+      turnstile_token: turnstileToken,
+    },
+  );
+}
+
+export function isAuthResponse(
+  response: AuthResponse | PendingOAuthSessionStatus,
+): response is AuthResponse {
+  return "access_token" in response && response.access_token.trim().length > 0;
+}
+
+export async function createPendingOAuthAccount(
+  request: CreatePendingOAuthAccountRequest,
+): Promise<AuthResponse | PendingOAuthSessionStatus> {
+  const response = await postJSON<AuthResponse | PendingOAuthSessionStatus>(
+    "/auth/oauth/pending/create-account",
+    request,
+  );
+  if (isAuthResponse(response)) {
+    persistAuth(response);
+  }
+  return response;
+}
+
+export function readOAuthAffiliateCode() {
+  try {
+    return normalizeOAuthAffiliateCode(window.sessionStorage.getItem(OAUTH_AFFILIATE_CODE_STORAGE_KEY));
+  } catch {
+    return "";
+  }
+}
+
+export function clearOAuthAffiliateCode() {
+  try {
+    window.sessionStorage.removeItem(OAUTH_AFFILIATE_CODE_STORAGE_KEY);
+  } catch {
+    // Storage may be unavailable in privacy-restricted browser contexts.
+  }
+}
+
 export function startOAuth(provider: OAuthProvider, redirect = "/console", affiliateCode?: string) {
   const params = new URLSearchParams({ redirect });
-  const trimmedAffiliateCode = affiliateCode?.trim();
+  const trimmedAffiliateCode = normalizeOAuthAffiliateCode(affiliateCode);
+  clearOAuthAffiliateCode();
+  if (trimmedAffiliateCode) {
+    try {
+      window.sessionStorage.setItem(OAUTH_AFFILIATE_CODE_STORAGE_KEY, trimmedAffiliateCode);
+    } catch {
+      // OAuth must still proceed when session storage is unavailable.
+    }
+  }
   if (trimmedAffiliateCode) {
     params.set("aff_code", trimmedAffiliateCode);
   }
