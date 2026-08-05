@@ -492,9 +492,6 @@ func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, 
 	}
 	p.DeductionType = payment.DeductionTypeBalance
 	deductionLimit := p.RefundAmount
-	if o.OrderType == payment.OrderTypeBalance {
-		deductionLimit = math.Min(deductionLimit, o.Amount)
-	}
 	if u.Balance < deductionLimit && !force {
 		return &RefundResult{Success: false, Warning: "user balance is insufficient for deduction, use force", RequireForce: true}
 	}
