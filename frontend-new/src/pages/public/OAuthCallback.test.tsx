@@ -1,7 +1,60 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OAuthCallback from "./OAuthCallback";
+
+interface TurnstileHarnessProps {
+  siteKey: string;
+  onVerify: (token: string) => void;
+  onExpire?: () => void;
+  onError?: (error?: string | Error) => void;
+}
+
+const turnstileHarness = vi.hoisted(() => ({
+  props: null as TurnstileHarnessProps | null,
+  reset: vi.fn(),
+}));
+
+vi.mock("../../components/auth/TurnstileWidget", async () => {
+  const React = await import("react");
+
+  return {
+    default: React.forwardRef(function MockTurnstileWidget(
+      props: TurnstileHarnessProps,
+      ref: React.ForwardedRef<{ reset(): void }>,
+    ) {
+      turnstileHarness.props = props;
+      React.useImperativeHandle(ref, () => ({ reset: turnstileHarness.reset }));
+      return React.createElement("div", {
+        role: "group",
+        "aria-label": "Security verification",
+      });
+    }),
+  };
+});
+
+const originalFetch = globalThis.fetch;
+
+function response(data: unknown, ok = true, status = ok ? 200 : 400) {
+  return {
+    ok,
+    status,
+    json: async () => ok
+      ? { success: true, data }
+      : { success: false, message: data },
+  };
+}
+
+function pendingCompletion(overrides: Record<string, unknown> = {}) {
+  return response({
+    error: "registration_completion_required",
+    provider: "google",
+    redirect: "/console",
+    resolved_email: "new@example.com",
+    invitation_required: false,
+    ...overrides,
+  });
+}
 
 function renderCallback(initialEntry = "/auth/oauth/callback") {
   return render(
@@ -10,112 +63,501 @@ function renderCallback(initialEntry = "/auth/oauth/callback") {
         <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/console" element={<div>Console landed</div>} />
+        <Route path="/reports" element={<div>Reports landed</div>} />
         <Route path="/login" element={<div>Login page</div>} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
+async function fillPasswords(password = "secret123") {
+  fireEvent.change(await screen.findByLabelText("Password"), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText("Confirm Password"), { target: { value: password } });
+}
+
 describe("OAuthCallback", () => {
   const originalHash = window.location.hash;
 
   beforeEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
+    sessionStorage.clear();
+    turnstileHarness.props = null;
+    turnstileHarness.reset.mockReset();
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
+    globalThis.fetch = originalFetch;
     localStorage.clear();
+    sessionStorage.clear();
     window.location.hash = originalHash;
+    turnstileHarness.props = null;
+    turnstileHarness.reset.mockReset();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it("stores token fragments and redirects to the requested console path", async () => {
+  it("completes a fragment token without loading settings and clears the OAuth affiliate code", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+    sessionStorage.setItem("oauth_aff_code", "AFF-FRAGMENT");
     window.location.hash =
-      "#access_token=access-token&refresh_token=refresh-token&expires_in=3600&token_type=Bearer&redirect=%252Fconsole";
+      "#access_token=access-token&refresh_token=refresh-token&expires_in=3600&token_type=Bearer&redirect=%252Freports";
 
     renderCallback();
 
-    await waitFor(() => {
-      expect(localStorage.getItem("auth_token")).toBe("access-token");
-    });
+    expect(await screen.findByText("Reports landed")).toBeInTheDocument();
+    expect(localStorage.getItem("auth_token")).toBe("access-token");
     expect(localStorage.getItem("refresh_token")).toBe("refresh-token");
-    expect(localStorage.getItem("token_expires_at")).toMatch(/^\d+$/);
-    expect(await screen.findByText("Console landed")).toBeInTheDocument();
+    expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("resumes pending OAuth and shows completion fields when backend requires registration", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        success: true,
-        data: {
-          error: "invitation_required",
-          provider: "google",
-          redirect: "/console",
-          resolved_email: "new@example.com",
-          invitation_required: true,
-        },
-      }),
-    });
+  it("completes an existing-user exchange without loading settings and sanitizes the redirect", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({
+      access_token: "existing-access",
+      refresh_token: "existing-refresh",
+      expires_in: 3600,
+      redirect: "https://evil.example/steal",
+    }));
+    globalThis.fetch = fetchMock;
+    sessionStorage.setItem("oauth_aff_code", "AFF-EXISTING");
 
     renderCallback();
 
-    expect(await screen.findByText("Complete Google signup")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("new@example.com")).toBeInTheDocument();
-    expect(screen.getByLabelText("Invite Code")).toBeInTheDocument();
+    expect(await screen.findByText("Console landed")).toBeInTheDocument();
+    expect(localStorage.getItem("auth_token")).toBe("existing-access");
+    expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/auth/oauth/pending/exchange",
+      expect.any(Object),
+    );
   });
 
-  it("completes pending GitHub OAuth registration through the GitHub endpoint", async () => {
+  it("does not persist a deferred exchange token after the callback unmounts", async () => {
+    let resolveExchange!: (value: ReturnType<typeof response>) => void;
+    const exchangePromise = new Promise<ReturnType<typeof response>>((resolve) => {
+      resolveExchange = resolve;
+    });
+    const fetchMock = vi.fn().mockImplementationOnce(() => exchangePromise);
+    globalThis.fetch = fetchMock;
+    sessionStorage.setItem("oauth_aff_code", "AFF-DEFERRED");
+
+    const { unmount } = renderCallback();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    unmount();
+
+    await act(async () => {
+      resolveExchange(response({
+        access_token: "late-access",
+        refresh_token: "late-refresh",
+        expires_in: 3600,
+        redirect: "/console",
+      }));
+      await exchangePromise;
+    });
+
+    expect(localStorage.getItem("auth_token")).toBeNull();
+    expect(localStorage.getItem("refresh_token")).toBeNull();
+    expect(sessionStorage.getItem("oauth_aff_code")).toBe("AFF-DEFERRED");
+  });
+
+  it("rejects encoded backslashes and ASCII controls in a fragment redirect", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+    window.location.hash = "#access_token=safe-access&redirect=%252Fsafe%255Cevil%2509path";
+
+    renderCallback();
+
+    expect(await screen.findByText("Console landed")).toBeInTheDocument();
+    expect(localStorage.getItem("auth_token")).toBe("safe-access");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", { resolved_email: undefined, email: undefined }],
+    ["blank", { resolved_email: "   ", email: "  " }],
+  ])("rejects a pending registration with a %s resolved email", async (_case, emailFields) => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(pendingCompletion(emailFields));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    expect(await screen.findByRole("heading", { name: "Sign in failed" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/email address.*unavailable/i);
+    expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/login");
+    expect(screen.queryByText("Complete Google signup")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /send verification code/i })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for enabled settings and gates sending a code on Turnstile", async () => {
+    let resolveSettings!: (value: ReturnType<typeof response>) => void;
+    const settingsPromise = new Promise<ReturnType<typeof response>>((resolve) => {
+      resolveSettings = resolve;
+    });
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: true,
-          data: {
-            error: "registration_completion_required",
-            provider: "github",
-            redirect: "/console",
-            resolved_email: "github@example.com",
-            invitation_required: false,
-          },
+      .mockResolvedValueOnce(pendingCompletion({
+        error: "invitation_required",
+        invitation_required: true,
+      }))
+      .mockImplementationOnce(() => settingsPromise);
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.getByText("Completing sign in")).toBeInTheDocument();
+    expect(screen.queryByText("Complete Google signup")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveSettings(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: " oauth-site-key ",
+      }));
+      await settingsPromise;
+    });
+
+    expect(await screen.findByText("Complete Google signup")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("new@example.com")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Invite Code")).toBeInTheDocument();
+    expect(screen.getByLabelText("Verification Code")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /security verification/i })).toBeInTheDocument();
+    expect(turnstileHarness.props?.siteKey).toBe("oauth-site-key");
+    expect(screen.getByRole("button", { name: /send verification code/i })).toBeDisabled();
+
+    act(() => turnstileHarness.props?.onVerify("turnstile-token"));
+    expect(await screen.findByRole("button", { name: /send verification code/i })).toBeEnabled();
+  });
+
+  it("sends the exact verification request, consumes and resets Turnstile, and shows the countdown", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: "oauth-site-key",
+      }))
+      .mockResolvedValueOnce(response({ message: "sent", countdown: 45 }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    await screen.findByRole("group", { name: /security verification/i });
+    act(() => turnstileHarness.props?.onVerify("single-use-token"));
+    fireEvent.click(await screen.findByRole("button", { name: /send verification code/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/code sent/i);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/auth/oauth/pending/send-verify-code",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "new@example.com",
+          turnstile_token: "single-use-token",
         }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          success: true,
-          data: {
-            access_token: "github-access",
-            refresh_token: "github-refresh",
-            expires_in: 3600,
-          },
+      }),
+    );
+    expect(turnstileHarness.reset).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /resend in 45s/i })).toBeDisabled();
+  });
+
+  it("decrements the send-code countdown and clears its interval on unmount", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({ email_verify_enabled: true }))
+      .mockResolvedValueOnce(response({ message: "sent", countdown: 45 }));
+    globalThis.fetch = fetchMock;
+
+    const { unmount } = renderCallback();
+    const sendButton = await screen.findByRole("button", { name: /send verification code/i });
+    vi.useFakeTimers();
+    const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+
+    await act(async () => {
+      fireEvent.click(sendButton);
+    });
+
+    expect(screen.getByRole("button", { name: /resend in 45s/i })).toBeDisabled();
+    expect(vi.getTimerCount()).toBe(1);
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByRole("button", { name: /resend in 44s/i })).toBeDisabled();
+    expect(vi.getTimerCount()).toBe(1);
+
+    const clearsBeforeUnmount = clearIntervalSpy.mock.calls.length;
+    unmount();
+
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(clearsBeforeUnmount + 1);
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => vi.advanceTimersByTime(5000));
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("discards a Turnstile token delivered while the send request is pending", async () => {
+    let resolveSend!: (value: ReturnType<typeof response>) => void;
+    const pendingSend = new Promise<ReturnType<typeof response>>((resolve) => {
+      resolveSend = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: "oauth-site-key",
+      }))
+      .mockImplementationOnce(() => pendingSend);
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    await screen.findByRole("group", { name: /security verification/i });
+    act(() => turnstileHarness.props?.onVerify("request-token"));
+    const sendButton = await screen.findByRole("button", { name: /send verification code/i });
+    fireEvent.click(sendButton);
+    act(() => turnstileHarness.props?.onVerify("late-token"));
+
+    await act(async () => {
+      resolveSend(response({ message: "sent", countdown: 0 }));
+      await pendingSend;
+    });
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/code sent/i);
+    expect(turnstileHarness.reset).toHaveBeenCalledTimes(1);
+    expect(sendButton).toBeDisabled();
+  });
+
+  it("keeps sending gated after a rejected code request until Turnstile verifies again", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: "oauth-site-key",
+      }))
+      .mockResolvedValueOnce(response("Unable to send verification code", false));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    await screen.findByRole("group", { name: /security verification/i });
+    act(() => turnstileHarness.props?.onVerify("rejected-token"));
+    const sendButton = await screen.findByRole("button", { name: /send verification code/i });
+    fireEvent.click(sendButton);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to send verification code");
+    expect(turnstileHarness.reset).toHaveBeenCalledTimes(1);
+    expect(sendButton).toBeDisabled();
+    act(() => turnstileHarness.props?.onVerify("replacement-token"));
+    expect(await screen.findByRole("button", { name: /send verification code/i })).toBeEnabled();
+  });
+
+  it("creates an email-verified account with code, invitation, and stored affiliate but no Turnstile token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion({
+        provider: "github",
+        error: "invitation_required",
+        redirect: "/reports",
+        resolved_email: "github@example.com",
+        invitation_required: true,
+      }))
+      .mockResolvedValueOnce(response({ email_verify_enabled: true }))
+      .mockResolvedValueOnce(response({
+        access_token: "created-access",
+        refresh_token: "created-refresh",
+        expires_in: 3600,
+      }));
+    globalThis.fetch = fetchMock;
+    sessionStorage.setItem("oauth_aff_code", "  AFF-CREATE  ");
+
+    renderCallback();
+
+    expect(await screen.findByText("Complete GitHub signup")).toBeInTheDocument();
+    await fillPasswords();
+    fireEvent.change(screen.getByLabelText("Invite Code"), { target: { value: "  INVITE-1  " } });
+    fireEvent.change(screen.getByLabelText("Verification Code"), { target: { value: "  123456  " } });
+    fireEvent.click(screen.getByRole("button", { name: "Complete signup" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/auth/oauth/pending/create-account",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          email: "github@example.com",
+          password: "secret123",
+          verify_code: "123456",
+          invitation_code: "INVITE-1",
+          aff_code: "AFF-CREATE",
         }),
-      });
+      }),
+    );
+    expect(localStorage.getItem("auth_token")).toBe("created-access");
+    expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
+    expect(await screen.findByText("Reports landed")).toBeInTheDocument();
+  });
+
+  it("clears expired and failed Turnstile tokens and disables sending", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: "oauth-site-key",
+      }));
+
+    renderCallback();
+
+    await screen.findByRole("group", { name: /security verification/i });
+    act(() => turnstileHarness.props?.onVerify("first-token"));
+    const sendButton = await screen.findByRole("button", { name: /send verification code/i });
+    expect(sendButton).toBeEnabled();
+    act(() => turnstileHarness.props?.onExpire?.());
+    expect(await screen.findByRole("alert")).toHaveTextContent(/expired/i);
+    expect(sendButton).toBeDisabled();
+
+    act(() => turnstileHarness.props?.onVerify("second-token"));
+    await waitFor(() => expect(sendButton).toBeEnabled());
+    act(() => turnstileHarness.props?.onError?.("110200"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/failed/i);
+    expect(sendButton).toBeDisabled();
+  });
+
+  it("uses the provider-specific completion body unchanged when email verification is disabled", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion({
+        provider: "github",
+        resolved_email: "github@example.com",
+      }))
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: false,
+        turnstile_enabled: true,
+        turnstile_site_key: "ignored-site-key",
+      }))
+      .mockResolvedValueOnce(response({ access_token: "github-access" }));
     globalThis.fetch = fetchMock;
 
     renderCallback();
 
     expect(await screen.findByText("Complete GitHub signup")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
-    fireEvent.change(screen.getByLabelText("Confirm Password"), { target: { value: "secret123" } });
+    expect(screen.queryByLabelText("Verification Code")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /send verification code/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /security verification/i })).not.toBeInTheDocument();
+    await fillPasswords();
     fireEvent.click(screen.getByRole("button", { name: "Complete signup" }));
 
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenLastCalledWith(
-        "/api/v1/auth/oauth/github/complete-registration",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ password: "secret123" }),
-        }),
-      );
-    });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/auth/oauth/github/complete-registration",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ password: "secret123" }),
+      }),
+    );
     expect(localStorage.getItem("auth_token")).toBe("github-access");
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
+  });
+
+  it("falls back to email verification without Turnstile when settings fail", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response("Settings unavailable", false, 503));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    expect(await screen.findByText("Complete Google signup")).toBeInTheDocument();
+    expect(screen.getByLabelText("Verification Code")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /send verification code/i })).toBeEnabled();
+    expect(screen.queryByRole("group", { name: /security verification/i })).not.toBeInTheDocument();
+  });
+
+  it.each(["send", "create"] as const)(
+    "treats a pending_session from %s as an existing-account error without auth side effects",
+    async (branch) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(pendingCompletion())
+        .mockResolvedValueOnce(response({ email_verify_enabled: true }))
+        .mockResolvedValueOnce(response({
+          auth_result: "pending_session",
+          provider: "google",
+          intent: "login",
+          step: "choose_account_action_required",
+          resolved_email: "new@example.com",
+        }));
+      globalThis.fetch = fetchMock;
+      sessionStorage.setItem("oauth_aff_code", "KEEP-ME");
+
+      renderCallback();
+
+      if (branch === "send") {
+        fireEvent.click(await screen.findByRole("button", { name: /send verification code/i }));
+      } else {
+        await fillPasswords();
+        fireEvent.change(screen.getByLabelText("Verification Code"), { target: { value: "123456" } });
+        fireEvent.click(screen.getByRole("button", { name: "Complete signup" }));
+      }
+
+      expect(await screen.findByRole("heading", { name: "Sign in failed" })).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toHaveTextContent(/email already has an account/i);
+      expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/login");
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(localStorage.getItem("auth_token")).toBeNull();
+      expect(sessionStorage.getItem("oauth_aff_code")).toBe("KEEP-ME");
+      expect(screen.queryByText("Console landed")).not.toBeInTheDocument();
+    },
+  );
+
+  it("blocks duplicate send and account-creation submissions synchronously", async () => {
+    let resolveSend!: (value: ReturnType<typeof response>) => void;
+    const pendingSend = new Promise<ReturnType<typeof response>>((resolve) => {
+      resolveSend = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pendingCompletion())
+      .mockResolvedValueOnce(response({ email_verify_enabled: true }))
+      .mockImplementationOnce(() => pendingSend)
+      .mockResolvedValueOnce(response({ access_token: "created-access" }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    const sendButton = await screen.findByRole("button", { name: /send verification code/i });
+    fireEvent.click(sendButton);
+    fireEvent.click(sendButton);
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/auth/oauth/pending/send-verify-code")).toHaveLength(1);
+
+    await act(async () => {
+      resolveSend(response({ message: "sent", countdown: 0 }));
+      await pendingSend;
+    });
+    await screen.findByRole("status");
+    await fillPasswords();
+    fireEvent.change(screen.getByLabelText("Verification Code"), { target: { value: "123456" } });
+    const completeButton = screen.getByRole("button", { name: "Complete signup" });
+    const form = completeButton.closest("form")!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/auth/oauth/pending/create-account")).toHaveLength(1);
+    });
   });
 
   it("shows an error and returns to login for invalid callback fragments", async () => {

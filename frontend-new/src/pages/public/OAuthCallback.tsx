@@ -1,16 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
+  clearOAuthAffiliateCode,
   completeOAuthRegistration,
+  createPendingOAuthAccount,
   exchangePendingOAuthCompletion,
+  isAuthResponse,
   persistAuth,
+  readOAuthAffiliateCode,
+  sendPendingOAuthVerifyCode,
   type AuthResponse,
   type OAuthProvider,
   type PendingOAuthCompletion,
+  type PendingOAuthSessionStatus,
+  type SendVerifyCodeResponse,
 } from "../../api/auth";
+import { getPublicSettings, type PublicSettings } from "../../api/settings";
+import TurnstileWidget, { type TurnstileWidgetHandle } from "../../components/auth/TurnstileWidget";
 
 type CallbackState = "processing" | "registration" | "error";
+
+const EXISTING_ACCOUNT_MESSAGE = "This email already has an account. Return to sign in to continue.";
 
 function parseFragmentParams() {
   const raw = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
@@ -34,7 +45,11 @@ function decodeRedirect(value: string) {
 function sanitizeRedirectPath(value?: string | null) {
   const decoded = decodeRedirect(value || "/console");
   if (!decoded.startsWith("/") || decoded.startsWith("//")) return "/console";
-  if (decoded.includes("://") || decoded.includes("\n") || decoded.includes("\r")) return "/console";
+  const hasUnsafeCharacter = Array.from(decoded).some((character) => {
+    const code = character.charCodeAt(0);
+    return character === "\\" || code < 0x20 || code === 0x7f;
+  });
+  if (decoded.includes("://") || hasUnsafeCharacter) return "/console";
   if (decoded === "/login" || decoded === "/register") return "/console";
   return decoded;
 }
@@ -56,6 +71,12 @@ function isTokenCompletion(completion: PendingOAuthCompletion): completion is Pe
   return typeof completion.access_token === "string" && completion.access_token.trim().length > 0;
 }
 
+function isPendingSession(
+  response: AuthResponse | PendingOAuthSessionStatus | SendVerifyCodeResponse,
+): response is PendingOAuthSessionStatus {
+  return "auth_result" in response && response.auth_result === "pending_session";
+}
+
 function providerLabel(provider: OAuthProvider) {
   return provider === "google" ? "Google" : "GitHub";
 }
@@ -64,27 +85,52 @@ export default function OAuthCallback() {
   const navigate = useNavigate();
   const [state, setState] = useState<CallbackState>("processing");
   const [message, setMessage] = useState("Completing sign in...");
+  const [status, setStatus] = useState<string | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [provider, setProvider] = useState<OAuthProvider>("google");
   const [redirectTo, setRedirectTo] = useState("/console");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
   const [invitationRequired, setInvitationRequired] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileWidgetHandle>(null);
+  const requestInFlightRef = useRef(false);
+
+  const emailVerifyEnabled = settings?.email_verify_enabled !== false;
+  const turnstileSiteKey = settings?.turnstile_site_key?.trim() ?? "";
+  const turnstileRequired = emailVerifyEnabled
+    && settings?.turnstile_enabled === true
+    && turnstileSiteKey.length > 0;
+  const busy = sendingCode || submitting;
 
   const canSubmit = useMemo(() => {
     if (password.length < 6 || password !== confirmPassword) return false;
     if (invitationRequired && !inviteCode.trim()) return false;
+    if (emailVerifyEnabled && !verifyCode.trim()) return false;
     return true;
-  }, [confirmPassword, invitationRequired, inviteCode, password]);
+  }, [confirmPassword, emailVerifyEnabled, invitationRequired, inviteCode, password, verifyCode]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const interval = window.setInterval(() => {
+      setCountdown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [countdown]);
 
   useEffect(() => {
     let active = true;
 
-    async function finishWithTokens(tokens: AuthResponse, redirect: string) {
-      persistAuth(tokens);
+    function finishWithTokens(tokens: AuthResponse, redirect: string) {
       if (!active) return;
+      persistAuth(tokens);
+      clearOAuthAffiliateCode();
       navigate(sanitizeRedirectPath(redirect), { replace: true });
     }
 
@@ -99,24 +145,39 @@ export default function OAuthCallback() {
 
       const tokenResponse = readTokenResponse(params);
       if (tokenResponse) {
-        await finishWithTokens(tokenResponse, params.get("redirect") || "/console");
+        finishWithTokens(tokenResponse, params.get("redirect") || "/console");
         return;
       }
 
       try {
         const completion = await exchangePendingOAuthCompletion();
         if (isTokenCompletion(completion)) {
-          await finishWithTokens(completion, completion.redirect || "/console");
+          finishWithTokens(completion, completion.redirect || "/console");
           return;
         }
 
         const pendingProvider = completion.provider === "github" ? "github" : "google";
+        const resolvedEmail = (completion.resolved_email || completion.email || "").trim();
+        const registrationRequired = completion.error === "invitation_required"
+          || completion.error === "registration_completion_required";
         if (!active) return;
+        if (registrationRequired && !resolvedEmail) {
+          setMessage("OAuth email address is unavailable. Return to sign in and try again.");
+          setState("error");
+          return;
+        }
         setProvider(pendingProvider);
         setRedirectTo(sanitizeRedirectPath(completion.redirect || "/console"));
-        setEmail((completion.resolved_email || completion.email || "").trim());
+        setEmail(resolvedEmail);
         setInvitationRequired(completion.error === "invitation_required" || completion.invitation_required === true);
-        if (completion.error === "invitation_required" || completion.error === "registration_completion_required") {
+        if (registrationRequired) {
+          const publicSettings = await getPublicSettings().catch(() => ({
+            email_verify_enabled: true,
+            turnstile_enabled: false,
+          }));
+          if (!active) return;
+          setSettings(publicSettings);
+          setMessage("");
           setState("registration");
           return;
         }
@@ -137,23 +198,88 @@ export default function OAuthCallback() {
     };
   }, [navigate]);
 
+  function showExistingAccountError() {
+    setStatus(null);
+    setMessage(EXISTING_ACCOUNT_MESSAGE);
+    setState("error");
+  }
+
+  async function handleSendCode() {
+    if (requestInFlightRef.current || countdown > 0) return;
+    if (turnstileRequired && !turnstileToken) {
+      setMessage("Complete the security verification before continuing.");
+      return;
+    }
+
+    const requestTurnstileToken = turnstileRequired ? turnstileToken! : undefined;
+    requestInFlightRef.current = true;
+    if (turnstileRequired) setTurnstileToken(null);
+    setSendingCode(true);
+    setMessage("");
+    setStatus(null);
+    try {
+      const response = await sendPendingOAuthVerifyCode(email, requestTurnstileToken);
+      if (isPendingSession(response)) {
+        showExistingAccountError();
+        return;
+      }
+      setCountdown(Math.max(0, Math.floor(response.countdown)));
+      setStatus("Code sent. Check your inbox.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to send verification code.");
+    } finally {
+      if (turnstileRequired) {
+        setTurnstileToken(null);
+        turnstileRef.current?.reset();
+      }
+      requestInFlightRef.current = false;
+      setSendingCode(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
+    if (requestInFlightRef.current || !canSubmit) return;
+    requestInFlightRef.current = true;
     setSubmitting(true);
     setMessage("");
+    setStatus(null);
     try {
-      const response = await completeOAuthRegistration({
-        provider,
-        password,
-        invitation_code: inviteCode.trim() || undefined,
-      });
-      persistAuth(response);
+      if (!emailVerifyEnabled) {
+        const response = await completeOAuthRegistration({
+          provider,
+          password,
+          invitation_code: inviteCode.trim() || undefined,
+        });
+        if (!isAuthResponse(response)) {
+          setMessage("Unable to complete signup.");
+          return;
+        }
+        persistAuth(response);
+      } else {
+        const response = await createPendingOAuthAccount({
+          email,
+          password,
+          verify_code: verifyCode.trim(),
+          invitation_code: inviteCode.trim() || undefined,
+          aff_code: readOAuthAffiliateCode() || undefined,
+        });
+        if (isPendingSession(response)) {
+          showExistingAccountError();
+          return;
+        }
+        if (!isAuthResponse(response)) {
+          setMessage("Unable to complete signup.");
+          return;
+        }
+      }
+      clearOAuthAffiliateCode();
       navigate(redirectTo, { replace: true });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to complete signup.");
       setState("registration");
     } finally {
+      requestInFlightRef.current = false;
       setSubmitting(false);
     }
   }
@@ -172,7 +298,7 @@ export default function OAuthCallback() {
         {state === "error" ? (
           <div className="text-center">
             <h1 className="text-xl font-semibold text-zinc-950">Sign in failed</h1>
-            <p className="mt-3 text-sm leading-6 text-zinc-500">{message}</p>
+            <p role="alert" className="mt-3 text-sm leading-6 text-zinc-500">{message}</p>
             <Link
               className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white"
               to="/login"
@@ -207,6 +333,8 @@ export default function OAuthCallback() {
               <input
                 autoComplete="new-password"
                 className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                disabled={busy}
+                minLength={6}
                 onChange={(event) => setPassword(event.target.value)}
                 type="password"
                 value={password}
@@ -217,6 +345,7 @@ export default function OAuthCallback() {
               <input
                 autoComplete="new-password"
                 className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                disabled={busy}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 type="password"
                 value={confirmPassword}
@@ -227,15 +356,61 @@ export default function OAuthCallback() {
                 Invite Code
                 <input
                   className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                  disabled={busy}
                   onChange={(event) => setInviteCode(event.target.value)}
                   value={inviteCode}
                 />
               </label>
             ) : null}
-            {message ? <p className="text-sm text-red-600">{message}</p> : null}
+            {emailVerifyEnabled ? (
+              <>
+                {turnstileRequired ? (
+                  <TurnstileWidget
+                    ref={turnstileRef}
+                    siteKey={turnstileSiteKey}
+                    onVerify={(token) => {
+                      setTurnstileToken(token);
+                      setMessage("");
+                    }}
+                    onExpire={() => {
+                      setTurnstileToken(null);
+                      setMessage("Security verification expired. Please verify again.");
+                    }}
+                    onError={() => {
+                      setTurnstileToken(null);
+                      setMessage("Security verification failed. Please try again.");
+                    }}
+                  />
+                ) : null}
+                <button
+                  className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-semibold text-zinc-900 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
+                  disabled={busy || countdown > 0 || (turnstileRequired && !turnstileToken)}
+                  onClick={() => void handleSendCode()}
+                  type="button"
+                >
+                  {sendingCode
+                    ? "Sending..."
+                    : countdown > 0
+                      ? `Resend in ${countdown}s`
+                      : "Send verification code"}
+                </button>
+                <label className="block text-sm font-medium text-zinc-700">
+                  Verification Code
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                    disabled={busy}
+                    inputMode="numeric"
+                    onChange={(event) => setVerifyCode(event.target.value)}
+                    value={verifyCode}
+                  />
+                </label>
+              </>
+            ) : null}
+            {message ? <p role="alert" className="text-sm text-red-600">{message}</p> : null}
+            {status ? <p role="status" className="text-sm text-emerald-700">{status}</p> : null}
             <button
               className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
-              disabled={!canSubmit || submitting}
+              disabled={!canSubmit || busy}
               type="submit"
             >
               {submitting ? "Completing..." : "Complete signup"}
