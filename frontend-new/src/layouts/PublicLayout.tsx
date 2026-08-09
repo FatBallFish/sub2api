@@ -1,11 +1,32 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { getPublicSettings, type LoginAgreementDocument } from "../api/settings";
 import { getStoredUser, isAuthenticated } from "../utils/authStorage";
+import { agreementDocuments, findAgreementDocument } from "../utils/loginAgreement";
 
 export default function PublicLayout() {
   const location = useLocation();
   const user = getStoredUser();
   const signedIn = isAuthenticated();
+  const [legalDocuments, setLegalDocuments] = React.useState<LoginAgreementDocument[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    getPublicSettings()
+      .then((settings) => {
+        if (!active) return;
+        setLegalDocuments(settings.login_agreement_enabled === true ? agreementDocuments(settings) : []);
+      })
+      .catch(() => {
+        if (active) setLegalDocuments([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const privacyDocument = findAgreementDocument(legalDocuments, "privacy");
+  const termsDocument = findAgreementDocument(legalDocuments, "terms");
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-zinc-900 selection:bg-zinc-900 selection:text-white">
@@ -82,8 +103,12 @@ export default function PublicLayout() {
             <nav className="flex flex-col gap-2">
               <Link to="/team" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Team</Link>
               <Link to="/blog" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Blog</Link>
-              <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Privacy</Link>
-              <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Terms</Link>
+              {privacyDocument?.content_md?.trim() ? (
+                <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{privacyDocument.title}</Link>
+              ) : null}
+              {termsDocument?.content_md?.trim() ? (
+                <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{termsDocument.title}</Link>
+              ) : null}
             </nav>
           </div>
         </div>
