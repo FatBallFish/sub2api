@@ -114,4 +114,54 @@ describe("ModelPricing page", () => {
     expect(screen.getByText("How we calculate consumption").closest(".console-formula-note")).not.toBeNull();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/model-pricing", expect.any(Object));
   });
+
+  it("renders unsupported models and per-request tier prices without token columns", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          selected_group_id: 3,
+          groups: [{ id: 3, name: "Image Pro", platform: "openai", rate_multiplier: 0.42 }],
+          products: [{
+            id: "image",
+            label: "Image",
+            status: "live",
+            description: "Image models",
+            supported: true,
+            rows: [
+              {
+                model: "gpt-image-2",
+                label: "GPT Image 2",
+                billing_mode: "image",
+                availability: "available",
+                multiplier: 0.42,
+                request_prices: [
+                  { label: "1K", price: { official: 0.02, gateway: 0.0084 } },
+                  { label: "4K", price: { official: 0.08, gateway: 0.0336 } },
+                ],
+              },
+              {
+                model: "gpt-5.4",
+                label: "GPT 5.4",
+                billing_mode: "token",
+                availability: "unsupported",
+                unsupported_reason: "This model is not supported by the selected group.",
+              },
+            ],
+          }],
+        },
+      }),
+    });
+
+    render(<ModelPricing isConsole />);
+
+    expect(await screen.findByText("GPT Image 2")).toBeInTheDocument();
+    expect(screen.getByText("1K")).toBeInTheDocument();
+    expect(screen.getByText("$0.01 / request")).toBeInTheDocument();
+    expect(screen.getByText("4K")).toBeInTheDocument();
+    expect(screen.getByText("Not supported by this group")).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: /official \(in\/out\)/i })).not.toBeInTheDocument();
+  });
 });

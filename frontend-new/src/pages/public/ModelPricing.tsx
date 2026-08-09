@@ -6,7 +6,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { getConsoleModelPricing, getModelPricing } from "../../api/public";
-import type { ConsoleModelPricingGroup, PublicModelPricing, PublicModelPricingProduct, PublicPricePair } from "../../types/public";
+import type { ConsoleModelPricingGroup, PublicModelPricing, PublicModelPricingProduct, PublicModelPricingRow, PublicPricePair } from "../../types/public";
 
 function formatUSD(value: number) {
   const hasCents = !Number.isInteger(value);
@@ -39,6 +39,97 @@ function formatMultiplier(value?: number) {
 
 function groupLabel(group: ConsoleModelPricingGroup) {
   return `${group.name}${group.platform ? ` · ${group.platform}` : ""}`;
+}
+
+function ModelName({ row }: { row: PublicModelPricingRow }) {
+  return (
+    <>
+      <div className="font-bold text-zinc-900">{row.label || row.model}</div>
+      {row.label && row.label !== row.model ? <div className="mt-1 text-xs font-medium text-zinc-400">{row.model}</div> : null}
+    </>
+  );
+}
+
+function TokenPricingTable({ product, rows }: { product: PublicModelPricingProduct; rows: PublicModelPricingRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <table className="w-full min-w-[760px] border-collapse text-left">
+        <thead><tr className="border-b border-zinc-200 bg-zinc-50/50">
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Model</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Official (In/Out)</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-900">Gateway Price</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Cache Write/Read</th>
+        </tr></thead>
+        <tbody className="divide-y divide-zinc-100">
+          {rows.map((row) => (
+            <tr key={row.model} className="transition-colors hover:bg-zinc-50/30">
+              <td className="px-6 py-5"><ModelName row={row} /></td>
+              <td className="px-6 py-5 text-sm text-zinc-400">{row.input && row.output ? formatOfficialPair(row.input, row.output) : "-"}</td>
+              <td className="px-6 py-5">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-zinc-900">{row.input && row.output ? formatGatewayPair(row.input, row.output) : "-"}</span>
+                  <span className="mt-0.5 text-[9px] font-bold uppercase text-emerald-600">
+                    {row.multiplier_group_name ? `${row.multiplier_group_name} · ` : ""}
+                    {row.multiplier != null ? formatMultiplier(row.multiplier) : product.multiplier}
+                  </span>
+                </div>
+              </td>
+              <td className="px-6 py-5 font-mono text-sm text-zinc-500">{formatPair(row.cache_write)} / {formatPair(row.cache_read)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RequestPricingTable({ rows }: { rows: PublicModelPricingRow[] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <table className="w-full border-collapse text-left">
+        <thead><tr className="border-b border-zinc-200 bg-zinc-50/50">
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Model</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Parameter</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Official</th>
+          <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-900"><span className="flex items-center gap-2"><Lightning size={14} weight="fill" className="text-amber-500" />Gateway Price</span></th>
+        </tr></thead>
+        <tbody className="divide-y divide-zinc-100">
+          {rows.flatMap((row) => (row.request_prices || []).map((tier, index) => (
+            <tr key={`${row.model}-${tier.label}`} className="transition-colors hover:bg-zinc-50/30">
+              <td className="px-6 py-5">{index === 0 ? <ModelName row={row} /> : null}</td>
+              <td className="px-6 py-5 text-sm font-bold text-zinc-700">{tier.label}</td>
+              <td className="px-6 py-5 text-sm text-zinc-400">{formatUSD(tier.price.official)} / request</td>
+              <td className="px-6 py-5 text-sm font-bold text-zinc-900">{formatUSD(tier.price.gateway)} / request</td>
+            </tr>
+          )))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ProductPricing({ product }: { product: PublicModelPricingProduct }) {
+  const available = product.rows.filter((row) => row.availability !== "unsupported");
+  const tokenRows = available.filter((row) => !row.billing_mode || row.billing_mode === "token");
+  const requestRows = available.filter((row) => row.billing_mode === "per_request" || row.billing_mode === "image");
+  const unsupportedRows = product.rows.filter((row) => row.availability === "unsupported");
+
+  return (
+    <div className="space-y-6">
+      {tokenRows.length > 0 ? <TokenPricingTable product={product} rows={tokenRows} /> : null}
+      {requestRows.length > 0 ? <RequestPricingTable rows={requestRows} /> : null}
+      {unsupportedRows.length > 0 ? (
+        <div className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          {unsupportedRows.map((row) => (
+            <div key={row.model} className="flex flex-col gap-2 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <ModelName row={row} />
+              <span className="text-sm font-bold text-zinc-500">Not supported by this group</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function ModelPricing({ isConsole = false }: { isConsole?: boolean }) {
@@ -82,7 +173,7 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
         <div className="mb-12">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900">Model Pricing</h1>
           <p className="mt-2 text-zinc-500 max-w-2xl leading-relaxed">
-            All prices are shown in USD per 1M tokens. Our gateway applies transparent coefficients to official provider rates for subscription members.
+            Token models are shown per 1M tokens. Per-request and image models are shown by their configured parameter tier.
           </p>
         </div>
 
@@ -137,7 +228,9 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
         </div>
 
         {/* Content */}
-        {activeProduct && activeProduct.supported === false ? (
+        {activeProduct && activeProduct.rows.length > 0 ? (
+          <ProductPricing product={activeProduct} />
+        ) : activeProduct && activeProduct.supported === false ? (
           <div className="py-24 text-center border-2 border-dashed border-zinc-100 rounded-[2.5rem]">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-300 mb-6">
               <Calculator size={32} />
@@ -146,51 +239,6 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
             <p className="mt-2 text-zinc-500 max-w-xs mx-auto text-sm leading-relaxed">
               {activeProduct.unsupported_reason || "Choose another group to view this category."}
             </p>
-          </div>
-        ) : activeProduct && activeProduct.rows.length > 0 ? (
-          <div className="bg-white border border-zinc-200 rounded-[2rem] overflow-hidden shadow-sm">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-zinc-50/50 border-b border-zinc-200">
-                  <th className="px-8 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Model</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Official (In/Out)</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-zinc-900 uppercase tracking-[0.2em]">
-                    <div className="flex items-center gap-2">
-                      <Lightning size={14} weight="fill" className="text-amber-500" />
-                      Gateway Price
-                    </div>
-                  </th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Cache Write/Read</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {activeProduct.rows.map((model) => (
-                  <tr key={model.model} className="group hover:bg-zinc-50/30 transition-colors">
-                    <td className="px-8 py-6">
-                      <div className="font-bold text-zinc-900">{model.label || model.model}</div>
-                      {model.label && model.label !== model.model && (
-                        <div className="mt-1 text-xs font-medium text-zinc-400">{model.model}</div>
-                      )}
-                    </td>
-                    <td className="px-8 py-6 text-sm text-zinc-400">
-                      {formatOfficialPair(model.input, model.output)}
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-zinc-900">{formatGatewayPair(model.input, model.output)}</span>
-                        <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-tighter mt-0.5">
-                          {model.multiplier_group_name ? `${model.multiplier_group_name} · ` : ""}
-                          {model.multiplier != null ? formatMultiplier(model.multiplier) : activeProduct.multiplier}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-sm text-zinc-500 font-mono">
-                      {formatPair(model.cache_write)} / {formatPair(model.cache_read)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         ) : (
           <div className="py-24 text-center border-2 border-dashed border-zinc-100 rounded-[2.5rem]">
@@ -214,8 +262,8 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
           <div className="space-y-2">
             <h4 className="font-bold text-zinc-900">How we calculate consumption</h4>
             <p className="text-sm text-zinc-500 leading-relaxed max-w-3xl">
-              All requests are billed based on the final token count returned by the upstream provider.
-              The credit cost is calculated as: <code className="console-formula-code bg-zinc-200 px-1 rounded text-zinc-900">Official Rate × Multiplier × Tokens</code>.
+              Token-priced requests use the final upstream token count: <code className="console-formula-code bg-zinc-200 px-1 rounded text-zinc-900">Official Rate × Multiplier × Tokens</code>.
+              Per-request models use the displayed parameter tier price instead.
               Public prices use the lowest multiplier among public groups. Console prices use the selected group multiplier.
             </p>
           </div>

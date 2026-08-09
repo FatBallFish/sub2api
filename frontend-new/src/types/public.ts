@@ -36,15 +36,23 @@ export interface PublicPricePair {
 export interface PublicModelPricingRow {
   model: string;
   label?: string;
-  input: PublicPricePair;
-  output: PublicPricePair;
+  billing_mode?: "token" | "per_request" | "image" | string;
+  input?: PublicPricePair;
+  output?: PublicPricePair;
   cache_write?: PublicPricePair;
   cache_read?: PublicPricePair;
+  request_prices?: PublicRequestPrice[];
   availability: string;
+  unsupported_reason?: string;
   multiplier?: number;
   multiplier_group_id?: number;
   multiplier_group_name?: string;
   pricing_source?: string;
+}
+
+export interface PublicRequestPrice {
+  label: string;
+  price: PublicPricePair;
 }
 
 export interface PublicModelPricingProduct {

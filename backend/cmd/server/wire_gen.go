@@ -254,7 +254,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	scheduledTestResultRepository := repository.NewScheduledTestResultRepository(db)
 	scheduledTestService := service.ProvideScheduledTestService(scheduledTestPlanRepository, scheduledTestResultRepository)
 	scheduledTestHandler := admin.NewScheduledTestHandler(scheduledTestService)
-	modelPricingDisplayService := service.NewModelPricingDisplayService(settingRepository, groupRepository, channelService, modelPricingResolver)
+	modelPricingDisplayService := service.NewModelPricingDisplayService(settingRepository, groupRepository, channelService, modelPricingResolver, gatewayService, openAIGatewayService)
 	channelHandler := handler.ProvideAdminChannelHandler(channelService, billingService, pricingService, modelPricingDisplayService)
 	channelMonitorHandler := admin.NewChannelMonitorHandler(channelMonitorService)
 	channelMonitorRequestTemplateRepository := repository.NewChannelMonitorRequestTemplateRepository(client, db)

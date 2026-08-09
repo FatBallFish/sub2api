@@ -12,3 +12,7 @@ export interface AvailableGroup {
 export function listAvailableGroups() {
   return getJSON<AvailableGroup[]>("/groups/available");
 }
+
+export function getUserGroupRates() {
+  return getJSON<Record<string, number> | null>("/groups/rates").then((rates) => rates || {});
+}
