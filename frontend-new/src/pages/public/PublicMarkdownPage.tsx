@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { getPublicSettings, type LoginAgreementDocument } from "../../api/settings";
 import { MarkdownContent } from "../../utils/markdown";
+import { findAgreementDocument } from "../../utils/loginAgreement";
 
 interface PublicMarkdownPageProps {
   slug: string;
   fallbackTitle: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  requireAgreementEnabled?: boolean;
+  exactDocumentId?: boolean;
 }
 
 function findDocument(documents: LoginAgreementDocument[], slug: string) {
+  if (slug === "privacy" || slug === "terms") {
+    return findAgreementDocument(documents, slug);
+  }
   const normalized = slug.toLowerCase();
   return documents.find((doc) => {
     const id = doc.id.toLowerCase();
@@ -17,17 +24,23 @@ function findDocument(documents: LoginAgreementDocument[], slug: string) {
   });
 }
 
-export default function PublicMarkdownPage({ slug, fallbackTitle, children }: PublicMarkdownPageProps) {
+export default function PublicMarkdownPage({ slug, fallbackTitle, children, requireAgreementEnabled = false, exactDocumentId = false }: PublicMarkdownPageProps) {
   const [document, setDocument] = useState<LoginAgreementDocument | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [agreementEnabled, setAgreementEnabled] = useState(false);
 
   useEffect(() => {
     let active = true;
     getPublicSettings()
       .then((settings) => {
         if (!active) return;
-        setDocument(findDocument(settings.login_agreement_documents || [], slug) || null);
+        setAgreementEnabled(settings.login_agreement_enabled === true);
+        const documents = settings.login_agreement_documents || [];
+        const matched = exactDocumentId
+          ? documents.find((item) => item.id === slug || item.title === slug)
+          : findDocument(documents, slug);
+        setDocument(matched || null);
         setUpdatedAt(settings.login_agreement_updated_at || "");
       })
       .catch(() => {
@@ -40,7 +53,7 @@ export default function PublicMarkdownPage({ slug, fallbackTitle, children }: Pu
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [exactDocumentId, slug]);
 
   const hasMarkdown = Boolean(document?.content_md?.trim());
   const title = document?.title || fallbackTitle;
@@ -51,7 +64,15 @@ export default function PublicMarkdownPage({ slug, fallbackTitle, children }: Pu
     return new Intl.DateTimeFormat("en-US", { month: "long", day: "2-digit", year: "numeric" }).format(date);
   }, [updatedAt]);
 
-  if (!loaded || !hasMarkdown) {
+  if (!loaded) {
+    return null;
+  }
+
+  if (requireAgreementEnabled && (!agreementEnabled || !hasMarkdown)) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!hasMarkdown) {
     return <>{children}</>;
   }
 

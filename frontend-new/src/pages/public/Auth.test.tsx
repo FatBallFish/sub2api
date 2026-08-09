@@ -1482,6 +1482,88 @@ describe("Auth page", () => {
     });
   });
 
+  it("requires checkbox agreement consent again when the backend revision changes", async () => {
+    localStorage.setItem("sub2api_login_agreement_consent", JSON.stringify({ revision: "old-revision" }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            login_agreement_enabled: true,
+            login_agreement_mode: "checkbox",
+            login_agreement_revision: "new-revision",
+            login_agreement_documents: [
+              { id: "terms", title: "Service Terms", content_md: "Terms" },
+              { id: "privacy", title: "Privacy Policy", content_md: "Privacy" },
+            ],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            access_token: "access-token",
+            refresh_token: "refresh-token",
+            expires_in: 3600,
+            token_type: "Bearer",
+            user: { id: 12, email: "dev@example.com" },
+          },
+        }),
+      });
+    globalThis.fetch = fetchMock;
+
+    render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
+
+    const consent = await screen.findByRole("checkbox", { name: /service terms.*privacy policy/i });
+    const submit = screen.getByRole("button", { name: /sign in/i });
+    expect(consent).not.toBeChecked();
+    expect(submit).toBeDisabled();
+
+    fireEvent.click(consent);
+    expect(submit).toBeEnabled();
+    expect(JSON.parse(localStorage.getItem("sub2api_login_agreement_consent") || "{}")).toMatchObject({
+      revision: "new-revision",
+    });
+
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "dev@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(submit);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("opens modal agreement mode before authentication actions are available", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          github_oauth_enabled: true,
+          login_agreement_enabled: true,
+          login_agreement_mode: "modal",
+          login_agreement_revision: "modal-revision",
+          login_agreement_documents: [
+            { id: "terms", title: "Service Terms", content_md: "Terms" },
+          ],
+        },
+      }),
+    });
+
+    render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
+
+    expect(await screen.findByRole("dialog", { name: /review service terms/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /github/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /accept and continue/i }));
+    expect(screen.queryByRole("dialog", { name: /review service terms/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /github/i })).toBeEnabled();
+  });
+
   it("redirects authenticated users away from auth pages", async () => {
     localStorage.setItem("auth_token", "token");
     localStorage.setItem("auth_user", JSON.stringify({ id: 7, email: "signed@example.com" }));

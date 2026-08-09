@@ -14,12 +14,20 @@ import { motion, AnimatePresence } from "motion/react";
 import { login, register, sendVerifyCode, startOAuth } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
+import LoginAgreementPrompt from "../../components/auth/LoginAgreementPrompt";
 import {
   captchaProofPayload,
   resolveCaptchaProvider,
   type CaptchaProof,
 } from "../../components/auth/captcha";
 import { isAuthenticated } from "../../utils/authStorage";
+import {
+  agreementDocuments,
+  agreementRevision,
+  clearAgreementConsent,
+  hasAcceptedAgreement,
+  storeAgreementConsent,
+} from "../../utils/loginAgreement";
 
 type AuthMode = "login" | "register";
 
@@ -49,6 +57,8 @@ export default function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [agreementModalOpen, setAgreementModalOpen] = useState(false);
   const captchaRef = useRef<CaptchaChallengeHandle>(null);
   const requestInFlightRef = useRef(false);
 
@@ -59,6 +69,11 @@ export default function Auth() {
   const googleOAuthEnabled = settings?.google_oauth_enabled === true;
   const githubOAuthEnabled = settings?.github_oauth_enabled === true;
   const showOAuth = googleOAuthEnabled || githubOAuthEnabled;
+  const loginAgreementDocuments = agreementDocuments(settings);
+  const loginAgreementEnabled = settings?.login_agreement_enabled === true && loginAgreementDocuments.length > 0;
+  const loginAgreementMode = settings?.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
+  const loginAgreementRevision = settings ? agreementRevision(settings, loginAgreementDocuments) : "";
+  const agreementRequired = loginAgreementEnabled && !agreementAccepted;
   let captchaProvider: ReturnType<typeof resolveCaptchaProvider> = null;
   let captchaConfigurationInvalid = false;
   try {
@@ -79,7 +94,14 @@ export default function Auth() {
     let active = true;
     getPublicSettings()
       .then((data) => {
-        if (active) setSettings(data);
+        if (!active) return;
+        const documents = agreementDocuments(data);
+        const enabled = data.login_agreement_enabled === true && documents.length > 0;
+        const revision = agreementRevision(data, documents);
+        const accepted = !enabled || hasAcceptedAgreement(revision);
+        setSettings(data);
+        setAgreementAccepted(accepted);
+        setAgreementModalOpen(enabled && !accepted && data.login_agreement_mode !== "checkbox");
       })
       .catch(() => {
         if (active) setSettings({});
@@ -118,6 +140,26 @@ export default function Auth() {
     return false;
   };
 
+  const requireAgreement = () => {
+    if (!agreementRequired) return true;
+    if (loginAgreementMode === "modal") setAgreementModalOpen(true);
+    setError("Accept the current service terms before continuing.");
+    return false;
+  };
+
+  const acceptAgreement = () => {
+    storeAgreementConsent(loginAgreementRevision);
+    setAgreementAccepted(true);
+    setAgreementModalOpen(false);
+    setError(null);
+  };
+
+  const rejectAgreement = () => {
+    clearAgreementConsent();
+    setAgreementAccepted(false);
+    setAgreementModalOpen(false);
+  };
+
   const requireEmbeddedCaptchaVerification = () => {
     if (!turnstileRequired || captchaProof) return true;
     setError("Complete the security verification before continuing.");
@@ -148,7 +190,7 @@ export default function Auth() {
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requestInFlightRef.current) return;
-    if (!requireReadySettings() || captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification()) return;
+    if (!requireReadySettings() || !requireAgreement() || captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification()) return;
     requestInFlightRef.current = true;
     setLoading(true);
     setError(null);
@@ -178,7 +220,7 @@ export default function Auth() {
   const handleSendCode = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requestInFlightRef.current) return;
-    if (!requireReadySettings()) return;
+    if (!requireReadySettings() || !requireAgreement()) return;
     if (!registrationEnabled) {
       setError(null);
       return;
@@ -215,7 +257,7 @@ export default function Auth() {
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
     if (requestInFlightRef.current) return;
-    if (!requireReadySettings()) return;
+    if (!requireReadySettings() || !requireAgreement()) return;
     if (!registrationEnabled) {
       setError(null);
       return;
@@ -258,7 +300,7 @@ export default function Auth() {
   };
 
   const handleOAuthStart = async (provider: "google" | "github") => {
-    if (requestInFlightRef.current || !requireReadySettings() || captchaConfigurationInvalid) return;
+    if (requestInFlightRef.current || !requireReadySettings() || !requireAgreement() || captchaConfigurationInvalid) return;
     if (!actionCaptchaRequired) {
       startOAuth(provider, redirectTo, initialAffiliateCode);
       return;
@@ -413,7 +455,7 @@ export default function Auth() {
                   />
                   <SubmitButton
                     loading={loading}
-                    disabled={!settingsLoaded || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
+                    disabled={!settingsLoaded || agreementRequired || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
                     Sign in
                   </SubmitButton>
@@ -479,7 +521,7 @@ export default function Auth() {
                   />
                   <SubmitButton
                     loading={loading}
-                    disabled={!registrationEnabled || !settingsLoaded || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
+                    disabled={!registrationEnabled || !settingsLoaded || agreementRequired || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
                     {!settingsLoaded ? "Loading settings..." : emailVerifyEnabled ? "Send verification code" : "Register account"}
                   </SubmitButton>
@@ -512,7 +554,7 @@ export default function Auth() {
                       className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] outline-none transition-colors focus:border-zinc-900"
                     />
                   </div>
-                  <SubmitButton loading={loading}>Verify & Create Account</SubmitButton>
+                  <SubmitButton loading={loading} disabled={agreementRequired}>Verify & Create Account</SubmitButton>
                   <button
                     type="button"
                     disabled={loading}
@@ -526,6 +568,19 @@ export default function Auth() {
                 </motion.form>
               )}
             </AnimatePresence>
+
+            {loginAgreementEnabled ? (
+              <LoginAgreementPrompt
+                accepted={agreementAccepted}
+                documents={loginAgreementDocuments}
+                mode={loginAgreementMode}
+                open={agreementModalOpen}
+                updatedAt={settings?.login_agreement_updated_at}
+                onAccept={acceptAgreement}
+                onReject={rejectAgreement}
+                onOpen={() => setAgreementModalOpen(true)}
+              />
+            ) : null}
 
             {status ? <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{status}</p> : null}
             {error ? <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p> : null}
@@ -545,7 +600,7 @@ export default function Auth() {
                   {googleOAuthEnabled ? (
                     <button
                       type="button"
-                      disabled={loading}
+                      disabled={loading || agreementRequired}
                       onClick={() => void handleOAuthStart("google")}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
@@ -556,7 +611,7 @@ export default function Auth() {
                   {githubOAuthEnabled ? (
                     <button
                       type="button"
-                      disabled={loading}
+                      disabled={loading || agreementRequired}
                       onClick={() => void handleOAuthStart("github")}
                       className="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed"
                     >
@@ -569,17 +624,6 @@ export default function Auth() {
             ) : null}
           </div>
 
-          <p className="px-4 text-center text-xs leading-relaxed text-zinc-400">
-            By continuing, you agree to our{" "}
-            <Link to="/terms" className="font-bold text-zinc-900 underline underline-offset-4">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link to="/privacy" className="font-bold text-zinc-900 underline underline-offset-4">
-              Privacy Policy
-            </Link>
-            .
-          </p>
         </div>
       </div>
     </div>
