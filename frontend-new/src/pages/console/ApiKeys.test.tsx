@@ -47,6 +47,14 @@ describe("ApiKeys", () => {
           ),
         );
       }
+      if (url.endsWith("/api/v1/groups/rates")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true, data: { "10": 0.55 } }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
       if (url.endsWith("/api/v1/usage/dashboard/api-keys-usage")) {
         return Promise.resolve(
           new Response(
@@ -113,7 +121,7 @@ describe("ApiKeys", () => {
 
     expect(screen.getByText("Default")).toBeInTheDocument();
     expect(screen.getByText("OpenAI")).toBeInTheDocument();
-    expect(screen.getByText("0.800x")).toBeInTheDocument();
+    expect(await screen.findByText("0.550x")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("7.500000 / 100.000000")).toBeInTheDocument();
     });

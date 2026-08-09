@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -45,7 +46,12 @@ func (h *ModelPricingHandler) GetConsoleModelPricing(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	out, err := h.modelPricingDisplay.BuildConsolePricing(c.Request.Context(), groups, selectedGroupID)
+	userRates, err := h.apiKeyService.GetUserGroupRates(c.Request.Context(), subject.UserID)
+	if err != nil {
+		slog.Warn("model_pricing_user_rates_failed", "error", err, "user_id", subject.UserID)
+		userRates = nil
+	}
+	out, err := h.modelPricingDisplay.BuildConsolePricing(c.Request.Context(), groups, selectedGroupID, userRates)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

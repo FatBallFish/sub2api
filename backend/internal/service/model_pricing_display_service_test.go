@@ -10,6 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type modelPricingAvailabilityStub struct {
+	supported map[int64]map[string]bool
+}
+
+func (s *modelPricingAvailabilityStub) DiagnoseModelAvailabilityForPlatform(_ context.Context, groupID *int64, model, _ string) ModelAvailabilityDiagnosis {
+	if groupID == nil {
+		return ModelAvailabilityDiagnosis{HasAccountsInPool: true, HasModelSupport: true}
+	}
+	return ModelAvailabilityDiagnosis{
+		HasAccountsInPool: true,
+		HasModelSupport:   s.supported[*groupID][model],
+	}
+}
+
 type modelPricingDisplaySettingRepoStub struct {
 	values map[string]string
 	set    map[string]string
@@ -197,7 +211,7 @@ func newModelPricingDisplayServiceForTest(t *testing.T, configJSON string, group
 		},
 	}}
 	resolver := NewModelPricingResolver(channelService, billingService)
-	return NewModelPricingDisplayService(settingRepo, groupRepo, channelService, resolver)
+	return NewModelPricingDisplayService(settingRepo, groupRepo, channelService, resolver, nil, nil)
 }
 
 func TestModelPricingDisplayPublicUsesConfiguredModelsAndLowestPublicGroupMultiplier(t *testing.T) {
@@ -251,7 +265,7 @@ func TestModelPricingDisplayConsoleFallsBackToGroupPlatformWhenScopesAreEmpty(t 
 	}
 	svc := newModelPricingDisplayServiceForTest(t, configJSON, groups, nil)
 
-	got, err := svc.BuildConsolePricing(context.Background(), groups, 3)
+	got, err := svc.BuildConsolePricing(context.Background(), groups, 3, nil)
 	require.NoError(t, err)
 	require.True(t, got.Products[0].Supported)
 	require.Len(t, got.Products[0].Rows, 1)
@@ -323,7 +337,7 @@ func TestModelPricingDisplayConsoleUsesSelectedGroupAndMarksUnsupportedCategorie
 	}
 	svc := newModelPricingDisplayServiceForTest(t, configJSON, groups, nil)
 
-	got, err := svc.BuildConsolePricing(context.Background(), groups, 1)
+	got, err := svc.BuildConsolePricing(context.Background(), groups, 1, nil)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), got.SelectedGroupID)
 	require.Len(t, got.Groups, 1)
@@ -335,4 +349,65 @@ func TestModelPricingDisplayConsoleUsesSelectedGroupAndMarksUnsupportedCategorie
 	require.False(t, got.Products[1].Supported)
 	require.Equal(t, "This group does not support this model category.", got.Products[1].UnsupportedReason)
 	require.Empty(t, got.Products[1].Rows)
+}
+
+func TestModelPricingDisplayConsoleUsesUserRateAndFiltersGroupsWithoutConfiguredModels(t *testing.T) {
+	configJSON := `{"categories":[{"id":"openai","label":"OpenAI","model_scopes":["openai"],"models":[{"model":"gpt-5.4"},{"model":"deepseek-v3"}]}]}`
+	groups := []Group{
+		{ID: 3, Name: "Domestic Only", Platform: "openai", RateMultiplier: 0.8, Status: StatusActive},
+		{ID: 4, Name: "GPT Pro", Platform: "openai", RateMultiplier: 0.7, Status: StatusActive},
+	}
+	svc := newModelPricingDisplayServiceForTest(t, configJSON, groups, nil)
+	svc.openAIAvailability = &modelPricingAvailabilityStub{supported: map[int64]map[string]bool{
+		3: {"deepseek-v3": true},
+		4: {"gpt-5.4": true},
+	}}
+
+	got, err := svc.BuildConsolePricing(context.Background(), groups, 4, map[int64]float64{4: 0.42})
+	require.NoError(t, err)
+	require.Len(t, got.Groups, 2)
+	require.InDelta(t, 0.42, got.Groups[1].RateMultiplier, 1e-12)
+	require.Equal(t, int64(4), got.SelectedGroupID)
+	require.Len(t, got.Products[0].Rows, 2)
+	require.Equal(t, "available", got.Products[0].Rows[0].Availability)
+	require.InDelta(t, 1.05, got.Products[0].Rows[0].Input.Gateway, 1e-12)
+	require.Equal(t, "unsupported", got.Products[0].Rows[1].Availability)
+	require.Nil(t, got.Products[0].Rows[1].Input)
+
+	onlyUnsupported := []Group{{ID: 5, Name: "No Configured Models", Platform: "openai", RateMultiplier: 1, Status: StatusActive}}
+	svc.openAIAvailability = &modelPricingAvailabilityStub{supported: map[int64]map[string]bool{5: {}}}
+	got, err = svc.BuildConsolePricing(context.Background(), onlyUnsupported, 5, nil)
+	require.NoError(t, err)
+	require.Empty(t, got.Groups)
+	require.Zero(t, got.SelectedGroupID)
+}
+
+func TestModelPricingDisplayPerRequestRowsExposeTierPricesWithoutTokenPrices(t *testing.T) {
+	configJSON := `{"categories":[{"id":"image","label":"Image","model_scopes":["openai"],"models":[{"model":"gpt-image-2","label":"GPT Image 2"}]}]}`
+	groups := []Group{{ID: 3, Name: "Image Pro", Platform: "openai", RateMultiplier: 0.5, Status: StatusActive}}
+	defaultPrice := 0.04
+	price1K := 0.02
+	price4K := 0.08
+	svc := newModelPricingDisplayServiceForTest(t, configJSON, groups, []ChannelModelPricing{{
+		Platform:        "openai",
+		Models:          []string{"gpt-image-2"},
+		BillingMode:     BillingModeImage,
+		PerRequestPrice: &defaultPrice,
+		Intervals: []PricingInterval{
+			{TierLabel: "1K", PerRequestPrice: &price1K},
+			{TierLabel: "4K", PerRequestPrice: &price4K},
+		},
+	}})
+
+	got, err := svc.BuildConsolePricing(context.Background(), groups, 3, nil)
+	require.NoError(t, err)
+	row := got.Products[0].Rows[0]
+	require.Equal(t, string(BillingModeImage), row.BillingMode)
+	require.Nil(t, row.Input)
+	require.Nil(t, row.Output)
+	require.Equal(t, []ModelPricingRequestPrice{
+		{Label: "Default", Price: ModelPricingPricePair{Official: 0.04, Gateway: 0.02}},
+		{Label: "1K", Price: ModelPricingPricePair{Official: 0.02, Gateway: 0.01}},
+		{Label: "4K", Price: ModelPricingPricePair{Official: 0.08, Gateway: 0.04}},
+	}, row.RequestPrices)
 }

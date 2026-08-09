@@ -56,17 +56,25 @@ type ModelPricingDisplayProduct struct {
 }
 
 type ModelPricingDisplayRow struct {
-	Model               string                 `json:"model"`
-	Label               string                 `json:"label"`
-	Input               ModelPricingPricePair  `json:"input"`
-	Output              ModelPricingPricePair  `json:"output"`
-	CacheWrite          *ModelPricingPricePair `json:"cache_write,omitempty"`
-	CacheRead           *ModelPricingPricePair `json:"cache_read,omitempty"`
-	Availability        string                 `json:"availability"`
-	Multiplier          float64                `json:"multiplier"`
-	MultiplierGroupID   *int64                 `json:"multiplier_group_id,omitempty"`
-	MultiplierGroupName string                 `json:"multiplier_group_name,omitempty"`
-	PricingSource       string                 `json:"pricing_source,omitempty"`
+	Model               string                     `json:"model"`
+	Label               string                     `json:"label"`
+	BillingMode         string                     `json:"billing_mode"`
+	Input               *ModelPricingPricePair     `json:"input,omitempty"`
+	Output              *ModelPricingPricePair     `json:"output,omitempty"`
+	CacheWrite          *ModelPricingPricePair     `json:"cache_write,omitempty"`
+	CacheRead           *ModelPricingPricePair     `json:"cache_read,omitempty"`
+	RequestPrices       []ModelPricingRequestPrice `json:"request_prices,omitempty"`
+	Availability        string                     `json:"availability"`
+	UnsupportedReason   string                     `json:"unsupported_reason,omitempty"`
+	Multiplier          float64                    `json:"multiplier"`
+	MultiplierGroupID   *int64                     `json:"multiplier_group_id,omitempty"`
+	MultiplierGroupName string                     `json:"multiplier_group_name,omitempty"`
+	PricingSource       string                     `json:"pricing_source,omitempty"`
+}
+
+type ModelPricingRequestPrice struct {
+	Label string                `json:"label"`
+	Price ModelPricingPricePair `json:"price"`
 }
 
 type ModelPricingPricePair struct {
@@ -75,18 +83,22 @@ type ModelPricingPricePair struct {
 }
 
 type ModelPricingDisplayService struct {
-	settingRepo    SettingRepository
-	groupRepo      GroupRepository
-	channelService *ChannelService
-	resolver       *ModelPricingResolver
+	settingRepo         SettingRepository
+	groupRepo           GroupRepository
+	channelService      *ChannelService
+	resolver            *ModelPricingResolver
+	gatewayAvailability ModelAvailabilityDiagnoser
+	openAIAvailability  ModelAvailabilityDiagnoser
 }
 
-func NewModelPricingDisplayService(settingRepo SettingRepository, groupRepo GroupRepository, channelService *ChannelService, resolver *ModelPricingResolver) *ModelPricingDisplayService {
+func NewModelPricingDisplayService(settingRepo SettingRepository, groupRepo GroupRepository, channelService *ChannelService, resolver *ModelPricingResolver, gatewayAvailability *GatewayService, openAIAvailability *OpenAIGatewayService) *ModelPricingDisplayService {
 	return &ModelPricingDisplayService{
-		settingRepo:    settingRepo,
-		groupRepo:      groupRepo,
-		channelService: channelService,
-		resolver:       resolver,
+		settingRepo:         settingRepo,
+		groupRepo:           groupRepo,
+		channelService:      channelService,
+		resolver:            resolver,
+		gatewayAvailability: gatewayAvailability,
+		openAIAvailability:  openAIAvailability,
 	}
 }
 
@@ -134,11 +146,22 @@ func (s *ModelPricingDisplayService) BuildPublicPricing(ctx context.Context) (Mo
 	}, nil
 }
 
-func (s *ModelPricingDisplayService) BuildConsolePricing(ctx context.Context, groups []Group, selectedGroupID int64) (ModelPricingDisplayResponse, error) {
+func (s *ModelPricingDisplayService) BuildConsolePricing(ctx context.Context, groups []Group, selectedGroupID int64, userRates map[int64]float64) (ModelPricingDisplayResponse, error) {
 	cfg, err := s.GetConfig(ctx)
 	if err != nil {
 		return ModelPricingDisplayResponse{}, err
 	}
+	visibleGroups := make([]Group, 0, len(groups))
+	for i := range groups {
+		group := groups[i]
+		if rate, ok := userRates[group.ID]; ok && rate > 0 {
+			group.RateMultiplier = rate
+		}
+		if s.groupSupportsAnyConfiguredModel(ctx, cfg, &group) {
+			visibleGroups = append(visibleGroups, group)
+		}
+	}
+	groups = visibleGroups
 	sort.SliceStable(groups, func(i, j int) bool {
 		if groups[i].SortOrder != groups[j].SortOrder {
 			return groups[i].SortOrder < groups[j].SortOrder
@@ -186,10 +209,21 @@ func (s *ModelPricingDisplayService) buildProducts(ctx context.Context, cfg Mode
 			products = append(products, product)
 			continue
 		}
+		availableRows := 0
 		for _, m := range cat.Models {
-			row, ok := s.buildRow(ctx, cat, m, group)
+			modelSupported := !enforceSupport || s.modelSupportedByGroup(ctx, cat, m.Model, group)
+			row, ok := s.buildRow(ctx, cat, m, group, modelSupported)
 			if ok {
 				product.Rows = append(product.Rows, row)
+				if row.Availability == "available" {
+					availableRows++
+				}
+			}
+		}
+		if enforceSupport {
+			product.Supported = availableRows > 0
+			if availableRows == 0 {
+				product.UnsupportedReason = "This group does not support any configured model in this category."
 			}
 		}
 		products = append(products, product)
@@ -200,24 +234,26 @@ func (s *ModelPricingDisplayService) buildProducts(ctx context.Context, cfg Mode
 func (s *ModelPricingDisplayService) buildPublicProducts(ctx context.Context, cfg ModelPricingDisplayConfig, groups []Group) []ModelPricingDisplayProduct {
 	products := make([]ModelPricingDisplayProduct, 0, len(cfg.Categories))
 	for _, cat := range cfg.Categories {
-		group := lowestPublicRateGroupForCategory(groups, cat)
 		product := ModelPricingDisplayProduct{
 			ID:          cat.ID,
 			Label:       cat.Label,
 			Status:      "live",
 			Description: cat.Description,
-			Supported:   true,
+			Supported:   false,
 			Rows:        []ModelPricingDisplayRow{},
 		}
-		if group != nil {
-			rate := effectiveDisplayRateForCategory(group, cat)
-			product.Multiplier = formatDisplayMultiplier(rate)
-			product.RuleText = "Actual price = official price x " + formatDisplayMultiplier(rate)
-		}
 		for _, m := range cat.Models {
-			row, ok := s.buildRow(ctx, cat, m, group)
+			group := s.lowestPublicRateGroupForModel(ctx, groups, cat, m.Model)
+			row, ok := s.buildRow(ctx, cat, m, group, group != nil)
 			if ok {
 				product.Rows = append(product.Rows, row)
+				if row.Availability == "available" {
+					product.Supported = true
+					if product.Multiplier == "" {
+						product.Multiplier = formatDisplayMultiplier(row.Multiplier)
+						product.RuleText = "Actual price = official price x " + product.Multiplier
+					}
+				}
 			}
 		}
 		products = append(products, product)
@@ -225,9 +261,20 @@ func (s *ModelPricingDisplayService) buildPublicProducts(ctx context.Context, cf
 	return products
 }
 
-func (s *ModelPricingDisplayService) buildRow(ctx context.Context, cat ModelPricingDisplayCategoryConfig, m ModelPricingDisplayModelConfig, group *Group) (ModelPricingDisplayRow, bool) {
+func (s *ModelPricingDisplayService) buildRow(ctx context.Context, cat ModelPricingDisplayCategoryConfig, m ModelPricingDisplayModelConfig, group *Group, supported bool) (ModelPricingDisplayRow, bool) {
 	model := strings.TrimSpace(m.Model)
-	if model == "" || s.resolver == nil {
+	if model == "" {
+		return ModelPricingDisplayRow{}, false
+	}
+	if !supported {
+		return ModelPricingDisplayRow{
+			Model:             model,
+			Label:             firstNonEmptyString(m.Label, model),
+			Availability:      "unsupported",
+			UnsupportedReason: "This model is not supported by the selected group.",
+		}, true
+	}
+	if s.resolver == nil {
 		return ModelPricingDisplayRow{}, false
 	}
 	var groupID *int64
@@ -235,10 +282,6 @@ func (s *ModelPricingDisplayService) buildRow(ctx context.Context, cat ModelPric
 		groupID = &group.ID
 	}
 	resolved := s.resolver.Resolve(ctx, PricingInput{Model: model, GroupID: groupID})
-	pricing := s.pricingForDisplay(model, resolved)
-	if pricing == nil {
-		return ModelPricingDisplayRow{}, false
-	}
 	rate := 0.0
 	var rateGroupID *int64
 	var rateGroupName string
@@ -251,14 +294,39 @@ func (s *ModelPricingDisplayService) buildRow(ctx context.Context, cat ModelPric
 	row := ModelPricingDisplayRow{
 		Model:               model,
 		Label:               firstNonEmptyString(m.Label, model),
-		Input:               displayPairFromPerToken(pricing.InputPricePerToken, rate),
-		Output:              displayPairFromPerToken(pricing.OutputPricePerToken, rate),
+		BillingMode:         string(resolved.Mode),
 		Availability:        "available",
 		Multiplier:          rate,
 		MultiplierGroupID:   rateGroupID,
 		MultiplierGroupName: rateGroupName,
 		PricingSource:       resolved.Source,
 	}
+	if resolved.Mode == BillingModePerRequest || resolved.Mode == BillingModeImage {
+		if resolved.DefaultPerRequestPrice > 0 {
+			row.RequestPrices = append(row.RequestPrices, ModelPricingRequestPrice{
+				Label: "Default",
+				Price: displayPairFromPrice(resolved.DefaultPerRequestPrice, rate),
+			})
+		}
+		for _, tier := range resolved.RequestTiers {
+			if tier.PerRequestPrice == nil {
+				continue
+			}
+			row.RequestPrices = append(row.RequestPrices, ModelPricingRequestPrice{
+				Label: requestTierLabel(tier),
+				Price: displayPairFromPrice(*tier.PerRequestPrice, rate),
+			})
+		}
+		return row, len(row.RequestPrices) > 0
+	}
+	pricing := s.pricingForDisplay(model, resolved)
+	if pricing == nil {
+		return ModelPricingDisplayRow{}, false
+	}
+	input := displayPairFromPerToken(pricing.InputPricePerToken, rate)
+	output := displayPairFromPerToken(pricing.OutputPricePerToken, rate)
+	row.Input = &input
+	row.Output = &output
 	if cacheWritePrice := cacheWritePriceForDisplay(pricing); cacheWritePrice > 0 {
 		pair := displayPairFromPerToken(cacheWritePrice, rate)
 		row.CacheWrite = &pair
@@ -353,6 +421,53 @@ func lowestPublicRateGroupForCategory(groups []Group, cat ModelPricingDisplayCat
 	return selected
 }
 
+func (s *ModelPricingDisplayService) lowestPublicRateGroupForModel(ctx context.Context, groups []Group, cat ModelPricingDisplayCategoryConfig, model string) *Group {
+	var selected *Group
+	for i := range groups {
+		group := &groups[i]
+		if !group.IsActive() || group.IsExclusive || !s.modelSupportedByGroup(ctx, cat, model, group) {
+			continue
+		}
+		if selected == nil || effectiveDisplayRateForCategory(group, cat) < effectiveDisplayRateForCategory(selected, cat) {
+			selected = group
+		}
+	}
+	return selected
+}
+
+func (s *ModelPricingDisplayService) groupSupportsAnyConfiguredModel(ctx context.Context, cfg ModelPricingDisplayConfig, group *Group) bool {
+	for _, cat := range cfg.Categories {
+		for _, model := range cat.Models {
+			if s.modelSupportedByGroup(ctx, cat, model.Model, group) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *ModelPricingDisplayService) modelSupportedByGroup(ctx context.Context, cat ModelPricingDisplayCategoryConfig, model string, group *Group) bool {
+	if group == nil || !categorySupportedByGroup(cat, group) {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(group.Platform), PlatformComposite) {
+		// Composite routing resolves a concrete platform per request. The platform-scoped
+		// diagnosers cannot make that decision without the route context, so fail open.
+		return true
+	}
+	diagnoser := s.gatewayAvailability
+	switch strings.ToLower(strings.TrimSpace(group.Platform)) {
+	case PlatformOpenAI, PlatformGrok:
+		diagnoser = s.openAIAvailability
+	}
+	if diagnoser == nil {
+		return true
+	}
+	groupID := group.ID
+	diagnosis := diagnoser.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, strings.TrimSpace(model), group.Platform)
+	return diagnosis.HasModelSupport
+}
+
 func selectModelPricingGroup(groups []Group, selectedGroupID int64) *Group {
 	if len(groups) == 0 {
 		return nil
@@ -428,13 +543,7 @@ func (s *ModelPricingDisplayService) pricingForDisplay(model string, resolved *R
 	if resolved.Mode == BillingModeToken {
 		return s.withFallbackDisplayFields(model, resolved.BasePricing)
 	}
-	if resolved.DefaultPerRequestPrice > 0 {
-		return &ModelPricing{
-			InputPricePerToken:  resolved.DefaultPerRequestPrice / 1_000_000,
-			OutputPricePerToken: 0,
-		}
-	}
-	return s.withFallbackDisplayFields(model, resolved.BasePricing)
+	return nil
 }
 
 func (s *ModelPricingDisplayService) withFallbackDisplayFields(model string, pricing *ModelPricing) *ModelPricing {
@@ -489,6 +598,23 @@ func displayPairFromPerToken(officialPerToken, multiplier float64) ModelPricingP
 		Official: official,
 		Gateway:  official * multiplier,
 	}
+}
+
+func displayPairFromPrice(official, multiplier float64) ModelPricingPricePair {
+	return ModelPricingPricePair{
+		Official: official,
+		Gateway:  official * multiplier,
+	}
+}
+
+func requestTierLabel(tier PricingInterval) string {
+	if label := strings.TrimSpace(tier.TierLabel); label != "" {
+		return label
+	}
+	if tier.MaxTokens != nil {
+		return fmt.Sprintf("%d-%d", tier.MinTokens, *tier.MaxTokens)
+	}
+	return fmt.Sprintf("%d+", tier.MinTokens)
 }
 
 func normalizeStringList(values []string) []string {
