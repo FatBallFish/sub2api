@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -14,7 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { createApiKey, deleteApiKey, listApiKeys, revealApiKey, updateApiKey } from "../../api/keys";
-import { listAvailableGroups, type AvailableGroup } from "../../api/groups";
+import { getUserGroupRates, listAvailableGroups, type AvailableGroup } from "../../api/groups";
 import { getAPIKeysUsageStats } from "../../api/usage";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import type { ApiKey } from "../../types/keys";
@@ -63,8 +63,6 @@ function formatMultiplier(value?: number) {
 function hydrateApiKeyGroup(key: ApiKey, groups: AvailableGroup[]): ApiKey {
   const groupId = key.group_id;
   if (!groupId) return { ...key, group: undefined };
-  const existing = key.group;
-  if (existing?.id === groupId && existing.name && existing.rate_multiplier !== undefined) return key;
   const group = groups.find((item) => item.id === groupId);
   if (!group) return key;
   return {
@@ -77,6 +75,13 @@ function hydrateApiKeyGroup(key: ApiKey, groups: AvailableGroup[]): ApiKey {
       rate_multiplier: group.rate_multiplier,
     },
   };
+}
+
+function applyEffectiveGroupRate(key: ApiKey, groups: AvailableGroup[], userRates: Record<string, number>) {
+  const hydrated = hydrateApiKeyGroup(key, groups);
+  const userRate = hydrated.group_id ? userRates[String(hydrated.group_id)] : undefined;
+  if (!hydrated.group || typeof userRate !== "number" || !Number.isFinite(userRate) || userRate <= 0) return hydrated;
+  return { ...hydrated, group: { ...hydrated.group, rate_multiplier: userRate } };
 }
 
 function relativeTime(value: string | null) {
@@ -101,6 +106,7 @@ export default function ApiKeys() {
   const [createName, setCreateName] = useState("Local Development");
   const [createQuota, setCreateQuota] = useState("");
   const [groups, setGroups] = useState<AvailableGroup[]>([]);
+  const [userGroupRates, setUserGroupRates] = useState<Record<string, number>>({});
   const [usageStats, setUsageStats] = useState<Record<number, APIKeyUsageStats>>({});
   const [createGroupId, setCreateGroupId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -110,6 +116,10 @@ export default function ApiKeys() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [importingCcsId, setImportingCcsId] = useState<number | null>(null);
   const [pendingCcsKey, setPendingCcsKey] = useState<ApiKey | null>(null);
+  const displayKeys = useMemo(
+    () => keys.map((key) => applyEffectiveGroupRate(key, groups, userGroupRates)),
+    [groups, keys, userGroupRates],
+  );
 
   useEffect(() => {
     let active = true;
@@ -160,9 +170,17 @@ export default function ApiKeys() {
 
   useEffect(() => {
     let active = true;
-    listAvailableGroups()
-      .then((data) => {
-        if (active) setGroups(Array.isArray(data) ? data : []);
+    Promise.all([listAvailableGroups(), getUserGroupRates().catch((): Record<string, number> => ({}))])
+      .then(([data, userRates]) => {
+        if (!active) return;
+        const effectiveGroups = (Array.isArray(data) ? data : []).map((group) => {
+          const userRate = userRates[String(group.id)];
+          return Number.isFinite(userRate) && userRate > 0
+            ? { ...group, rate_multiplier: userRate }
+            : group;
+        });
+        setGroups(effectiveGroups);
+        setUserGroupRates(userRates);
       })
       .catch(() => {
         if (active) setGroups([]);
@@ -369,7 +387,7 @@ export default function ApiKeys() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {keys.map((key) => (
+            {displayKeys.map((key) => (
               <tr key={key.id} className="group hover:bg-zinc-50/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
