@@ -1,11 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import PublicLayout from "./PublicLayout";
 
 describe("PublicLayout", () => {
   afterEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("shows sign in for anonymous visitors", () => {
@@ -39,5 +40,34 @@ describe("PublicLayout", () => {
     expect(screen.queryByRole("link", { name: /sign in/i })).not.toBeInTheDocument();
     expect(screen.getByText("signed@example.com")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open console/i })).toHaveAttribute("href", "/console");
+  });
+
+  it("only shows configured legal document links when agreements are enabled", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          login_agreement_enabled: true,
+          login_agreement_documents: [
+            { id: "terms", title: "Service Terms", content_md: "Terms" },
+          ],
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<div>Home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Service Terms" })).toBeInTheDocument());
+    expect(screen.queryByRole("link", { name: /privacy/i })).not.toBeInTheDocument();
   });
 });

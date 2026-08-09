@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Privacy from "./Privacy";
 import Terms from "./Terms";
+import LegalDocument from "./LegalDocument";
 import Team from "../Team";
 
 function publicSettingsResponse() {
@@ -11,6 +13,7 @@ function publicSettingsResponse() {
     json: async () => ({
       success: true,
       data: {
+        login_agreement_enabled: true,
         login_agreement_updated_at: "2026-06-19",
         login_agreement_documents: [
           { id: "terms", title: "Terms of Service", content_md: "## Terms Markdown\n\n- Acceptable use" },
@@ -30,7 +33,7 @@ describe("public markdown pages", () => {
   it("renders privacy markdown from public settings", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(publicSettingsResponse());
 
-    render(<Privacy />);
+    render(<MemoryRouter><Privacy /></MemoryRouter>);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Privacy Markdown" })).toBeInTheDocument();
@@ -41,7 +44,7 @@ describe("public markdown pages", () => {
   it("renders terms markdown from public settings", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(publicSettingsResponse());
 
-    render(<Terms />);
+    render(<MemoryRouter><Terms /></MemoryRouter>);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Terms Markdown" })).toBeInTheDocument();
@@ -58,5 +61,47 @@ describe("public markdown pages", () => {
       expect(screen.getByRole("heading", { name: "Team Markdown" })).toBeInTheDocument();
     });
     expect(screen.getByText("Operator-led support.")).toBeInTheDocument();
+  });
+
+  it("renders every configured agreement document by id", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(publicSettingsResponse());
+
+    render(
+      <MemoryRouter initialEntries={["/legal/terms"]}>
+        <Routes>
+          <Route path="/legal/:documentId" element={<LegalDocument />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Terms Markdown" })).toBeInTheDocument();
+  });
+
+  it("redirects legal routes home when the agreement is disabled", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          login_agreement_enabled: false,
+          login_agreement_documents: [
+            { id: "privacy", title: "Privacy Policy", content_md: "Should stay hidden" },
+          ],
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/privacy"]}>
+        <Routes>
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/" element={<div>Landing Home</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Landing Home")).toBeInTheDocument();
+    expect(screen.queryByText("Should stay hidden")).not.toBeInTheDocument();
   });
 });

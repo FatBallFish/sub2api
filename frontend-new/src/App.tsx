@@ -11,6 +11,7 @@ import Blog from "./pages/public/Blog";
 import Team from "./pages/public/Team";
 import Privacy from "./pages/public/legal/Privacy";
 import Terms from "./pages/public/legal/Terms";
+import LegalDocument from "./pages/public/legal/LegalDocument";
 import PaymentResult from "./pages/public/PaymentResult";
 import StripePayment from "./pages/public/StripePayment";
 import ConsoleLayout from "./layouts/ConsoleLayout";
@@ -148,6 +149,7 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
         <Route path="/team" element={<Team />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/legal/:documentId" element={<LegalDocument />} />
       </Route>
 
       {/* Auth Route (standalone layout) */}
