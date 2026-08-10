@@ -392,11 +392,22 @@ describe("UsageHistory", () => {
     expect(screen.getByText("利用履歴を読み込み中...")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "利用履歴" })).toBeInTheDocument();
     expect(document.title).toBe("利用履歴 | Mikiko CC");
+    expect(screen.getByText("リクエストログ、トークン消費量、クレジット使用量を確認します。")).toBeInTheDocument();
+    expect(screen.getByText("トークン使用量")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "トークン" })).toBeInTheDocument();
+    expect(screen.getByText("合計トークン")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("モデルまたはエンドポイントを検索...")).toBeInTheDocument();
     expect(screen.getByText("claude-3-5-sonnet")).toBeInTheDocument();
     expect(screen.getAllByText("Prod-CLI").length).toBeGreaterThan(0);
     expect(screen.getByText("1 / 3 ページ")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "次のページ" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "列" }));
+    expect(screen.getByRole("checkbox", { name: "最初のトークン" })).toBeInTheDocument();
+    expect(i18n.t("console:usageHistory.csv.inputTokens")).toBe("入力トークン");
+    expect(i18n.t("console:usageHistory.csv.outputTokens")).toBe("出力トークン");
+    expect(i18n.t("console:usageHistory.csv.cacheRead")).toBe("キャッシュ読み取りトークン");
+    expect(i18n.t("console:usageHistory.csv.cacheCreate")).toBe("キャッシュ作成トークン");
 
     const requestCount = fetchMock.mock.calls.length;
     await i18n.changeLanguage("zh-TW");
