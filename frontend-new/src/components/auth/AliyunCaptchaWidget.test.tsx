@@ -1,6 +1,7 @@
 import { act, createRef } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import AliyunCaptchaWidget, { type AliyunCaptchaWidgetHandle } from "./AliyunCaptchaWidget";
 
 interface CapturedOptions {
@@ -88,5 +89,15 @@ describe("AliyunCaptchaWidget", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start security verification" }));
 
     expect(screen.getByRole("button", { name: "Security verification in progress" })).toBeEnabled();
+  });
+
+  it("localizes the visible verification states", async () => {
+    await i18n.changeLanguage("ja");
+    render(<AliyunCaptchaWidget sceneId="scene-1" prefix="prefix-1" />);
+    await waitFor(() => expect(options).not.toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "セキュリティ検証を開始" }));
+
+    expect(screen.getByRole("button", { name: "セキュリティ検証中" })).toBeEnabled();
   });
 });

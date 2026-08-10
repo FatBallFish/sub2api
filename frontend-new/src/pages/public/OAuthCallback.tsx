@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   clearOAuthAffiliateCode,
   completeOAuthRegistration,
@@ -18,6 +19,9 @@ import {
 } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
+import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { localizedErrorMessage } from "../../utils/localizedError";
 import {
   captchaProofPayload,
   resolveCaptchaProvider,
@@ -25,8 +29,6 @@ import {
 } from "../../components/auth/captcha";
 
 type CallbackState = "processing" | "registration" | "error";
-
-const EXISTING_ACCOUNT_MESSAGE = "This email already has an account. Return to sign in to continue.";
 
 function parseFragmentParams() {
   const raw = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
@@ -87,9 +89,10 @@ function providerLabel(provider: OAuthProvider) {
 }
 
 export default function OAuthCallback() {
+  const { i18n, t } = useTranslation("auth");
   const navigate = useNavigate();
   const [state, setState] = useState<CallbackState>("processing");
-  const [message, setMessage] = useState("Completing sign in...");
+  const [message, setMessage] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [provider, setProvider] = useState<OAuthProvider>("google");
@@ -121,6 +124,7 @@ export default function OAuthCallback() {
   const actionCaptchaRequired = captchaProvider?.provider === "tencent" || captchaProvider?.provider === "aliyun";
   const turnstileRequired = captchaProvider?.provider === "turnstile";
   const busy = sendingCode || submitting;
+  usePageTitle(t("pageTitles.oauth"));
 
   const canSubmit = useMemo(() => {
     if (password.length < 6 || password !== confirmPassword) return false;
@@ -175,7 +179,7 @@ export default function OAuthCallback() {
           || completion.error === "registration_completion_required";
         if (!active) return;
         if (registrationRequired && !resolvedEmail) {
-          setMessage("OAuth email address is unavailable. Return to sign in and try again.");
+          setMessage(i18n.t("auth:oauth.emailUnavailable"));
           setState("error");
           return;
         }
@@ -195,11 +199,11 @@ export default function OAuthCallback() {
           return;
         }
 
-        setMessage(completion.error || "OAuth callback could not be completed.");
+        setMessage(completion.error || i18n.t("errors:oauthCallbackFailed"));
         setState("error");
       } catch (error) {
         if (!active) return;
-        setMessage(error instanceof Error ? error.message : "OAuth callback could not be completed.");
+        setMessage(localizedErrorMessage(error, "oauthCallbackFailed", { t: i18n.t, scope: "auth" }));
         setState("error");
       }
     }
@@ -209,11 +213,11 @@ export default function OAuthCallback() {
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [i18n, navigate]);
 
   function showExistingAccountError() {
     setStatus(null);
-    setMessage(EXISTING_ACCOUNT_MESSAGE);
+    setMessage(t("oauth.existingAccount"));
     setState("error");
   }
 
@@ -232,11 +236,11 @@ export default function OAuthCallback() {
   async function handleSendCode() {
     if (requestInFlightRef.current || countdown > 0) return;
     if (captchaConfigurationInvalid) {
-      setMessage("Security verification is misconfigured. Please contact support.");
+      setMessage(t("captcha.misconfiguredSupport"));
       return;
     }
     if (turnstileRequired && !captchaProof) {
-      setMessage("Complete the security verification before continuing.");
+      setMessage(t("captchaRequiredError"));
       return;
     }
 
@@ -254,9 +258,9 @@ export default function OAuthCallback() {
         return;
       }
       setCountdown(Math.max(0, Math.floor(response.countdown)));
-      setStatus("Code sent. Check your inbox.");
+      setStatus(t("codeSent"));
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to send verification code.");
+      setMessage(localizedErrorMessage(error, "authSendCodeFailed", { t: i18n.t, scope: "auth" }));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -268,11 +272,11 @@ export default function OAuthCallback() {
     event.preventDefault();
     if (requestInFlightRef.current || !canSubmit) return;
     if (emailVerifyEnabled && captchaConfigurationInvalid) {
-      setMessage("Security verification is misconfigured. Please contact support.");
+      setMessage(t("captcha.misconfiguredSupport"));
       return;
     }
     if (emailVerifyEnabled && turnstileRequired && !captchaProof) {
-      setMessage("Complete the security verification before continuing.");
+      setMessage(t("captchaRequiredError"));
       return;
     }
     requestInFlightRef.current = true;
@@ -287,7 +291,7 @@ export default function OAuthCallback() {
           invitation_code: inviteCode.trim() || undefined,
         });
         if (!isAuthResponse(response)) {
-          setMessage("Unable to complete signup.");
+          setMessage(t("oauthSignupFailed", { ns: "errors" }));
           return;
         }
         persistAuth(response);
@@ -308,14 +312,14 @@ export default function OAuthCallback() {
           return;
         }
         if (!isAuthResponse(response)) {
-          setMessage("Unable to complete signup.");
+          setMessage(t("oauthSignupFailed", { ns: "errors" }));
           return;
         }
       }
       clearOAuthAffiliateCode();
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to complete signup.");
+      setMessage(localizedErrorMessage(error, "oauthSignupFailed", { t: i18n.t, scope: "auth" }));
       setState("registration");
     } finally {
       if (emailVerifyEnabled && captchaRequired) resetCaptcha();
@@ -325,25 +329,26 @@ export default function OAuthCallback() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-12">
+    <main className="relative flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-12">
+      <StandaloneLanguageSwitcher />
       <section className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-8 shadow-sm">
         {state === "processing" ? (
           <div className="text-center">
             <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-950" />
-            <h1 className="mt-5 text-xl font-semibold text-zinc-950">Completing sign in</h1>
-            <p className="mt-2 text-sm text-zinc-500">{message}</p>
+            <h1 className="mt-5 text-xl font-semibold text-zinc-950">{t("oauth.completing")}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{t("oauth.completingMessage")}</p>
           </div>
         ) : null}
 
         {state === "error" ? (
           <div className="text-center">
-            <h1 className="text-xl font-semibold text-zinc-950">Sign in failed</h1>
+            <h1 className="text-xl font-semibold text-zinc-950">{t("oauth.failed")}</h1>
             <p role="alert" className="mt-3 text-sm leading-6 text-zinc-500">{message}</p>
             <Link
               className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white"
               to="/login"
             >
-              Back to sign in
+              {t("oauth.backToSignIn")}
             </Link>
           </div>
         ) : null}
@@ -354,14 +359,14 @@ export default function OAuthCallback() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                 {providerLabel(provider)} OAuth
               </p>
-              <h1 className="mt-2 text-xl font-semibold text-zinc-950">Complete {providerLabel(provider)} signup</h1>
+              <h1 className="mt-2 text-xl font-semibold text-zinc-950">{t("oauth.completeSignup", { provider: providerLabel(provider) })}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                Create a password to finish setting up this account.
+                {t("oauth.signupDescription")}
               </p>
             </div>
 
             <label className="block text-sm font-medium text-zinc-700">
-              Email Address
+              {t("email")}
               <input
                 className="mt-2 h-11 w-full rounded-md border border-zinc-200 bg-zinc-100 px-3 text-sm text-zinc-500 outline-none"
                 readOnly
@@ -369,7 +374,7 @@ export default function OAuthCallback() {
               />
             </label>
             <label className="block text-sm font-medium text-zinc-700">
-              Password
+              {t("password")}
               <input
                 autoComplete="new-password"
                 className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
@@ -381,7 +386,7 @@ export default function OAuthCallback() {
               />
             </label>
             <label className="block text-sm font-medium text-zinc-700">
-              Confirm Password
+              {t("confirmPassword")}
               <input
                 autoComplete="new-password"
                 className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
@@ -393,7 +398,7 @@ export default function OAuthCallback() {
             </label>
             {invitationRequired ? (
               <label className="block text-sm font-medium text-zinc-700">
-                Invite Code
+                {t("inviteCode")}
                 <input
                   className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
                   disabled={busy}
@@ -413,11 +418,11 @@ export default function OAuthCallback() {
                   }}
                   onExpire={() => {
                     setCaptchaProof(null);
-                    setMessage("Security verification expired. Please verify again.");
+                    setMessage(t("captchaExpired"));
                   }}
                   onError={() => {
                     setCaptchaProof(null);
-                    setMessage("Security verification failed. Please try again.");
+                    setMessage(t("captchaFailed"));
                   }}
                 />
                 <button
@@ -427,13 +432,13 @@ export default function OAuthCallback() {
                   type="button"
                 >
                   {sendingCode
-                    ? "Sending..."
+                    ? t("oauth.sending")
                     : countdown > 0
-                      ? `Resend in ${countdown}s`
-                      : "Send verification code"}
+                      ? t("oauth.resendIn", { seconds: countdown })
+                      : t("sendVerificationCode")}
                 </button>
                 <label className="block text-sm font-medium text-zinc-700">
-                  Verification Code
+                  {t("verificationCode")}
                   <input
                     className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
                     disabled={busy}
@@ -451,7 +456,7 @@ export default function OAuthCallback() {
               disabled={!canSubmit || busy || (emailVerifyEnabled && (captchaConfigurationInvalid || (turnstileRequired && !captchaProof)))}
               type="submit"
             >
-              {submitting ? "Completing..." : "Complete signup"}
+              {submitting ? t("oauth.completingSignup") : t("oauth.completeSignupButton")}
             </button>
           </form>
         ) : null}

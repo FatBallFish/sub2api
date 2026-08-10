@@ -1,5 +1,6 @@
 import { CheckCircle, ShieldCheck, SpinnerGap } from "@phosphor-icons/react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CaptchaProof } from "./captcha";
 
 const ALIYUN_SCRIPT_ID = "aliyun-captcha-script";
@@ -94,6 +95,7 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
     { sceneId, prefix, region = "cn", onVerify, onError },
     ref,
   ) {
+    const { t } = useTranslation("auth");
     const [state, setState] = useState<VerificationState>("idle");
     const idsRef = useRef<{ button: string; element: string } | null>(null);
     if (!idsRef.current) {
@@ -241,10 +243,10 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
     }, [prefix, region, sceneId]);
 
     const label = state === "verified"
-      ? "Security verification completed"
+      ? t("captcha.verified")
       : state === "verifying"
-        ? "Security verification in progress"
-        : "Start security verification";
+        ? t("captcha.verifying")
+        : t("captcha.idle");
 
     return (
       <div className="w-full">

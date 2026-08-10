@@ -51,14 +51,14 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
             onChange={(event) => event.target.checked ? onAccept() : onReject()}
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
           />
-          <span>I have read and agree to <DocumentLinks documents={documents} />.</span>
+          <span>{t("agreement.checkboxPrefix", { ns: "auth" })} <DocumentLinks documents={documents} />{t("agreement.checkboxSuffix", { ns: "auth" })}</span>
         </label>
       ) : !accepted ? (
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
           <ShieldCheck size={18} className="shrink-0 text-zinc-500" />
-          <span className="flex-1">Review and accept the service terms to continue.</span>
+          <span className="flex-1">{t("agreement.reviewPrompt", { ns: "auth" })}</span>
           <button type="button" onClick={onOpen} className="font-bold text-zinc-900 underline underline-offset-4">
-            Review
+            {t("agreement.review", { ns: "auth" })}
           </button>
         </div>
       ) : null}
@@ -76,13 +76,13 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
                 <ShieldCheck size={24} />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 id="login-agreement-title" className="text-lg font-bold text-zinc-900">Review service terms</h2>
+                <h2 id="login-agreement-title" className="text-lg font-bold text-zinc-900">{t("agreement.title", { ns: "auth" })}</h2>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">
-                  Please review the current documents before signing in or creating an account.
-                  {updatedAt ? ` Updated ${updatedAt}.` : ""}
+                  {t("agreement.description", { ns: "auth" })}
+                  {updatedAt ? ` ${t("agreement.updated", { ns: "auth", date: updatedAt })}` : ""}
                 </p>
               </div>
-              <button type="button" aria-label="Close agreement" onClick={onReject} className="text-zinc-400 hover:text-zinc-900">
+              <button type="button" aria-label={t("agreement.close", { ns: "auth" })} onClick={onReject} className="text-zinc-400 hover:text-zinc-900">
                 <X size={20} />
               </button>
             </header>
@@ -101,10 +101,10 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
             </div>
             <footer className="grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50 px-6 py-4">
               <button type="button" onClick={onReject} className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-600">
-                Decline
+                {t("agreement.decline", { ns: "auth" })}
               </button>
               <button type="button" onClick={onAccept} className="rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white">
-                Accept and continue
+                {t("agreement.accept", { ns: "auth" })}
               </button>
             </footer>
           </section>

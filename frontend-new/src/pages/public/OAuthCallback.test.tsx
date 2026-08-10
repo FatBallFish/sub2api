@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import OAuthCallback from "./OAuthCallback";
 
 interface TurnstileHarnessProps {
@@ -698,5 +699,24 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("OAuth state expired")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/login");
+  });
+
+  it("localizes pending and failure chrome while preserving provider details", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn(() => new Promise<Response>(() => {}));
+
+    const view = renderCallback();
+
+    expect(screen.getByRole("heading", { name: "ログインを完了しています" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "言語を切り替える" })).toBeInTheDocument();
+    expect(document.title).toBe("OAuth ログイン | Mikiko CC");
+    view.unmount();
+
+    window.location.hash = "#error=invalid_state&error_description=Provider%20detail";
+    renderCallback();
+
+    expect(await screen.findByRole("heading", { name: "ログインに失敗しました" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Provider detail");
+    expect(screen.getByRole("link", { name: "ログインに戻る" })).toBeInTheDocument();
   });
 });

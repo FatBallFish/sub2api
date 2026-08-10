@@ -1,6 +1,7 @@
 import { act, createRef } from "react";
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import TencentCaptchaWidget, { type TencentCaptchaWidgetHandle } from "./TencentCaptchaWidget";
 
 const SCRIPT_ID = "tencent-captcha-script";
@@ -30,7 +31,9 @@ describe("TencentCaptchaWidget", () => {
     const Constructor = vi.fn(function (
       _appId: string,
       next: typeof callback,
+      _options?: { userLanguage: "zh-cn" | "en" },
     ) {
+      void _options;
       callback = next;
       return { show, destroy };
     });
@@ -115,5 +118,22 @@ describe("TencentCaptchaWidget", () => {
       randstr: "@rand",
     });
     expect(sdk.destroy).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps the selected frontend locale to a supported Tencent SDK language", async () => {
+    await i18n.changeLanguage("zh-TW");
+    const sdk = installTencentCaptcha();
+    const ref = createRef<TencentCaptchaWidgetHandle>();
+    render(<TencentCaptchaWidget ref={ref} appId="app-1" />);
+
+    void ref.current!.verify();
+    await waitFor(() => expect(sdk.Constructor).toHaveBeenCalledTimes(1));
+
+    expect(sdk.Constructor).toHaveBeenCalledWith(
+      "app-1",
+      expect.any(Function),
+      { userLanguage: "zh-cn" },
+    );
+    act(() => ref.current?.reset());
   });
 });

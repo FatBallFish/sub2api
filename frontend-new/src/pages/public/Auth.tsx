@@ -11,6 +11,7 @@ import {
   LockKey,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { login, register, sendVerifyCode, startOAuth } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
@@ -22,6 +23,8 @@ import {
   type CaptchaProof,
 } from "../../components/auth/captcha";
 import { isAuthenticated } from "../../utils/authStorage";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { localizedErrorMessage } from "../../utils/localizedError";
 import {
   agreementDocuments,
   agreementRevision,
@@ -37,6 +40,7 @@ function getQueryValue(search: string, key: string) {
 }
 
 export default function Auth() {
+  const { i18n, t } = useTranslation("auth");
   const location = useLocation();
   const navigate = useNavigate();
   const initialMode = location.pathname.includes("register") ? "register" : "login";
@@ -85,6 +89,7 @@ export default function Auth() {
   const captchaRequired = captchaProvider !== null;
   const actionCaptchaRequired = captchaProvider?.provider === "tencent" || captchaProvider?.provider === "aliyun";
   const turnstileRequired = captchaProvider?.provider === "turnstile";
+  usePageTitle(t(mode === "login" ? "pageTitles.login" : "pageTitles.register"));
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -116,19 +121,19 @@ export default function Auth() {
   if (isAuthenticated()) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white text-sm font-medium text-zinc-500">
-        Redirecting to console...
+        {t("redirecting")}
       </div>
     );
   }
 
-  const title = mode === "login" ? "Sign in to Gateway" : sent ? "Check your email" : "Create your account";
+  const title = mode === "login" ? t("loginTitle") : sent ? t("checkEmailTitle") : t("registerTitle");
   const subtitle = mode === "login"
-    ? "Use your email and password to access your console."
+    ? t("loginDescription")
     : sent
-      ? `We've sent a verification code to ${email}.`
+      ? t("codeSentTo", { email })
       : emailVerifyEnabled
-        ? "Create an account with email verification."
-        : "Create an account to start using the console.";
+        ? t("registerVerifyDescription")
+        : t("registerDescription");
 
   const resetCaptcha = () => {
     setCaptchaProof(null);
@@ -137,14 +142,14 @@ export default function Auth() {
 
   const requireReadySettings = () => {
     if (settingsLoaded) return true;
-    setError("Authentication settings are still loading. Please try again.");
+    setError(t("settingsLoadingError"));
     return false;
   };
 
   const requireAgreement = () => {
     if (!agreementRequired) return true;
     if (loginAgreementMode === "modal") setAgreementModalOpen(true);
-    setError("Accept the current service terms before continuing.");
+    setError(t("agreementRequiredError"));
     return false;
   };
 
@@ -163,7 +168,7 @@ export default function Auth() {
 
   const requireEmbeddedCaptchaVerification = () => {
     if (!turnstileRequired || captchaProof) return true;
-    setError("Complete the security verification before continuing.");
+    setError(t("captchaRequiredError"));
     return false;
   };
 
@@ -205,12 +210,12 @@ export default function Auth() {
         ...captchaProofPayload(requestCaptchaProof),
       });
       if (response.requires_2fa) {
-        setError("Two-factor authentication is enabled. Please use the classic console login for now.");
+        setError(t("twoFactorClassic"));
         return;
       }
       finishAuth();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to sign in.");
+      setError(localizedErrorMessage(reason, "authSignInFailed", { t: i18n.t, scope: "auth" }));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -227,7 +232,7 @@ export default function Auth() {
       return;
     }
     if (invitationCodeRequired && !inviteCode.trim()) {
-      setError("Invitation code is required.");
+      setError(t("invitationRequiredError"));
       return;
     }
     if (!emailVerifyEnabled) {
@@ -245,9 +250,9 @@ export default function Auth() {
       setCaptchaProof(null);
       await sendVerifyCode(email, requestCaptchaProof);
       setSent(true);
-      setStatus("Code sent. Check your inbox.");
+      setStatus(t("codeSent"));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to send verification code.");
+      setError(localizedErrorMessage(reason, "authSendCodeFailed", { t: i18n.t, scope: "auth" }));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -265,7 +270,7 @@ export default function Auth() {
     }
     const normalizedInviteCode = inviteCode.trim();
     if (invitationCodeRequired && !normalizedInviteCode) {
-      setError("Invitation code is required.");
+      setError(t("invitationRequiredError"));
       return;
     }
     if (!emailVerifyEnabled && (captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification())) return;
@@ -292,7 +297,7 @@ export default function Auth() {
       await register(payload);
       finishAuth();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to create account.");
+      setError(localizedErrorMessage(reason, "authRegisterFailed", { t: i18n.t, scope: "auth" }));
     } finally {
       if (!emailVerifyEnabled && captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -315,7 +320,7 @@ export default function Auth() {
       if (requestCaptchaProof) setCaptchaProof(null);
       await startOAuth(provider, redirectTo, initialAffiliateCode, requestCaptchaProof);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to start OAuth sign in.");
+      setError(localizedErrorMessage(reason, "authOAuthStartFailed", { t: i18n.t, scope: "auth" }));
     } finally {
       resetCaptcha();
       requestInFlightRef.current = false;
@@ -347,20 +352,19 @@ export default function Auth() {
         <div className="relative z-10 space-y-12">
           <div className="space-y-6">
             <h2 className="text-5xl font-bold leading-tight tracking-tight text-white">
-              Build with the <br />
-              <span className="text-zinc-500">best AI models.</span>
+              {t("hero.heading")} <br />
+              <span className="text-zinc-500">{t("hero.headingEmphasis")}</span>
             </h2>
             <p className="max-w-md text-lg leading-relaxed text-zinc-400">
-              Connect your favorite coding clients to a single, high-performance gateway.
-              Transparent billing, enterprise-grade reliability.
+              {t("hero.description")}
             </p>
           </div>
 
           <div className="space-y-8">
             {[
-              { icon: Cpu, title: "Universal Access", desc: "One key for Codex, Claude, and Gemini." },
-              { icon: ShieldCheck, title: "Secure & Encrypted", desc: "AES-256 encryption for all credentials." },
-              { icon: Globe, title: "Global Infrastructure", desc: "Low-latency routing across US, EU, and Asia." },
+              { icon: Cpu, title: t("hero.universalTitle"), desc: t("hero.universalDescription") },
+              { icon: ShieldCheck, title: t("hero.secureTitle"), desc: t("hero.secureDescription") },
+              { icon: Globe, title: t("hero.globalTitle"), desc: t("hero.globalDescription") },
             ].map((item, index) => (
               <motion.div
                 key={item.title}
@@ -382,7 +386,7 @@ export default function Auth() {
         </div>
 
         <div className="relative z-10 text-xs font-bold uppercase tracking-widest text-zinc-600">
-          &copy; 2026 Gateway Labs Inc. All rights reserved.
+          {t("hero.copyright")}
         </div>
       </div>
 
@@ -400,7 +404,7 @@ export default function Auth() {
               onClick={() => switchMode("login")}
               className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
             >
-              Login
+              {t("loginTab")}
             </button>
             <button
               type="button"
@@ -408,7 +412,7 @@ export default function Auth() {
               onClick={() => switchMode("register")}
               className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
             >
-              Create account
+              {t("registerTab")}
             </button>
           </div>
 
@@ -425,7 +429,7 @@ export default function Auth() {
                 >
                   <AuthTextField
                     id="login-email"
-                    label="Email Address"
+                    label={t("email")}
                     type="email"
                     value={email}
                     onChange={setEmail}
@@ -434,11 +438,11 @@ export default function Auth() {
                   />
                   <AuthTextField
                     id="login-password"
-                    label="Password"
+                    label={t("password")}
                     type="password"
                     value={password}
                     onChange={setPassword}
-                    placeholder="Your password"
+                    placeholder={t("passwordPlaceholder")}
                     icon={<LockKey size={18} className="text-zinc-400" />}
                   />
                   <CaptchaChallenge
@@ -450,18 +454,18 @@ export default function Auth() {
                     }}
                     onExpire={() => {
                       setCaptchaProof(null);
-                      setError("Security verification expired. Please verify again.");
+                      setError(t("captchaExpired"));
                     }}
                     onError={() => {
                       setCaptchaProof(null);
-                      setError("Security verification failed. Please try again.");
+                      setError(t("captchaFailed"));
                     }}
                   />
                   <SubmitButton
                     loading={loading}
                     disabled={!settingsLoaded || agreementRequired || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
-                    Sign in
+                    {t("signIn")}
                   </SubmitButton>
                 </motion.form>
               ) : !sent ? (
@@ -475,7 +479,7 @@ export default function Auth() {
                 >
                   <AuthTextField
                     id="register-email"
-                    label="Email Address"
+                    label={t("email")}
                     type="email"
                     value={email}
                     onChange={setEmail}
@@ -484,27 +488,27 @@ export default function Auth() {
                   />
                   <AuthTextField
                     id="register-password"
-                    label="Password"
+                    label={t("password")}
                     type="password"
                     minLength={6}
                     value={password}
                     onChange={setPassword}
-                    placeholder="At least 6 characters"
+                    placeholder={t("passwordMinPlaceholder")}
                     icon={<LockKey size={18} className="text-zinc-400" />}
                   />
                   <AuthTextField
                     id="register-invitation-code"
-                    label={invitationCodeRequired ? "Invite Code (required)" : "Invite Code"}
+                    label={t(invitationCodeRequired ? "inviteCodeRequired" : "inviteCode")}
                     type="text"
                     value={inviteCode}
                     onChange={setInviteCode}
-                    placeholder={invitationCodeRequired ? "Enter your invite code" : "Optional invite code"}
+                    placeholder={t(invitationCodeRequired ? "inviteRequiredPlaceholder" : "invitePlaceholder")}
                     icon={<ShieldCheck size={18} className="text-zinc-400" />}
                     required={invitationCodeRequired}
                   />
                   {!registrationEnabled ? (
                     <p role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
-                      Registration is currently closed.
+                      {t("registrationClosed")}
                     </p>
                   ) : null}
                   <CaptchaChallenge
@@ -516,18 +520,18 @@ export default function Auth() {
                     }}
                     onExpire={() => {
                       setCaptchaProof(null);
-                      setError("Security verification expired. Please verify again.");
+                      setError(t("captchaExpired"));
                     }}
                     onError={() => {
                       setCaptchaProof(null);
-                      setError("Security verification failed. Please try again.");
+                      setError(t("captchaFailed"));
                     }}
                   />
                   <SubmitButton
                     loading={loading}
                     disabled={!registrationEnabled || !settingsLoaded || agreementRequired || captchaConfigurationInvalid || (turnstileRequired && !captchaProof)}
                   >
-                    {!settingsLoaded ? "Loading settings..." : emailVerifyEnabled ? "Send verification code" : "Register account"}
+                    {!settingsLoaded ? t("loadingSettings") : emailVerifyEnabled ? t("sendVerificationCode") : t("registerAccount")}
                   </SubmitButton>
                 </motion.form>
               ) : (
@@ -544,7 +548,7 @@ export default function Auth() {
                       htmlFor="verification-code"
                       className="ml-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400"
                     >
-                      Verification Code
+                      {t("verificationCode")}
                     </label>
                     <input
                       id="verification-code"
@@ -558,7 +562,7 @@ export default function Auth() {
                       className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] outline-none transition-colors focus:border-zinc-900"
                     />
                   </div>
-                  <SubmitButton loading={loading} disabled={agreementRequired}>Verify & Create Account</SubmitButton>
+                  <SubmitButton loading={loading} disabled={agreementRequired}>{t("verifyCreateAccount")}</SubmitButton>
                   <button
                     type="button"
                     disabled={loading}
@@ -567,7 +571,7 @@ export default function Auth() {
                     }}
                     className="w-full text-xs font-bold text-zinc-400 transition-colors hover:text-zinc-900 disabled:cursor-not-allowed"
                   >
-                    Use a different email
+                    {t("useDifferentEmail")}
                   </button>
                 </motion.form>
               )}
@@ -596,7 +600,7 @@ export default function Auth() {
                     <div className="w-full border-t border-zinc-100" />
                   </div>
                   <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                    <span className="bg-white px-2">Or continue with</span>
+                    <span className="bg-white px-2">{t("orContinueWith")}</span>
                   </div>
                 </div>
 
@@ -670,13 +674,14 @@ function AuthTextField({ id, label, type, value, onChange, placeholder, icon, mi
 }
 
 function SubmitButton({ children, loading, disabled = false }: { children: React.ReactNode; loading: boolean; disabled?: boolean }) {
+  const { t } = useTranslation("auth");
   return (
     <button
       type="submit"
       disabled={loading || disabled}
       className="group flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 py-3 font-bold text-white transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
     >
-      {loading ? "Working..." : children}
+      {loading ? t("working") : children}
       {!loading ? <ArrowRight size={18} weight="bold" className="transition-transform group-hover:translate-x-1" /> : null}
     </button>
   );

@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
 const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -129,6 +130,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
     },
     ref,
   ) {
+    const { t } = useTranslation("auth");
     const containerRef = useRef<HTMLDivElement>(null);
     const apiRef = useRef<TurnstileApi>(null);
     const widgetIdRef = useRef<string>(null);
@@ -196,7 +198,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
       <div
         ref={containerRef}
         role="group"
-        aria-label="Security verification"
+        aria-label={t("captcha.verification")}
         style={{ minHeight: "65px", width: "100%" }}
       />
     );
