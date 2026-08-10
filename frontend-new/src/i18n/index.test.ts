@@ -94,7 +94,7 @@ describe("locale initialization", () => {
 });
 
 function assertTranslationKeyTypes() {
-  i18n.t("language");
+  i18n.t("languageSwitcher.triggerLabel");
   i18n.t("public:pageTitles.home");
   // @ts-expect-error Unknown translation keys must fail type checking.
   i18n.t("common:notARealKey");

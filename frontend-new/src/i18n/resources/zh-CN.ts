@@ -3,7 +3,6 @@ import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const zhCN = {
   common: {
-    language: "语言",
     legalDocuments: {
       terms: "服务条款",
       usagePolicy: "使用政策",
@@ -162,7 +161,6 @@ const zhCN = {
     },
   },
   auth: {
-    title: "登录",
     pageTitles: { login: "登录", register: "创建账号", oauth: "OAuth 登录" },
     redirecting: "正在跳转到控制台...",
     loginTitle: "登录网关",
@@ -411,7 +409,6 @@ const zhCN = {
       apiKeys: {},
     },
     ...remainingErrors["zh-CN"],
-    unknown: "出现错误，请稍后重试。",
     publicPricingLoadFailed: "无法加载价格信息。",
     modelPricingLoadFailed: "无法加载模型价格。",
     authSignInFailed: "无法登录。",

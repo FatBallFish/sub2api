@@ -2,7 +2,6 @@ import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const en = {
   common: {
-    language: "Language",
     legalDocuments: {
       terms: "Terms of Service",
       usagePolicy: "Usage Policy",
@@ -161,7 +160,6 @@ const en = {
     },
   },
   auth: {
-    title: "Sign in",
     pageTitles: {
       login: "Sign in",
       register: "Create account",
@@ -414,7 +412,6 @@ const en = {
       apiKeys: {},
     },
     ...remainingErrors.en,
-    unknown: "Something went wrong.",
     publicPricingLoadFailed: "Unable to load pricing.",
     modelPricingLoadFailed: "Unable to load model pricing.",
     authSignInFailed: "Unable to sign in.",
