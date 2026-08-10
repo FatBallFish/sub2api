@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createI18nInstance } from ".";
+import { findIncompletePluralFamilies } from "./resourceIntegrity";
 import en from "./resources/en";
 import ja from "./resources/ja";
 import zhCN from "./resources/zh-CN";
@@ -71,5 +73,26 @@ describe("translation resources", () => {
     expect(() => flattenResources({ common: { invalid: 42 } })).toThrow(
       "common.invalid: expected a string translation leaf",
     );
+  });
+
+  it("requires complete _one/_other plural families", () => {
+    expect(findIncompletePluralFamilies(new Map([
+      ["console.users_one", "{{count}} user"],
+    ]))).toEqual(["console.users: missing _other"]);
+    expect(findIncompletePluralFamilies(new Map([
+      ["console.users_other", "{{count}} users"],
+    ]))).toEqual(["console.users: missing _one"]);
+
+    expect(findIncompletePluralFamilies(english)).toEqual([]);
+    for (const [locale, resource] of locales) {
+      expect(findIncompletePluralFamilies(flattenResources(resource)), `${locale} plural families`).toEqual([]);
+    }
+  });
+
+  it("resolves English singular and plural forms with count", async () => {
+    const instance = await createI18nInstance({ initialLocale: "en", storage: null, documentElement: null });
+
+    expect(instance.t("console:referral.users", { count: 1, formattedCount: "1" })).toBe("1 User");
+    expect(instance.t("console:referral.users", { count: 2, formattedCount: "2" })).toBe("2 Users");
   });
 });

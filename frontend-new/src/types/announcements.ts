@@ -1,4 +1,6 @@
 export type AnnouncementNotifyMode = "silent" | "popup";
+export const ANNOUNCEMENT_CATEGORIES = ["notice", "model", "feature", "release"] as const;
+export type AnnouncementCategory = (typeof ANNOUNCEMENT_CATEGORIES)[number];
 
 export interface UserAnnouncement {
   id: number;
