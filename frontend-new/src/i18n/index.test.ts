@@ -78,6 +78,19 @@ describe("locale initialization", () => {
     expect(freshI18n.resolvedLanguage).toBe("ja");
     expect(documentElement.lang).toBe("ja");
   });
+
+  it("initializes a fresh runtime from a normalized browser locale when none is stored", async () => {
+    const documentElement = { lang: "" };
+
+    const freshI18n = await createI18nInstance({
+      storage: null,
+      browser: ["zh-HK-u-ca-chinese"],
+      documentElement,
+    });
+
+    expect(freshI18n.resolvedLanguage).toBe("zh-TW");
+    expect(documentElement.lang).toBe("zh-TW");
+  });
 });
 
 function assertTranslationKeyTypes() {
