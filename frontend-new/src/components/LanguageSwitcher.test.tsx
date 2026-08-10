@@ -31,10 +31,43 @@ describe("LanguageSwitcher", () => {
       expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("zh-TW");
       expect(document.documentElement.lang).toBe("zh-TW");
     });
-    expect(screen.getByRole("button", { name: "切換語言" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切換語言" })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "切換語言" }));
     expect(screen.getByRole("menuitemradio", { name: "繁體中文" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("focuses the selected option when the menu opens", async () => {
+    const user = userEvent.setup();
+    await i18n.changeLanguage("zh-TW");
+    render(<LanguageSwitcher />);
+
+    await user.click(screen.getByRole("button", { name: "切換語言" }));
+
+    expect(screen.getByRole("menuitemradio", { name: "繁體中文" })).toHaveFocus();
+  });
+
+  it("supports arrow, Home, and End menu navigation", async () => {
+    const user = userEvent.setup();
+    render(<LanguageSwitcher />);
+
+    await user.click(screen.getByRole("button", { name: "Change language" }));
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "简体中文" })).toHaveFocus();
+
+    await user.keyboard("{End}");
+    expect(screen.getByRole("menuitemradio", { name: "日本語" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveFocus();
+
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveFocus();
+
+    await user.keyboard("{ArrowUp}");
+    expect(screen.getByRole("menuitemradio", { name: "日本語" })).toHaveFocus();
   });
 
   it("closes the menu when Escape is pressed", async () => {
