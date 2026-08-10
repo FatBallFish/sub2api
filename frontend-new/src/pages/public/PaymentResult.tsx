@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, WarningCircle } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import { resolvePaymentOrderByResumeToken, verifyPaymentOrder, verifyPaymentOrderPublic } from "../../api/payment";
 import type { PaymentOrderResult } from "../../types/payment";
+import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { localizedErrorMessage } from "../../utils/localizedError";
 
-function formatMoney(value: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
+function formatMoney(value: number, currency = "USD", locale = "en") {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
@@ -20,12 +24,6 @@ function normalizeStatus(status?: string) {
 function isSuccess(status?: string) {
   const normalized = normalizeStatus(status);
   return normalized === "COMPLETED" || normalized === "PAID";
-}
-
-function titleForStatus(status?: string) {
-  if (isSuccess(status)) return "Payment completed";
-  if (normalizeStatus(status) === "PENDING") return "Payment is processing";
-  return "Payment status";
 }
 
 function paymentCurrency(order: PaymentOrderResult) {
@@ -47,6 +45,7 @@ function showCreditedAmount(order: PaymentOrderResult) {
 }
 
 export default function PaymentResult() {
+  const { i18n, t } = useTranslation("public");
   const [params] = useSearchParams();
   const [order, setOrder] = useState<PaymentOrderResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,11 +75,11 @@ export default function PaymentResult() {
         if (resolved) {
           setOrder(resolved);
         } else {
-          setError("Missing payment order reference.");
+          setError(i18n.t("public:payment.missingReference"));
         }
       } catch (reason) {
         if (active) {
-          setError(reason instanceof Error ? reason.message : "Unable to verify the payment order.");
+          setError(localizedErrorMessage(reason, "paymentVerifyFailed", { t: i18n.t, scope: "payment" }));
         }
       } finally {
         if (active) setLoading(false);
@@ -91,21 +90,28 @@ export default function PaymentResult() {
     return () => {
       active = false;
     };
-  }, [outTradeNo, resumeToken]);
+  }, [i18n, outTradeNo, resumeToken]);
 
   const status = normalizeStatus(order?.status);
   const Icon = loading ? Clock : isSuccess(status) ? CheckCircle : WarningCircle;
+  const title = isSuccess(status)
+    ? t("payment.completed")
+    : status === "PENDING"
+      ? t("payment.processing")
+      : t("payment.statusTitle");
+  usePageTitle(isSuccess(status) ? t("payment.completedPageTitle") : t("payment.pageTitle"));
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-16">
+    <main className="relative min-h-screen bg-zinc-50 px-6 py-16">
+      <StandaloneLanguageSwitcher />
       <div className="mx-auto max-w-xl rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
         <div className="flex items-center gap-4">
           <div className={`rounded-2xl p-3 ${isSuccess(status) ? "bg-emerald-50 text-emerald-600" : "bg-zinc-100 text-zinc-500"}`}>
             <Icon size={28} weight="fill" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-zinc-950">{loading ? "Verifying payment" : titleForStatus(status)}</h1>
-            <p className="mt-1 text-sm text-zinc-500">We are checking the provider result and refreshing your account balance.</p>
+            <h1 className="text-2xl font-bold text-zinc-950">{loading ? t("payment.verifying") : title}</h1>
+            <p className="mt-1 text-sm text-zinc-500">{t("payment.description")}</p>
           </div>
         </div>
 
@@ -116,21 +122,21 @@ export default function PaymentResult() {
         {order ? (
           <div className="mt-8 space-y-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Order</span>
+              <span className="text-zinc-500">{t("payment.order")}</span>
               <span className="font-mono font-semibold text-zinc-900">{order.out_trade_no || `#${order.id}`}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Status</span>
+              <span className="text-zinc-500">{t("payment.status")}</span>
               <span className="font-bold text-zinc-900">{status}</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">Amount</span>
-              <span className="font-bold text-zinc-900">{formatMoney(order.pay_amount, paymentCurrency(order))}</span>
+              <span className="text-zinc-500">{t("payment.amount")}</span>
+              <span className="font-bold text-zinc-900">{formatMoney(order.pay_amount, paymentCurrency(order), i18n.resolvedLanguage)}</span>
             </div>
             {showCreditedAmount(order) ? (
               <div className="flex justify-between gap-4">
-                <span className="text-zinc-500">Credited</span>
-                <span className="font-bold text-zinc-900">{formatMoney(order.amount, amountCurrency(order))}</span>
+                <span className="text-zinc-500">{t("payment.credited")}</span>
+                <span className="font-bold text-zinc-900">{formatMoney(order.amount, amountCurrency(order), i18n.resolvedLanguage)}</span>
               </div>
             ) : null}
           </div>
@@ -138,10 +144,10 @@ export default function PaymentResult() {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link to="/console/subscription-wallet" className="inline-flex flex-1 items-center justify-center rounded-xl bg-zinc-950 px-4 py-3 text-sm font-bold text-white">
-            View billing
+            {t("payment.viewBilling")}
           </Link>
           <Link to="/console" className="inline-flex flex-1 items-center justify-center rounded-xl border border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-700">
-            Back to console
+            {t("payment.backToConsole")}
           </Link>
         </div>
       </div>

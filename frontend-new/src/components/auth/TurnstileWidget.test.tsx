@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import TurnstileWidget, { type TurnstileWidgetHandle } from "./TurnstileWidget";
 
 const SCRIPT_ID = "cloudflare-turnstile-script";
@@ -81,6 +82,15 @@ describe("TurnstileWidget", () => {
     act(() => renderOptions(turnstile).callback("verified-token"));
 
     expect(onVerify).toHaveBeenCalledWith("verified-token");
+  });
+
+  it("localizes the verification group's accessible name", async () => {
+    await i18n.changeLanguage("zh-TW");
+    installTurnstile();
+
+    render(<TurnstileWidget siteKey="site-key" onVerify={vi.fn()} />);
+
+    expect(screen.getByRole("group", { name: "安全驗證" })).toBeInTheDocument();
   });
 
   it("forwards expiration and challenge errors to the parent", async () => {

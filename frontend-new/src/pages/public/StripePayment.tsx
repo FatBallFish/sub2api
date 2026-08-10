@@ -3,7 +3,11 @@ import type { FormEvent } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Link, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getPaymentCheckoutInfo } from "../../api/payment";
+import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import { localizedErrorMessage } from "../../utils/localizedError";
 
 type StripePaymentContext = {
   clientSecret: string;
@@ -12,6 +16,7 @@ type StripePaymentContext = {
 };
 
 function StripePaymentForm({ orderId, context }: { orderId: string; context: StripePaymentContext }) {
+  const { t } = useTranslation("public");
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
@@ -27,7 +32,7 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
     else if (context.outTradeNo) returnURL.searchParams.set("out_trade_no", context.outTradeNo);
     const result = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnURL.toString() } });
     if (result.error) {
-      setError(result.error.message || "Payment could not be confirmed.");
+      setError(result.error.message || t("paymentConfirmFailed", { ns: "errors" }));
       setSubmitting(false);
       return;
     }
@@ -37,19 +42,20 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
   return (
     <form onSubmit={submit} className="w-full max-w-xl bg-white p-6 sm:p-8">
       <div className="mb-6 border-b border-zinc-200 pb-5">
-        <p className="text-xs font-semibold uppercase text-zinc-500">Secure payment</p>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950">Complete your order</h1>
+        <p className="text-xs font-semibold uppercase text-zinc-500">{t("payment.securePayment")}</p>
+        <h1 className="mt-2 text-2xl font-semibold text-zinc-950">{t("payment.completeOrder")}</h1>
       </div>
       <PaymentElement />
       {error && <p className="mt-4 text-sm text-rose-700">{error}</p>}
       <button type="submit" disabled={!stripe || submitting} className="mt-6 h-11 w-full bg-zinc-950 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-400">
-        {submitting ? "Confirming..." : "Pay now"}
+        {submitting ? t("payment.confirming") : t("payment.payNow")}
       </button>
     </form>
   );
 }
 
 export default function StripePayment() {
+  const { i18n, t } = useTranslation("public");
   const [params] = useSearchParams();
   const orderId = params.get("order_id")?.trim() || "";
   const [publishableKey, setPublishableKey] = useState("");
@@ -62,22 +68,25 @@ export default function StripePayment() {
       return null;
     }
   }, [orderId]);
+  usePageTitle(t("payment.pageTitle"));
 
   useEffect(() => {
+    if (!context?.clientSecret || !orderId) return;
     getPaymentCheckoutInfo()
       .then((info) => setPublishableKey(info.stripe_publishable_key || ""))
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Unable to load Stripe."));
-  }, []);
+      .catch((reason: unknown) => setError(localizedErrorMessage(reason, "paymentLoadStripeFailed", { t: i18n.t, scope: "payment" })));
+  }, [context?.clientSecret, i18n, orderId]);
 
   const stripePromise = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
   if (!context?.clientSecret || !orderId) {
-    return <StripeRecovery message="The secure payment context is no longer available. Return to billing to resume or create a new order." />;
+    return <StripeRecovery message={t("payment.missingContext")} />;
   }
   if (error) return <StripeRecovery message={error} />;
-  if (!stripePromise) return <div className="flex min-h-screen items-center justify-center bg-zinc-100 text-sm text-zinc-500">Loading secure payment...</div>;
+  if (!stripePromise) return <div className="relative flex min-h-screen items-center justify-center bg-zinc-100 text-sm text-zinc-500"><StandaloneLanguageSwitcher />{t("payment.loadingSecurePayment")}</div>;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10">
+    <main className="relative flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10">
+      <StandaloneLanguageSwitcher />
       <Elements stripe={stripePromise} options={{ clientSecret: context.clientSecret, appearance: { theme: "stripe" } }}>
         <StripePaymentForm orderId={orderId} context={context} />
       </Elements>
@@ -86,12 +95,14 @@ export default function StripePayment() {
 }
 
 function StripeRecovery({ message }: { message: string }) {
+  const { t } = useTranslation("public");
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-100 px-4">
+    <main className="relative flex min-h-screen items-center justify-center bg-zinc-100 px-4">
+      <StandaloneLanguageSwitcher />
       <section className="max-w-md bg-white p-8 text-center">
-        <h1 className="text-xl font-semibold text-zinc-950">Payment unavailable</h1>
+        <h1 className="text-xl font-semibold text-zinc-950">{t("payment.unavailable")}</h1>
         <p className="mt-3 text-sm leading-6 text-zinc-600">{message}</p>
-        <Link to="/console/subscription-wallet" className="mt-6 inline-flex h-10 items-center bg-zinc-950 px-5 text-sm font-semibold text-white">Return to billing</Link>
+        <Link to="/console/subscription-wallet" className="mt-6 inline-flex h-10 items-center bg-zinc-950 px-5 text-sm font-semibold text-white">{t("payment.returnToBilling")}</Link>
       </section>
     </main>
   );

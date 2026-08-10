@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "./i18n";
 import App from "./App";
 
 const jsonResponse = (data: unknown) =>
@@ -305,5 +306,41 @@ describe("App console routes", () => {
         body: JSON.stringify({ out_trade_no: "sub2_paid" }),
       }),
     );
+  });
+
+  it("localizes initial loading and blocked-region copy without translating backend values", async () => {
+    await i18n.changeLanguage("zh-TW");
+    let resolveSettings!: (value: Response) => void;
+    const settingsPromise = new Promise<Response>((resolve) => {
+      resolveSettings = resolve;
+    });
+    globalThis.fetch = vi.fn().mockReturnValue(settingsPromise);
+
+    render(<App RouterComponent={MemoryRouter} routerProps={{ initialEntries: ["/login"] }} />);
+
+    expect(screen.getByText("載入中...")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切換語言" })).toBeInTheDocument();
+    expect(document.title).toBe("載入中 | Mikiko CC");
+
+    resolveSettings(jsonResponse(blockedPublicSettings));
+
+    expect(await screen.findByRole("heading", { name: "你所在的地區暫不提供服務" })).toBeInTheDocument();
+    expect(screen.getByText(/CN/)).toBeInTheDocument();
+    expect(screen.getByText("Mikiko")).toBeInTheDocument();
+    expect(document.title).toBe("服務不可用 | Mikiko CC");
+  });
+
+  it("localizes the console bootstrap failure and preserves a useful backend message", async () => {
+    await i18n.changeLanguage("zh-CN");
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      if (input.toString() === "/api/v1/settings/public") return Promise.resolve(jsonResponse({}));
+      return Promise.reject(new Error("Backend diagnostic"));
+    });
+
+    render(<App RouterComponent={MemoryRouter} routerProps={{ initialEntries: ["/console"] }} />);
+
+    expect(await screen.findByRole("heading", { name: "控制台暂时不可用" })).toBeInTheDocument();
+    expect(screen.getByText("Backend diagnostic")).toBeInTheDocument();
+    expect(document.title).toBe("控制台不可用 | Mikiko CC");
   });
 });
