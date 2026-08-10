@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import ConsoleLayout from "./ConsoleLayout";
@@ -133,9 +133,10 @@ describe("ConsoleLayout", () => {
     );
 
     expect(screen.getByRole("link", { name: "API 密钥" })).toHaveAttribute("href", "/console/api-keys");
-    expect(screen.getByRole("link", { name: "概览" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "API 密钥" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "概览" })).not.toHaveAttribute("aria-current");
     expect(screen.getAllByText("API 密钥").length).toBeGreaterThan(1);
-    expect(screen.getByText("积分")).toBeInTheDocument();
+    expect(screen.getByText("额度")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切换到深色主题" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "打开账户菜单" })).toBeInTheDocument();
     expect(screen.getByLabelText("2 条未读公告")).toBeInTheDocument();
@@ -156,5 +157,58 @@ describe("ConsoleLayout", () => {
     expect(screen.getByText("クレジット")).toBeInTheDocument();
     expect(screen.getByText("ユーザー")).toBeInTheDocument();
     expect(document.title).toBe("API キー | Mikiko CC");
+  });
+
+  it("uses explicit localized identity for the install guide route", async () => {
+    await i18n.changeLanguage("zh-TW");
+
+    render(
+      <MemoryRouter initialEntries={["/console/install-guide?key=100"]}>
+        <Routes>
+          <Route path="/console" element={<ConsoleLayout bootstrap={bootstrap} />}>
+            <Route path="install-guide" element={<div>Install child</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Install child")).toBeInTheDocument();
+    expect(screen.getByText("安裝指南")).toBeInTheDocument();
+    expect(document.title).toBe("安裝指南 | Mikiko CC");
+    expect(screen.getByRole("link", { name: "概覽" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("provides an accessible mobile navigation drawer while keeping top controls available", async () => {
+    render(
+      <MemoryRouter initialEntries={["/console"]}>
+        <Routes>
+          <Route path="/console" element={<ConsoleLayout bootstrap={bootstrap} />}>
+            <Route index element={<div>Overview content</div>} />
+            <Route path="api-keys" element={<div>API key content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const menuButton = screen.getByRole("button", { name: "Open navigation" });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+    expect(menuButton).toHaveClass("lg:hidden");
+    expect(screen.getByRole("main")).toHaveClass("ml-0", "lg:ml-64");
+    expect(screen.getByRole("button", { name: "Change language" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeInTheDocument();
+
+    fireEvent.click(menuButton);
+    expect(menuButton).toHaveAttribute("aria-expanded", "true");
+    const drawer = screen.getByRole("dialog", { name: "Console navigation" });
+    expect(drawer).toBeInTheDocument();
+    expect(within(drawer).getByRole("button", { name: "Close navigation" })).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Console navigation" })).not.toBeInTheDocument();
+    await waitFor(() => expect(menuButton).toHaveFocus());
+
+    fireEvent.click(menuButton);
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Console navigation" })).getByRole("link", { name: "API Keys" }));
+    expect(screen.queryByRole("dialog", { name: "Console navigation" })).not.toBeInTheDocument();
   });
 });

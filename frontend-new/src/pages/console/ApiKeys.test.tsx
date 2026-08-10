@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -452,6 +452,11 @@ describe("ApiKeys", () => {
     expect(document.title).toBe("API 密钥 | Mikiko CC");
     const initialRequests = fetchMock.mock.calls.length;
 
+    await userEvent.click(screen.getByRole("button", { name: "全部密钥" }));
+    expect(screen.queryByText("正在加载 API 密钥...")).not.toBeInTheDocument();
+    expect(screen.getByText("Production Gateway")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(initialRequests);
+
     await act(async () => {
       await i18n.changeLanguage("ja");
     });
@@ -467,6 +472,7 @@ describe("ApiKeys", () => {
 
   it("localizes modal, group selection, validation, and creation success", async () => {
     await i18n.changeLanguage("zh-CN");
+    let createAttempts = 0;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
       if (url.endsWith("/api/v1/groups/available")) {
@@ -485,6 +491,14 @@ describe("ApiKeys", () => {
         return Promise.resolve(new Response(JSON.stringify({ success: true, data: {} }), { status: 200 }));
       }
       if (url.endsWith("/api/v1/keys") && init?.method === "POST") {
+        createAttempts += 1;
+        if (createAttempts === 1) {
+          return Promise.resolve(new Response(JSON.stringify({
+            success: false,
+            reason: "CUSTOM_MUTATION_CODE",
+            message: "Configured mutation detail",
+          }), { status: 400, headers: { "Content-Type": "application/json" } }));
+        }
         return Promise.resolve(new Response(JSON.stringify({ success: true, data: {
           id: 101,
           user_id: 1,
@@ -508,7 +522,16 @@ describe("ApiKeys", () => {
     await userEvent.click(screen.getByRole("button", { name: "创建新密钥" }));
 
     expect(screen.getByRole("heading", { name: "创建 API 密钥" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "创建 API 密钥" })).toBeInTheDocument();
     expect(screen.getByLabelText("密钥名称")).toHaveValue("本地开发");
+    await waitFor(() => expect(screen.getByLabelText("密钥名称")).toHaveFocus());
+    await userEvent.tab({ shift: true });
+    expect(screen.getByRole("button", { name: "创建密钥" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "创建 API 密钥" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "创建新密钥" })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "创建新密钥" }));
     expect(screen.getAllByText("分组").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("配额")).toHaveAttribute("placeholder", "无限制");
     await userEvent.click(screen.getByRole("button", { name: "选择分组" }));
@@ -524,6 +547,13 @@ describe("ApiKeys", () => {
     fireEvent.change(screen.getByLabelText("配额"), { target: { value: "25" } });
     await userEvent.click(screen.getByRole("button", { name: "创建密钥" }));
 
+    expect(await screen.findByRole("alert")).toHaveTextContent("Configured mutation detail");
+    expect(screen.getByRole("dialog", { name: "创建 API 密钥" })).toBeInTheDocument();
+    expect(screen.getByText("暂无 API 密钥")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "关闭错误提示" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "创建密钥" }));
+
     expect(await screen.findByText("已创建 API 密钥“Tokyo Client”。")).toBeInTheDocument();
     expect(screen.getByText("Tokyo Client")).toBeInTheDocument();
     const requestCount = fetchMock.mock.calls.length;
@@ -534,6 +564,89 @@ describe("ApiKeys", () => {
 
     expect(screen.getByText("API キー「Tokyo Client」を作成しました。")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+  });
+
+  it("keeps the table available after clipboard failure and provides accessible CCSwitch dialog recovery", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const writeText = vi.fn()
+      .mockRejectedValueOnce(new DOMException("Clipboard blocked", "NotAllowedError"))
+      .mockResolvedValueOnce(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("/reveal")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: { key: "sk-live-full-value" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      if (url.endsWith("/api/v1/groups/available")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: [] }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/groups/rates")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: {} }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/settings/public")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: { hide_ccs_import_button: false } }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/usage/dashboard/api-keys-usage")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: { stats: {} } }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        success: true,
+        data: {
+          items: [{
+            id: 100,
+            user_id: 1,
+            key: "sk-live-prod-abcdef",
+            name: "Production Gateway",
+            group_id: 10,
+            group: { id: 10, name: "Antigravity Group", platform: "antigravity", rate_multiplier: 0.75 },
+            status: "active",
+            quota: 100,
+            quota_used: 2,
+            last_used_at: null,
+            created_at: "2026-06-01T00:00:00Z",
+            updated_at: "2026-06-01T00:00:00Z",
+          }],
+          total: 1,
+          page: 1,
+          page_size: 10,
+          pages: 1,
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
+    globalThis.fetch = fetchMock;
+
+    renderApiKeys();
+    await screen.findByText("Production Gateway");
+    const copyButton = screen.getByRole("button", { name: "复制 Production Gateway" });
+    await userEvent.click(copyButton);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("无法复制此 API 密钥。");
+    expect(screen.getByText("Production Gateway")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "API 密钥" })).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("この API キーをコピーできませんでした。");
+
+    await userEvent.click(screen.getByRole("button", { name: "エラーを閉じる" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Production Gateway をコピー" }));
+    expect(await screen.findByText("API キー「Production Gateway」をコピーしました。")).toBeInTheDocument();
+
+    const importButton = screen.getByRole("button", { name: "Production Gateway を CCSwitch にインポート" });
+    await userEvent.click(importButton);
+    const dialog = screen.getByRole("dialog", { name: "CCSwitch にインポート" });
+    expect(within(dialog).getByRole("button", { name: "Claude Code" })).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(within(dialog).getByRole("button", { name: "キャンセル" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "CCSwitch にインポート" })).not.toBeInTheDocument();
+    expect(importButton).toHaveFocus();
   });
 
   it("localizes stable API errors and preserves unknown backend messages", async () => {

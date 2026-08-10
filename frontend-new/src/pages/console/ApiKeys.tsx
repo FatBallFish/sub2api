@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -10,7 +10,8 @@ import {
   PauseCircle,
   Trash,
   CaretDown,
-  UploadSimple
+  UploadSimple,
+  X,
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import { createApiKey, deleteApiKey, listApiKeys, revealApiKey, updateApiKey } from "../../api/keys";
@@ -112,7 +113,8 @@ export default function ApiKeys() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [fatalError, setFatalError] = useState<LocalizedMessage | null>(null);
+  const [actionError, setActionError] = useState<LocalizedMessage | null>(null);
   const [feedback, setFeedback] = useState<LocalizedMessage | null>(null);
   const [formError, setFormError] = useState<LocalizedMessage | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -129,6 +131,10 @@ export default function ApiKeys() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [importingCcsId, setImportingCcsId] = useState<number | null>(null);
   const [pendingCcsKey, setPendingCcsKey] = useState<ApiKey | null>(null);
+  const createNameInputRef = useRef<HTMLInputElement>(null);
+  const ccsInitialFocusRef = useRef<HTMLButtonElement>(null);
+  const createDialogTitleId = useId();
+  const ccsDialogTitleId = useId();
   const displayKeys = useMemo(
     () => keys.map((key) => applyEffectiveGroupRate(key, groups, userGroupRates)),
     [groups, keys, userGroupRates],
@@ -142,7 +148,7 @@ export default function ApiKeys() {
       .then((data) => {
         if (active) {
           setKeys(data.items);
-          setError(null);
+          setFatalError(null);
           if (data.items.length === 0) {
             setUsageStats({});
             return;
@@ -168,7 +174,7 @@ export default function ApiKeys() {
       })
       .catch((reason: unknown) => {
         if (active) {
-          setError(errorMessage(reason, "apiKeysLoadFailed", "apiKeys"));
+          setFatalError(errorMessage(reason, "apiKeysLoadFailed", "apiKeys"));
         }
       })
       .finally(() => {
@@ -219,21 +225,29 @@ export default function ApiKeys() {
   }, []);
 
   const copyKey = async (key: ApiKey) => {
-    setError(null);
+    setActionError(null);
+    setFeedback(null);
+    let revealed: Awaited<ReturnType<typeof revealApiKey>>;
     try {
-      const revealed = await revealApiKey(key.id);
+      revealed = await revealApiKey(key.id);
+    } catch (reason) {
+      setActionError(errorMessage(reason, "apiKeyRevealFailed", "apiKeys"));
+      return;
+    }
+    try {
       await navigator.clipboard.writeText(revealed.key);
       setCopiedId(key.id);
       setFeedback(translationMessage("console:apiKeys.copied", { name: key.name }));
       window.setTimeout(() => setCopiedId(null), 2000);
     } catch (reason) {
-      setError(errorMessage(reason, "apiKeyRevealFailed", "apiKeys"));
+      setActionError(errorMessage(reason, "apiKeyCopyFailed", "apiKeys"));
     }
   };
 
   const executeCcsImport = async (key: ApiKey, clientType: CcSwitchClientType) => {
     setImportingCcsId(key.id);
-    setError(null);
+    setActionError(null);
+    setFeedback(null);
     try {
       const revealed = await revealApiKey(key.id);
       const providerName = (settings?.site_name || "Mikiko CC").trim() || "Mikiko CC";
@@ -245,11 +259,11 @@ export default function ApiKeys() {
         apiKey: revealed.key,
       });
       window.open(deeplink, "_self");
+      setPendingCcsKey(null);
     } catch (reason) {
-      setError(errorMessage(reason, "apiKeyImportFailed", "apiKeys"));
+      setActionError(errorMessage(reason, "apiKeyImportFailed", "apiKeys"));
     } finally {
       setImportingCcsId(null);
-      setPendingCcsKey(null);
     }
   };
 
@@ -262,6 +276,7 @@ export default function ApiKeys() {
   };
 
   const changeStatus = (status: string) => {
+    if (status === activeStatus) return;
     setActiveStatus(status);
     setLoading(true);
   };
@@ -309,7 +324,8 @@ export default function ApiKeys() {
       return;
     }
     setCreating(true);
-    setError(null);
+    setFormError(null);
+    setFeedback(null);
     setFormError(null);
     try {
       const groupID = createGroupId ? Number(createGroupId) : null;
@@ -331,7 +347,7 @@ export default function ApiKeys() {
       }
       closeKeyModal();
     } catch (reason) {
-      setError(errorMessage(reason, "apiKeySaveFailed", "apiKeys"));
+      setFormError(errorMessage(reason, "apiKeySaveFailed", "apiKeys"));
     } finally {
       setCreating(false);
     }
@@ -339,7 +355,8 @@ export default function ApiKeys() {
 
   const setKeyStatus = async (key: ApiKey, status: "active" | "inactive") => {
     setSavingActionId(key.id);
-    setError(null);
+    setActionError(null);
+    setFeedback(null);
     try {
       const updated = await updateApiKey(key.id, { status });
       setKeys((current) => current.map((item) => (item.id === updated.id ? updated : item)));
@@ -348,7 +365,7 @@ export default function ApiKeys() {
         { name: key.name },
       ));
     } catch (reason) {
-      setError(errorMessage(reason, "apiKeyUpdateFailed", "apiKeys"));
+      setActionError(errorMessage(reason, "apiKeyUpdateFailed", "apiKeys"));
     } finally {
       setSavingActionId(null);
     }
@@ -356,23 +373,24 @@ export default function ApiKeys() {
 
   const removeKey = async (key: ApiKey) => {
     setSavingActionId(key.id);
-    setError(null);
+    setActionError(null);
+    setFeedback(null);
     try {
       await deleteApiKey(key.id);
       setKeys((current) => current.filter((item) => item.id !== key.id));
       setFeedback(translationMessage("console:apiKeys.deleted", { name: key.name }));
     } catch (reason) {
-      setError(errorMessage(reason, "apiKeyDeleteFailed", "apiKeys"));
+      setActionError(errorMessage(reason, "apiKeyDeleteFailed", "apiKeys"));
     } finally {
       setSavingActionId(null);
     }
   };
 
-  if (error) {
+  if (fatalError) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
         <h1 className="text-lg font-semibold text-rose-900">{t("apiKeys.unavailable")}</h1>
-        <p className="mt-2">{resolveLocalizedMessage(error)}</p>
+        <p className="mt-2">{resolveLocalizedMessage(fatalError)}</p>
       </div>
     );
   }
@@ -398,6 +416,10 @@ export default function ApiKeys() {
         <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
           {resolveLocalizedMessage(feedback)}
         </div>
+      ) : null}
+
+      {actionError ? (
+        <DismissibleAlert message={actionError} onDismiss={() => setActionError(null)} />
       ) : null}
 
       {/* Filters */}
@@ -531,16 +553,21 @@ export default function ApiKeys() {
       )}
 
       {pendingCcsKey ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <AccessibleModal
+          labelledBy={ccsDialogTitleId}
+          initialFocusRef={ccsInitialFocusRef}
+          onClose={() => setPendingCcsKey(null)}
+          className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+        >
             <div>
-              <h2 className="text-lg font-bold text-zinc-950">{t("apiKeys.importTitle")}</h2>
+              <h2 id={ccsDialogTitleId} className="text-lg font-bold text-zinc-950">{t("apiKeys.importTitle")}</h2>
               <p className="mt-1 text-sm text-zinc-500">
                 {t("apiKeys.importDescription")}
               </p>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-3">
               <button
+                ref={ccsInitialFocusRef}
                 type="button"
                 onClick={() => void executeCcsImport(pendingCcsKey, "claude")}
                 className="rounded-xl border border-zinc-200 p-4 text-sm font-bold text-zinc-900 transition hover:border-zinc-900 hover:bg-zinc-50"
@@ -562,8 +589,7 @@ export default function ApiKeys() {
             >
               {t("apiKeys.cancel")}
             </button>
-          </div>
-        </div>
+        </AccessibleModal>
       ) : null}
 
       {/* Security Banner */}
@@ -580,10 +606,15 @@ export default function ApiKeys() {
       </div>
 
       {showCreateModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
-          <form noValidate onSubmit={submitKeyForm} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <AccessibleModal
+          labelledBy={createDialogTitleId}
+          initialFocusRef={createNameInputRef}
+          onClose={closeKeyModal}
+          className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+        >
+          <form noValidate onSubmit={submitKeyForm}>
             <div className="space-y-1">
-              <h2 className="text-lg font-bold text-zinc-950">{t(editingKey ? "apiKeys.editTitle" : "apiKeys.createTitle")}</h2>
+              <h2 id={createDialogTitleId} className="text-lg font-bold text-zinc-950">{t(editingKey ? "apiKeys.editTitle" : "apiKeys.createTitle")}</h2>
               <p className="text-sm text-zinc-500">
                 {t(editingKey ? "apiKeys.editDescription" : "apiKeys.createDescription")}
               </p>
@@ -595,6 +626,7 @@ export default function ApiKeys() {
                   {t("apiKeys.keyName")}
                 </label>
                 <input
+                  ref={createNameInputRef}
                   id="create-key-name"
                   required
                   value={createName}
@@ -640,9 +672,9 @@ export default function ApiKeys() {
             </div>
 
             {formError ? (
-              <p role="alert" className="mt-4 text-sm font-medium text-rose-600">
-                {resolveLocalizedMessage(formError)}
-              </p>
+              <div className="mt-4">
+                <DismissibleAlert message={formError} onDismiss={() => setFormError(null)} compact />
+              </div>
             ) : null}
 
             <div className="mt-6 flex justify-end gap-3">
@@ -662,8 +694,128 @@ export default function ApiKeys() {
               </button>
             </div>
           </form>
-        </div>
+        </AccessibleModal>
       ) : null}
+    </div>
+  );
+}
+
+function DismissibleAlert({
+  message,
+  onDismiss,
+  compact = false,
+}: {
+  message: LocalizedMessage;
+  onDismiss: () => void;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation("console");
+  return (
+    <div
+      role="alert"
+      className={compact
+        ? "flex items-start justify-between gap-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700"
+        : "flex items-start justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800"}
+    >
+      <span>{resolveLocalizedMessage(message)}</span>
+      <button
+        type="button"
+        aria-label={t("apiKeys.dismissError")}
+        onClick={onDismiss}
+        className="shrink-0 rounded p-1 text-rose-500 hover:bg-rose-100 hover:text-rose-800"
+      >
+        <X size={16} weight="bold" />
+      </button>
+    </div>
+  );
+}
+
+function AccessibleModal({
+  labelledBy,
+  initialFocusRef,
+  onClose,
+  className,
+  children,
+}: {
+  labelledBy: string;
+  initialFocusRef: RefObject<HTMLElement | null>;
+  onClose: () => void;
+  className: string;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const dialog = dialogRef.current;
+    const focusableSelector = [
+      "button:not([disabled])",
+      "input:not([disabled])",
+      "select:not([disabled])",
+      "textarea:not([disabled])",
+      "a[href]",
+      "[tabindex]:not([tabindex='-1'])",
+    ].join(",");
+
+    const focusableElements = () => Array.from(
+      dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
+    );
+
+    (initialFocusRef.current ?? focusableElements()[0] ?? dialog)?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = focusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      queueMicrotask(() => {
+        if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      });
+    };
+  }, [initialFocusRef]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        className={className}
+      >
+        {children}
+      </div>
     </div>
   );
 }

@@ -268,6 +268,16 @@ describe("Overview", () => {
     expect(screen.getByText("Enterprise Tokyo 配额")).toBeInTheDocument();
     expect(document.title).toBe("概览 | Mikiko CC");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-TW");
+    });
+
+    expect(screen.getByText("可用額度")).toBeInTheDocument();
+    expect(screen.getByLabelText(/2\.100000 額度、1,200 次請求、120,000 Token/)).toBeInTheDocument();
+    expect(screen.getByText("Enterprise Tokyo 配額")).toBeInTheDocument();
+    expect(document.title).toBe("概覽 | Mikiko CC");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("localizes network failures and empty overview sections", async () => {
