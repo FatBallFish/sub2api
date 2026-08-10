@@ -148,10 +148,12 @@ describe("InstallGuide", () => {
     expect(screen.getByRole("heading", { name: "APIキーを選択" })).toBeInTheDocument();
     expect(screen.getByText("Production Gateway")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "~/.codex/config.toml をコピー" })).toBeInTheDocument();
+    expect(screen.getByText("API キーは config.toml ではなく auth.json に保存します。")).toBeInTheDocument();
 
     const requestCount = fetchMock.mock.calls.length;
     await i18n.changeLanguage("zh-CN");
     expect(await screen.findByRole("heading", { name: "安装指南" })).toBeInTheDocument();
+    expect(screen.getByText("API 密钥应保存在 auth.json，而不是 config.toml 中。")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
 
     await userEvent.click(screen.getByRole("button", { name: "复制全部配置" }));
