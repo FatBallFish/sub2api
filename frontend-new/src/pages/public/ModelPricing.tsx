@@ -141,7 +141,7 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
   const [activeTab, setActiveTab] = useState("");
   const [selectedGroupId, setSelectedGroupId] = useState<number | undefined>(undefined);
   const [error, setError] = React.useState<{ cause: unknown } | null>(null);
-  usePageTitle(t("pageTitles.modelPricing"));
+  usePageTitle(t("modelPricing.heading"));
 
   React.useEffect(() => {
     let active = true;
