@@ -31,7 +31,8 @@ describe("public markdown pages", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders privacy markdown from public settings", async () => {
+  it("renders the Privacy wrapper in Traditional Chinese without translating configured content", async () => {
+    await i18n.changeLanguage("zh-TW");
     globalThis.fetch = vi.fn().mockResolvedValue(publicSettingsResponse());
 
     render(<MemoryRouter><Privacy /></MemoryRouter>);
@@ -39,10 +40,14 @@ describe("public markdown pages", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Privacy Markdown" })).toBeInTheDocument();
     });
+    expect(screen.getByRole("heading", { name: "Privacy Policy", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("No training")).toBeInTheDocument();
+    expect(screen.getByText("最後更新：2026年6月19日")).toBeInTheDocument();
+    expect(document.title).toBe("Privacy Policy | Mikiko CC");
   });
 
-  it("renders terms markdown from public settings", async () => {
+  it("renders the Terms wrapper in Japanese with a localized built-in title", async () => {
+    await i18n.changeLanguage("ja");
     globalThis.fetch = vi.fn().mockResolvedValue(publicSettingsResponse());
 
     render(<MemoryRouter><Terms /></MemoryRouter>);
@@ -50,7 +55,10 @@ describe("public markdown pages", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Terms Markdown" })).toBeInTheDocument();
     });
+    expect(screen.getByRole("heading", { name: "利用規約", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("Acceptable use")).toBeInTheDocument();
+    expect(screen.getByText("最終更新日: 2026年6月19日")).toBeInTheDocument();
+    expect(document.title).toBe("利用規約 | Mikiko CC");
   });
 
   it("renders team markdown from public settings", async () => {
