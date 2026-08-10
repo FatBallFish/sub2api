@@ -209,6 +209,7 @@ const ja = {
       copyright: "© 2026 Gateway Labs Inc. 無断転載を禁じます。",
     },
     agreement: {
+      documentSeparator: "、",
       checkboxPrefix: "以下を読み、同意します：",
       checkboxSuffix: "。",
       reviewPrompt: "続行するにはサービス規約を確認して同意してください。",

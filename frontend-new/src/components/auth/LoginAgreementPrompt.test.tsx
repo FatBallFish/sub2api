@@ -106,4 +106,25 @@ describe("LoginAgreementPrompt", () => {
     expect(screen.getByText(/更新於 2026-08-10/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Customer Contract" })).toBeInTheDocument();
   });
+
+  it("uses locale-appropriate punctuation between Japanese document links", async () => {
+    await i18n.changeLanguage("ja");
+    render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="checkbox"
+          open={false}
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const label = screen.getByRole("checkbox").closest("label");
+    expect(label).toHaveTextContent("利用規約、利用ポリシー、Customer Contract");
+    expect(label).not.toHaveTextContent("利用規約, 利用ポリシー");
+  });
 });

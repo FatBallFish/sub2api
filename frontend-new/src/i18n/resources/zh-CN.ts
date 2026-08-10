@@ -209,6 +209,7 @@ const zhCN = {
       copyright: "© 2026 Gateway Labs Inc. 保留所有权利。",
     },
     agreement: {
+      documentSeparator: "、",
       checkboxPrefix: "我已阅读并同意",
       checkboxSuffix: "。",
       reviewPrompt: "请查看并接受服务条款后继续。",

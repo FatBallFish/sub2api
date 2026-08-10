@@ -186,6 +186,73 @@ describe("Auth page", () => {
     expect(screen.queryByText("Backend account rejection")).not.toBeInTheDocument();
   });
 
+  it("updates an email-verification stage and status when the locale changes", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { email_verify_enabled: true } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { message: "sent" } }),
+      });
+
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText("メールアドレス"), { target: { value: "new@example.com" } });
+    fireEvent.change(screen.getByLabelText("パスワード"), { target: { value: "secret123" } });
+    const send = await screen.findByRole("button", { name: "確認コードを送信" });
+    await waitFor(() => expect(send).toBeEnabled());
+    fireEvent.click(send);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("確認コードを送信しました");
+    expect(screen.getByRole("heading", { name: "メールをご確認ください" })).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("验证码已发送，请查收邮件。");
+    expect(screen.getByRole("heading", { name: "请查收邮件" })).toBeInTheDocument();
+  });
+
+  it("keeps a raw backend login error unchanged when the locale changes", async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: {} }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ success: false, message: "Raw backend detail" }),
+      });
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+    const submit = screen.getAllByRole("button", { name: "Sign in" })
+      .find((button) => button.getAttribute("type") === "submit")!;
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "dev@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    fireEvent.click(submit);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Raw backend detail");
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Raw backend detail");
+  });
+
   it("shows the language switcher in the standalone auth layout", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

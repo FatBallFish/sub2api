@@ -24,7 +24,12 @@ import {
 } from "../../components/auth/captcha";
 import { isAuthenticated } from "../../utils/authStorage";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { localizedErrorMessage } from "../../utils/localizedError";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 import {
   agreementDocuments,
   agreementRevision,
@@ -40,7 +45,7 @@ function getQueryValue(search: string, key: string) {
 }
 
 export default function Auth() {
-  const { i18n, t } = useTranslation("auth");
+  const { t } = useTranslation("auth");
   const location = useLocation();
   const navigate = useNavigate();
   const initialMode = location.pathname.includes("register") ? "register" : "login";
@@ -58,8 +63,8 @@ export default function Auth() {
   const [inviteCode, setInviteCode] = useState(initialInviteCode);
   const [sent, setSent] = useState(false);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<LocalizedMessage | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
   const [loading, setLoading] = useState(false);
   const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
@@ -142,14 +147,14 @@ export default function Auth() {
 
   const requireReadySettings = () => {
     if (settingsLoaded) return true;
-    setError(t("settingsLoadingError"));
+    setError(translationMessage("auth:settingsLoadingError"));
     return false;
   };
 
   const requireAgreement = () => {
     if (!agreementRequired) return true;
     if (loginAgreementMode === "modal") setAgreementModalOpen(true);
-    setError(t("agreementRequiredError"));
+    setError(translationMessage("auth:agreementRequiredError"));
     return false;
   };
 
@@ -168,7 +173,7 @@ export default function Auth() {
 
   const requireEmbeddedCaptchaVerification = () => {
     if (!turnstileRequired || captchaProof) return true;
-    setError(t("captchaRequiredError"));
+    setError(translationMessage("auth:captchaRequiredError"));
     return false;
   };
 
@@ -210,12 +215,12 @@ export default function Auth() {
         ...captchaProofPayload(requestCaptchaProof),
       });
       if (response.requires_2fa) {
-        setError(t("twoFactorClassic"));
+        setError(translationMessage("auth:twoFactorClassic"));
         return;
       }
       finishAuth();
     } catch (reason) {
-      setError(localizedErrorMessage(reason, "authSignInFailed", { t: i18n.t, scope: "auth" }));
+      setError(errorMessage(reason, "authSignInFailed", "auth"));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -232,7 +237,7 @@ export default function Auth() {
       return;
     }
     if (invitationCodeRequired && !inviteCode.trim()) {
-      setError(t("invitationRequiredError"));
+      setError(translationMessage("auth:invitationRequiredError"));
       return;
     }
     if (!emailVerifyEnabled) {
@@ -250,9 +255,9 @@ export default function Auth() {
       setCaptchaProof(null);
       await sendVerifyCode(email, requestCaptchaProof);
       setSent(true);
-      setStatus(t("codeSent"));
+      setStatus(translationMessage("auth:codeSent"));
     } catch (reason) {
-      setError(localizedErrorMessage(reason, "authSendCodeFailed", { t: i18n.t, scope: "auth" }));
+      setError(errorMessage(reason, "authSendCodeFailed", "auth"));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -270,7 +275,7 @@ export default function Auth() {
     }
     const normalizedInviteCode = inviteCode.trim();
     if (invitationCodeRequired && !normalizedInviteCode) {
-      setError(t("invitationRequiredError"));
+      setError(translationMessage("auth:invitationRequiredError"));
       return;
     }
     if (!emailVerifyEnabled && (captchaConfigurationInvalid || !requireEmbeddedCaptchaVerification())) return;
@@ -297,7 +302,7 @@ export default function Auth() {
       await register(payload);
       finishAuth();
     } catch (reason) {
-      setError(localizedErrorMessage(reason, "authRegisterFailed", { t: i18n.t, scope: "auth" }));
+      setError(errorMessage(reason, "authRegisterFailed", "auth"));
     } finally {
       if (!emailVerifyEnabled && captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -320,7 +325,7 @@ export default function Auth() {
       if (requestCaptchaProof) setCaptchaProof(null);
       await startOAuth(provider, redirectTo, initialAffiliateCode, requestCaptchaProof);
     } catch (reason) {
-      setError(localizedErrorMessage(reason, "authOAuthStartFailed", { t: i18n.t, scope: "auth" }));
+      setError(errorMessage(reason, "authOAuthStartFailed", "auth"));
     } finally {
       resetCaptcha();
       requestInFlightRef.current = false;
@@ -454,11 +459,11 @@ export default function Auth() {
                     }}
                     onExpire={() => {
                       setCaptchaProof(null);
-                      setError(t("captchaExpired"));
+                      setError(translationMessage("auth:captchaExpired"));
                     }}
                     onError={() => {
                       setCaptchaProof(null);
-                      setError(t("captchaFailed"));
+                      setError(translationMessage("auth:captchaFailed"));
                     }}
                   />
                   <SubmitButton
@@ -520,11 +525,11 @@ export default function Auth() {
                     }}
                     onExpire={() => {
                       setCaptchaProof(null);
-                      setError(t("captchaExpired"));
+                      setError(translationMessage("auth:captchaExpired"));
                     }}
                     onError={() => {
                       setCaptchaProof(null);
-                      setError(t("captchaFailed"));
+                      setError(translationMessage("auth:captchaFailed"));
                     }}
                   />
                   <SubmitButton
@@ -590,8 +595,8 @@ export default function Auth() {
               />
             ) : null}
 
-            {status ? <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{status}</p> : null}
-            {error ? <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p> : null}
+            {status ? <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{resolveLocalizedMessage(status)}</p> : null}
+            {error ? <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{resolveLocalizedMessage(error)}</p> : null}
 
             {showOAuth ? (
               <>

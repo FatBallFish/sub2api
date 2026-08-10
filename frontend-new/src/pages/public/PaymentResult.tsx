@@ -6,7 +6,12 @@ import { resolvePaymentOrderByResumeToken, verifyPaymentOrder, verifyPaymentOrde
 import type { PaymentOrderResult } from "../../types/payment";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { localizedErrorMessage } from "../../utils/localizedError";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 
 function formatMoney(value: number, currency = "USD", locale = "en") {
   return new Intl.NumberFormat(locale, {
@@ -48,7 +53,7 @@ export default function PaymentResult() {
   const { i18n, t } = useTranslation("public");
   const [params] = useSearchParams();
   const [order, setOrder] = useState<PaymentOrderResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
   const [loading, setLoading] = useState(true);
 
   const outTradeNo = useMemo(() => params.get("out_trade_no") || "", [params]);
@@ -75,11 +80,11 @@ export default function PaymentResult() {
         if (resolved) {
           setOrder(resolved);
         } else {
-          setError(i18n.t("public:payment.missingReference"));
+          setError(translationMessage("public:payment.missingReference"));
         }
       } catch (reason) {
         if (active) {
-          setError(localizedErrorMessage(reason, "paymentVerifyFailed", { t: i18n.t, scope: "payment" }));
+          setError(errorMessage(reason, "paymentVerifyFailed", "payment"));
         }
       } finally {
         if (active) setLoading(false);
@@ -90,7 +95,7 @@ export default function PaymentResult() {
     return () => {
       active = false;
     };
-  }, [i18n, outTradeNo, resumeToken]);
+  }, [outTradeNo, resumeToken]);
 
   const status = normalizeStatus(order?.status);
   const Icon = loading ? Clock : isSuccess(status) ? CheckCircle : WarningCircle;
@@ -116,7 +121,7 @@ export default function PaymentResult() {
         </div>
 
         {error ? (
-          <p className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-medium text-rose-700">{error}</p>
+          <p className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-medium text-rose-700">{resolveLocalizedMessage(error)}</p>
         ) : null}
 
         {order ? (
