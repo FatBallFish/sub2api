@@ -11,6 +11,22 @@ function jsonResponse(data: unknown) {
   });
 }
 
+function apiKey(id: number, groupId: number, name: string) {
+  return {
+    id,
+    key: `sk-....${id}`,
+    name,
+    group_id: groupId,
+    group: { id: groupId, name: `Group ${groupId}` },
+    status: "active",
+    quota: 0,
+    quota_used: 0,
+    last_used_at: null,
+    created_at: "2026-06-20T00:00:00Z",
+    updated_at: "2026-06-20T00:00:00Z",
+  };
+}
+
 describe("Playground", () => {
   afterEach(() => {
     localStorage.clear();
@@ -184,6 +200,104 @@ describe("Playground", () => {
     expect(screen.getByLabelText(/model/i)).toHaveValue("gpt-5.5");
   });
 
+  it("clears an incompatible key and its gateway models when the group changes", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/api/v1/keys?page=1&page_size=50&status=active")) {
+        return Promise.resolve(jsonResponse({
+          items: [apiKey(100, 10, "Group A Key")],
+          total: 1,
+          page: 1,
+          page_size: 50,
+          pages: 1,
+        }));
+      }
+      if (url.endsWith("/api/v1/groups/available")) {
+        return Promise.resolve(jsonResponse([
+          { id: 10, name: "Group A", platform: "openai", supported_model_scopes: ["group-a-model"] },
+          { id: 20, name: "Group B", platform: "openai", supported_model_scopes: ["group-b-model"] },
+        ]));
+      }
+      if (url.endsWith("/api/v1/keys/100/reveal")) {
+        return Promise.resolve(jsonResponse({ key: "sk-full-a" }));
+      }
+      if (url.endsWith("/v1/models")) {
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ id: "gateway-a-model" }] }), {
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return Promise.resolve(new Response("not found", { status: 404 }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Playground />);
+
+    await screen.findByRole("option", { name: "Group A Key" });
+    await waitFor(() => expect(document.querySelector('option[value="gateway-a-model"]')).toBeInTheDocument());
+    await user.selectOptions(screen.getByLabelText("Group"), "20");
+
+    expect(screen.getByLabelText("API Key")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Run test" })).toBeDisabled();
+    expect(document.querySelector('option[value="gateway-a-model"]')).not.toBeInTheDocument();
+    expect(document.querySelector('option[value="group-b-model"]')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => input.toString().endsWith("/v1/chat/completions"))).toBe(false);
+  });
+
+  it("treats an API key load failure as fatal even when groups load", async () => {
+    await i18n.changeLanguage("en");
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/api/v1/keys?page=1&page_size=50&status=active")) {
+        return Promise.reject(new Error("key socket reset"));
+      }
+      if (url.endsWith("/api/v1/groups/available")) {
+        return Promise.resolve(jsonResponse([{ id: 10, name: "Group A", platform: "openai" }]));
+      }
+      return Promise.resolve(new Response("not found", { status: 404 }));
+    });
+
+    render(<Playground />);
+
+    expect(await screen.findByText("Unable to load active API keys.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run test" })).toBeDisabled();
+    expect(screen.queryByText("key socket reset")).not.toBeInTheDocument();
+  });
+
+  it("keeps keys usable in all-groups mode when groups fail to load", async () => {
+    await i18n.changeLanguage("en");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/api/v1/keys?page=1&page_size=50&status=active")) {
+        return Promise.resolve(jsonResponse({
+          items: [apiKey(100, 10, "Fallback Key")],
+          total: 1,
+          page: 1,
+          page_size: 50,
+          pages: 1,
+        }));
+      }
+      if (url.endsWith("/api/v1/groups/available")) {
+        return Promise.reject(new Error("group socket reset"));
+      }
+      if (url.endsWith("/api/v1/keys/100/reveal")) {
+        return Promise.resolve(jsonResponse({ key: "sk-full" }));
+      }
+      if (url.endsWith("/v1/models")) {
+        return Promise.resolve(new Response(JSON.stringify({ data: [{ id: "fallback-model" }] })));
+      }
+      return Promise.resolve(new Response("not found", { status: 404 }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Playground />);
+
+    expect(await screen.findByText("Groups could not be loaded. All active API keys remain available.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Group")).toHaveValue("");
+    expect(screen.getByLabelText("API Key")).toHaveValue("100");
+    expect(screen.getByRole("button", { name: "Run test" })).toBeEnabled();
+  });
+
   it("localizes controls and frontend validation while preserving backend names", async () => {
     await i18n.changeLanguage("zh-CN");
     const user = userEvent.setup();
@@ -242,13 +356,13 @@ describe("Playground", () => {
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
   });
 
-  it("shows a localized fallback when all initialization requests fail", async () => {
+  it("shows a localized key fallback when all initialization requests fail", async () => {
     await i18n.changeLanguage("zh-CN");
     globalThis.fetch = vi.fn(() => Promise.reject(new Error("socket reset")));
 
     render(<Playground />);
 
-    expect(await screen.findByText("无法加载调试台数据。")).toBeInTheDocument();
+    expect(await screen.findByText("无法加载启用的 API 密钥。")).toBeInTheDocument();
     expect(screen.queryByText("socket reset")).not.toBeInTheDocument();
   });
 

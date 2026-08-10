@@ -137,9 +137,11 @@ export default function Playground() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [loadNotice, setLoadNotice] = useState<LocalizedMessage | null>(null);
   const [rawPreview, setRawPreview] = useState("");
 
-  const selectedKey = keys.find((key) => key.id === config.apiKeyId);
+  const selectedKey = keys.find((key) =>
+    key.id === config.apiKeyId && (!config.groupId || key.group_id === config.groupId));
   const selectedGroup = groups.find((group) => group.id === config.groupId);
   const mode: PlaygroundMode = resolveMode(config);
   const availableModels = modelSuggestions(selectedGroup, gatewayModels);
@@ -155,18 +157,30 @@ export default function Playground() {
     ])
       .then(([keysResult, groupsResult]) => {
         if (!active) return;
-        if (keysResult.status === "rejected" && groupsResult.status === "rejected") {
-          setError(errorMessage(keysResult.reason, "playgroundLoadFailed"));
-        }
         const loadedKeys = keysResult.status === "fulfilled" ? keysResult.value.items : [];
         const loadedGroups = groupsResult.status === "fulfilled" ? groupsResult.value : [];
+        if (keysResult.status === "rejected") {
+          setError(errorMessage(keysResult.reason, "playgroundKeysLoadFailed"));
+        }
+        if (groupsResult.status === "rejected" && keysResult.status === "fulfilled") {
+          setLoadNotice(errorMessage(groupsResult.reason, "playgroundGroupsLoadFailed"));
+        }
         setKeys(loadedKeys);
         setGroups(loadedGroups);
-        setConfig((current) => ({
-          ...current,
-          apiKeyId: current.apiKeyId ?? loadedKeys[0]?.id ?? null,
-          groupId: current.groupId ?? loadedKeys[0]?.group_id ?? loadedGroups[0]?.id ?? null,
-        }));
+        setConfig((current) => {
+          if (groupsResult.status === "rejected") {
+            const currentKey = loadedKeys.find((key) => key.id === current.apiKeyId);
+            return { ...current, apiKeyId: currentKey?.id ?? loadedKeys[0]?.id ?? null, groupId: null };
+          }
+          const currentKey = loadedKeys.find((key) => key.id === current.apiKeyId);
+          const groupId = current.groupId ?? currentKey?.group_id ?? loadedKeys[0]?.group_id ?? loadedGroups[0]?.id ?? null;
+          const compatibleCurrentKey = currentKey && (!groupId || currentKey.group_id === groupId)
+            ? currentKey
+            : undefined;
+          const nextKey = compatibleCurrentKey
+            ?? loadedKeys.find((key) => !groupId || key.group_id === groupId);
+          return { ...current, apiKeyId: nextKey?.id ?? null, groupId };
+        });
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -192,6 +206,7 @@ export default function Playground() {
 
   useEffect(() => {
     const selectedKeyId = selectedKey?.id;
+    setGatewayModels([]);
     if (!selectedKeyId) return;
     let active = true;
     revealApiKey(selectedKeyId)
@@ -214,7 +229,9 @@ export default function Playground() {
   async function runPlayground(event: FormEvent) {
     event.preventDefault();
     if (!selectedKey) {
-      setError(translationMessage("console:playground.selectActiveKey"));
+      setError(translationMessage(config.groupId
+        ? "console:playground.noCompatibleKey"
+        : "console:playground.selectActiveKey"));
       return;
     }
     if (!prompt.trim()) {
@@ -359,8 +376,14 @@ export default function Playground() {
       </div>
 
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+        <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
           {resolveLocalizedMessage(error)}
+        </div>
+      ) : null}
+
+      {loadNotice ? (
+        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          {resolveLocalizedMessage(loadNotice)}
         </div>
       ) : null}
 
@@ -377,7 +400,7 @@ export default function Playground() {
               value={config.groupId ?? ""}
               onChange={(event) => {
                 const groupId = event.target.value ? Number(event.target.value) : null;
-                const nextKey = keys.find((key) => key.group_id === groupId) ?? keys[0];
+                const nextKey = keys.find((key) => !groupId || key.group_id === groupId);
                 updateConfig({ groupId, apiKeyId: nextKey?.id ?? null });
               }}
               className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none focus:border-zinc-400"
