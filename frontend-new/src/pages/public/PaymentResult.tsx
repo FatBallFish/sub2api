@@ -3,15 +3,18 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, WarningCircle } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import { resolvePaymentOrderByResumeToken, verifyPaymentOrderPublic } from "../../api/payment";
-import type { PaymentOrderResult } from "../../types/payment";
+import type { PaymentOrderResult, PublicOrderVerifyResult } from "../../types/payment";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { formatDate } from "../../utils/format";
 import {
   errorMessage,
   resolveLocalizedMessage,
   translationMessage,
   type LocalizedMessage,
 } from "../../utils/localizedMessage";
+
+type ResolvedOrder = PaymentOrderResult | PublicOrderVerifyResult;
 
 function formatMoney(value: number, currency = "USD", locale = "en") {
   return new Intl.NumberFormat(locale, {
@@ -49,10 +52,29 @@ function showCreditedAmount(order: PaymentOrderResult) {
   );
 }
 
+function hasAmountDetails(order: ResolvedOrder): order is PaymentOrderResult {
+  return "amount" in order
+    && typeof order.amount === "number"
+    && "pay_amount" in order
+    && typeof order.pay_amount === "number"
+    && "currency" in order
+    && typeof order.currency === "string"
+    && "order_type" in order
+    && typeof order.order_type === "string";
+}
+
+function formatTimestamp(value: string, locale?: string) {
+  return formatDate(value, locale, {
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function PaymentResult() {
   const { i18n, t } = useTranslation("public");
   const [params] = useSearchParams();
-  const [order, setOrder] = useState<PaymentOrderResult | null>(null);
+  const [order, setOrder] = useState<ResolvedOrder | null>(null);
   const [error, setError] = useState<LocalizedMessage | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,7 +89,7 @@ export default function PaymentResult() {
       setOrder(null);
       setError(null);
       try {
-        let resolved: PaymentOrderResult | null = null;
+        let resolved: ResolvedOrder | null = null;
         if (resumeToken) {
           resolved = await resolvePaymentOrderByResumeToken(resumeToken);
         } else if (outTradeNo) {
@@ -125,20 +147,44 @@ export default function PaymentResult() {
           <div className="mt-8 space-y-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-5 text-sm">
             <div className="flex justify-between gap-4">
               <span className="text-zinc-500">{t("payment.order")}</span>
-              <span className="font-mono font-semibold text-zinc-900">{order.out_trade_no || `#${order.id}`}</span>
+              <span className="font-mono font-semibold text-zinc-900">{order.out_trade_no}</span>
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-zinc-500">{t("payment.status")}</span>
               <span className="font-bold text-zinc-900">{status}</span>
             </div>
+            {hasAmountDetails(order) ? (
+              <>
+                <div className="flex justify-between gap-4">
+                  <span className="text-zinc-500">{t("payment.amount")}</span>
+                  <span className="font-bold text-zinc-900">{formatMoney(order.pay_amount, paymentCurrency(order), i18n.resolvedLanguage)}</span>
+                </div>
+                {showCreditedAmount(order) ? (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-zinc-500">{t("payment.credited")}</span>
+                    <span className="font-bold text-zinc-900">{formatMoney(order.amount, amountCurrency(order), i18n.resolvedLanguage)}</span>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
             <div className="flex justify-between gap-4">
-              <span className="text-zinc-500">{t("payment.amount")}</span>
-              <span className="font-bold text-zinc-900">{formatMoney(order.pay_amount, paymentCurrency(order), i18n.resolvedLanguage)}</span>
+              <span className="text-zinc-500">{t("payment.createdAt")}</span>
+              <span className="text-right font-medium text-zinc-900">{formatTimestamp(order.created_at, i18n.resolvedLanguage)}</span>
             </div>
-            {showCreditedAmount(order) ? (
+            <div className="flex justify-between gap-4">
+              <span className="text-zinc-500">{t("payment.expiresAt")}</span>
+              <span className="text-right font-medium text-zinc-900">{formatTimestamp(order.expires_at, i18n.resolvedLanguage)}</span>
+            </div>
+            {order.paid_at ? (
               <div className="flex justify-between gap-4">
-                <span className="text-zinc-500">{t("payment.credited")}</span>
-                <span className="font-bold text-zinc-900">{formatMoney(order.amount, amountCurrency(order), i18n.resolvedLanguage)}</span>
+                <span className="text-zinc-500">{t("payment.paidAt")}</span>
+                <span className="text-right font-medium text-zinc-900">{formatTimestamp(order.paid_at, i18n.resolvedLanguage)}</span>
+              </div>
+            ) : null}
+            {order.completed_at ? (
+              <div className="flex justify-between gap-4">
+                <span className="text-zinc-500">{t("payment.completedAt")}</span>
+                <span className="text-right font-medium text-zinc-900">{formatTimestamp(order.completed_at, i18n.resolvedLanguage)}</span>
               </div>
             ) : null}
           </div>
