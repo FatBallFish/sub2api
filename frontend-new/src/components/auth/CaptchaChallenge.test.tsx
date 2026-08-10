@@ -6,14 +6,22 @@ import CaptchaChallenge, { type CaptchaChallengeHandle } from "./CaptchaChalleng
 import { resolveCaptchaProvider } from "./captcha";
 
 const turnstileHarness = vi.hoisted(() => ({
-  props: null as { onError?: (error?: string | Error) => void } | null,
+  props: null as {
+    onVerify?: (token: string) => void;
+    onExpire?: () => void;
+    onError?: (error?: string | Error) => void;
+  } | null,
 }));
 
 vi.mock("./TurnstileWidget", async () => {
   const React = await import("react");
   return {
     default: React.forwardRef(function MockTurnstileWidget(
-      props: { onError?: (error?: string | Error) => void },
+      props: {
+        onVerify?: (token: string) => void;
+        onExpire?: () => void;
+        onError?: (error?: string | Error) => void;
+      },
       ref: React.ForwardedRef<unknown>,
     ) {
       void ref;
@@ -127,5 +135,32 @@ describe("CaptchaChallenge", () => {
     act(() => turnstileHarness.props?.onError?.("110200"));
 
     expect(onError).toHaveBeenCalledWith(new Error("110200"));
+  });
+
+  it("silently invalidates an existing proof when language changes", async () => {
+    await i18n.changeLanguage("en");
+    const ref = createRef<CaptchaChallengeHandle>();
+    const onInvalidate = vi.fn();
+    const onExpire = vi.fn();
+    render(<CaptchaChallenge
+      ref={ref}
+      settings={{ turnstile_enabled: true, turnstile_site_key: "site" }}
+      onExpire={onExpire}
+      onInvalidate={onInvalidate}
+      onVerify={vi.fn()}
+    />);
+    act(() => turnstileHarness.props?.onVerify?.("old-locale-token"));
+    await expect(ref.current?.verify()).resolves.toEqual({
+      provider: "turnstile",
+      token: "old-locale-token",
+    });
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    await expect(ref.current?.verify()).resolves.toBeNull();
+    expect(onInvalidate).toHaveBeenCalledTimes(1);
+    expect(onExpire).not.toHaveBeenCalled();
   });
 });

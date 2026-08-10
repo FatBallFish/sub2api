@@ -1,6 +1,7 @@
 import { CheckCircle, ShieldCheck, SpinnerGap } from "@phosphor-icons/react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { aliyunLocale, type AliyunSdkLocale } from "../../utils/sdkLocale";
 import type { CaptchaProof } from "./captcha";
 
 const ALIYUN_SCRIPT_ID = "aliyun-captcha-script";
@@ -20,7 +21,7 @@ interface AliyunCaptchaInitOptions {
   onBizResultCallback: (bizResult: boolean) => void;
   getInstance: (instance: unknown) => void;
   slideStyle: { width: number; height: number };
-  language: "cn" | "en";
+  language: AliyunSdkLocale;
 }
 
 declare global {
@@ -95,7 +96,8 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
     { sceneId, prefix, region = "cn", onVerify, onError },
     ref,
   ) {
-    const { t } = useTranslation("auth");
+    const { i18n, t } = useTranslation("auth");
+    const language = aliyunLocale(i18n.resolvedLanguage);
     const [state, setState] = useState<VerificationState>("idle");
     const idsRef = useRef<{ button: string; element: string } | null>(null);
     if (!idsRef.current) {
@@ -201,7 +203,7 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
             onBizResultCallback: () => {},
             getInstance: () => {},
             slideStyle: { width: 360, height: 40 },
-            language: document.documentElement.lang.toLowerCase().startsWith("zh") ? "cn" : "en",
+            language,
           });
         }).catch((error: unknown) => {
           readyPromiseRef.current = null;
@@ -228,6 +230,10 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
 
     useEffect(() => {
       mountedRef.current = true;
+      readyPromiseRef.current = null;
+      cachedProofRef.current = null;
+      settlePending(null);
+      setState("idle");
       let active = true;
       void initializeRef.current?.().catch((error: unknown) => {
         if (active) onErrorRef.current?.(error instanceof Error ? error : new Error("Aliyun Captcha initialization failed"));
@@ -240,7 +246,7 @@ const AliyunCaptchaWidget = forwardRef<AliyunCaptchaWidgetHandle, AliyunCaptchaW
         document.getElementById(MASK_ID)?.remove();
         document.getElementById(POPUP_ID)?.remove();
       };
-    }, [prefix, region, sceneId]);
+    }, [language, prefix, region, sceneId]);
 
     const label = state === "verified"
       ? t("captcha.verified")

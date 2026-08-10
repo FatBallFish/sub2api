@@ -45,8 +45,17 @@ describe("localizedErrorMessage", () => {
     expect(localizedErrorMessage(error, "unknown", t)).toBe("Payment provider maintenance");
   });
 
-  it("preserves messages from ordinary errors", () => {
-    expect(localizedErrorMessage(new Error("Network disconnected"), "unknown", t)).toBe("Network disconnected");
+  it.each([
+    new Error("Network disconnected"),
+    new TypeError("Cannot read properties of undefined"),
+  ])("uses the localized caller fallback for ordinary errors", (error) => {
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("出现错误，请稍后重试。");
+  });
+
+  it("preserves a useful response-backed ApiError message", () => {
+    const error = new ApiError("Provider response detail", 502, {}, undefined, "response");
+
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("Provider response detail");
   });
 
   it.each([null, undefined, 503, {}, new Error("")])(

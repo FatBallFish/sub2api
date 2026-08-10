@@ -334,7 +334,13 @@ describe("App console routes", () => {
     await i18n.changeLanguage("zh-CN");
     globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
       if (input.toString() === "/api/v1/settings/public") return Promise.resolve(jsonResponse({}));
-      return Promise.reject(new Error("Backend diagnostic"));
+      return Promise.resolve(new Response(JSON.stringify({
+        success: false,
+        message: "Backend diagnostic",
+      }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }));
     });
 
     render(<App RouterComponent={MemoryRouter} routerProps={{ initialEntries: ["/console"] }} />);

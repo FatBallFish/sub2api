@@ -32,4 +32,8 @@ describe("formatCredits", () => {
     await i18n.changeLanguage("ja");
     expect(formatDate(date)).toBe("2026年6月19日");
   });
+
+  it("keeps non-ISO string values unchanged", () => {
+    expect(formatDate("release-42", "en")).toBe("release-42");
+  });
 });

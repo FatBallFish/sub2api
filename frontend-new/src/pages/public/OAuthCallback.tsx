@@ -428,6 +428,7 @@ export default function OAuthCallback() {
                     setCaptchaProof(null);
                     setMessage(translationMessage("auth:captchaExpired"));
                   }}
+                  onInvalidate={() => setCaptchaProof(null)}
                   onError={() => {
                     setCaptchaProof(null);
                     setMessage(translationMessage("auth:captchaFailed"));
