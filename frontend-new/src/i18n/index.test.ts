@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import i18n, {
   LOCALE_STORAGE_KEY,
+  createI18nInstance,
   initializeI18n,
   normalizeLocale,
   readStoredLocale,
@@ -16,7 +17,10 @@ describe("locale initialization", () => {
 
   it.each([
     ["zh-HK", "zh-TW"],
+    ["zh-HK-u-ca-chinese", "zh-TW"],
     ["zh-SG", "zh-CN"],
+    ["zh-CN-x-private", "zh-CN"],
+    ["zh-Hans-HK", "zh-CN"],
     ["ja-JP", "ja"],
     ["fr-FR", null],
   ])("normalizes %s to %s", (locale, expected) => {
@@ -56,4 +60,31 @@ describe("locale initialization", () => {
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("zh-TW");
     expect(document.documentElement.lang).toBe("zh-TW");
   });
+
+  it("initializes a fresh runtime from stored locale and synchronizes its document language", async () => {
+    const values = new Map([[LOCALE_STORAGE_KEY, "ja"]]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+    const documentElement = { lang: "" };
+
+    const freshI18n = await createI18nInstance({
+      storage,
+      browser: ["zh-CN"],
+      documentElement,
+    });
+
+    expect(freshI18n.resolvedLanguage).toBe("ja");
+    expect(documentElement.lang).toBe("ja");
+  });
 });
+
+function assertTranslationKeyTypes() {
+  i18n.t("language");
+  i18n.t("public:title");
+  // @ts-expect-error Unknown translation keys must fail type checking.
+  i18n.t("common:notARealKey");
+}
+
+void assertTranslationKeyTypes;

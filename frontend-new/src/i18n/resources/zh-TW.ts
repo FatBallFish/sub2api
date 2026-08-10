@@ -1,3 +1,5 @@
+import type { TranslationResource } from "./en";
+
 const zhTW = {
   common: {
     language: "語言",
@@ -14,6 +16,6 @@ const zhTW = {
   errors: {
     unknown: "發生錯誤，請稍後再試。",
   },
-} as const;
+} as const satisfies TranslationResource;
 
 export default zhTW;

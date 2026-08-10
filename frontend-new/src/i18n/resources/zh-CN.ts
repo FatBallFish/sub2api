@@ -1,3 +1,5 @@
+import type { TranslationResource } from "./en";
+
 const zhCN = {
   common: {
     language: "语言",
@@ -14,6 +16,6 @@ const zhCN = {
   errors: {
     unknown: "出现错误，请稍后重试。",
   },
-} as const;
+} as const satisfies TranslationResource;
 
 export default zhCN;
