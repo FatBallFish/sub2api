@@ -7,7 +7,13 @@ import { useTranslation } from "react-i18next";
 import { getPaymentCheckoutInfo } from "../../api/payment";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { localizedErrorMessage } from "../../utils/localizedError";
+import {
+  errorMessage,
+  rawMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 
 type StripePaymentContext = {
   clientSecret: string;
@@ -20,7 +26,7 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -32,7 +38,9 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
     else if (context.outTradeNo) returnURL.searchParams.set("out_trade_no", context.outTradeNo);
     const result = await stripe.confirmPayment({ elements, confirmParams: { return_url: returnURL.toString() } });
     if (result.error) {
-      setError(result.error.message || t("paymentConfirmFailed", { ns: "errors" }));
+      setError(result.error.message
+        ? rawMessage(result.error.message)
+        : translationMessage("errors:paymentConfirmFailed"));
       setSubmitting(false);
       return;
     }
@@ -46,7 +54,7 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
         <h1 className="mt-2 text-2xl font-semibold text-zinc-950">{t("payment.completeOrder")}</h1>
       </div>
       <PaymentElement />
-      {error && <p className="mt-4 text-sm text-rose-700">{error}</p>}
+      {error && <p className="mt-4 text-sm text-rose-700">{resolveLocalizedMessage(error)}</p>}
       <button type="submit" disabled={!stripe || submitting} className="mt-6 h-11 w-full bg-zinc-950 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-400">
         {submitting ? t("payment.confirming") : t("payment.payNow")}
       </button>
@@ -55,11 +63,11 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
 }
 
 export default function StripePayment() {
-  const { i18n, t } = useTranslation("public");
+  const { t } = useTranslation("public");
   const [params] = useSearchParams();
   const orderId = params.get("order_id")?.trim() || "";
   const [publishableKey, setPublishableKey] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
   const context = useMemo(() => {
     if (!orderId) return null;
     try {
@@ -74,14 +82,14 @@ export default function StripePayment() {
     if (!context?.clientSecret || !orderId) return;
     getPaymentCheckoutInfo()
       .then((info) => setPublishableKey(info.stripe_publishable_key || ""))
-      .catch((reason: unknown) => setError(localizedErrorMessage(reason, "paymentLoadStripeFailed", { t: i18n.t, scope: "payment" })));
-  }, [context?.clientSecret, i18n, orderId]);
+      .catch((reason: unknown) => setError(errorMessage(reason, "paymentLoadStripeFailed", "payment")));
+  }, [context?.clientSecret, orderId]);
 
   const stripePromise = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
   if (!context?.clientSecret || !orderId) {
     return <StripeRecovery message={t("payment.missingContext")} />;
   }
-  if (error) return <StripeRecovery message={error} />;
+  if (error) return <StripeRecovery message={resolveLocalizedMessage(error)} />;
   if (!stripePromise) return <div className="relative flex min-h-screen items-center justify-center bg-zinc-100 text-sm text-zinc-500"><StandaloneLanguageSwitcher />{t("payment.loadingSecurePayment")}</div>;
 
   return (

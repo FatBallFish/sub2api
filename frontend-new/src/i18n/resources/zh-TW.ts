@@ -209,6 +209,7 @@ const zhTW = {
       copyright: "© 2026 Gateway Labs Inc. 保留所有權利。",
     },
     agreement: {
+      documentSeparator: "、",
       checkboxPrefix: "我已閱讀並同意",
       checkboxSuffix: "。",
       reviewPrompt: "請檢閱並接受服務條款後繼續。",

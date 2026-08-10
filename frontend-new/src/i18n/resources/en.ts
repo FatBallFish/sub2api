@@ -211,6 +211,7 @@ const en = {
       copyright: "© 2026 Gateway Labs Inc. All rights reserved.",
     },
     agreement: {
+      documentSeparator: ", ",
       checkboxPrefix: "I have read and agree to",
       checkboxSuffix: ".",
       reviewPrompt: "Review and accept the service terms to continue.",

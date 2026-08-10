@@ -718,5 +718,35 @@ describe("OAuthCallback", () => {
     expect(await screen.findByRole("heading", { name: "ログインに失敗しました" })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Provider detail");
     expect(screen.getByRole("link", { name: "ログインに戻る" })).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+    expect(screen.getByRole("heading", { name: "登录失败" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Provider detail");
+  });
+
+  it("localizes registration completion UI and updates a visible frontend error", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce(pendingCompletion({ invitation_required: true }))
+      .mockResolvedValueOnce(response({
+        email_verify_enabled: true,
+        turnstile_enabled: true,
+        turnstile_site_key: "oauth-site",
+      }));
+
+    renderCallback();
+
+    expect(await screen.findByRole("heading", { name: "Google の登録を完了" })).toBeInTheDocument();
+    expect(screen.getByLabelText("パスワードの確認")).toBeInTheDocument();
+    act(() => turnstileHarness.props?.onError?.("110200"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("セキュリティ検証に失敗しました");
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+    expect(screen.getByRole("heading", { name: "完成 Google 注册" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("安全验证失败，请重试。");
   });
 });
