@@ -21,7 +21,7 @@ function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
     <>
       {documents.map((document, index) => (
         <span key={document.id || document.title}>
-          {index > 0 ? ", " : null}
+          {index > 0 ? t("agreement.documentSeparator", { ns: "auth" }) : null}
           <Link
             to={agreementDocumentPath(document)}
             target="_blank"

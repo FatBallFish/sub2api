@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -119,4 +119,31 @@ it("localizes pending and missing-reference states", async () => {
     </MemoryRouter>,
   );
   expect(await screen.findByText("缺少付款订单编号。")).toBeInTheDocument();
+  await act(async () => {
+    await i18n.changeLanguage("ja");
+  });
+  expect(screen.getByText("支払い注文番号がありません。")).toBeInTheDocument();
+});
+
+it("keeps an unknown payment provider message unchanged across locale changes", async () => {
+  globalThis.fetch = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      success: false,
+      message: "authenticated endpoint unavailable",
+    }), { status: 401, headers: { "Content-Type": "application/json" } }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({
+      success: false,
+      message: "Raw provider decline",
+    }), { status: 502, headers: { "Content-Type": "application/json" } }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/result?out_trade_no=ORDER-RAW"]}>
+      <PaymentResult />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText("Raw provider decline")).toBeInTheDocument();
+  await act(async () => {
+    await i18n.changeLanguage("zh-TW");
+  });
+  expect(screen.getByText("Raw provider decline")).toBeInTheDocument();
 });

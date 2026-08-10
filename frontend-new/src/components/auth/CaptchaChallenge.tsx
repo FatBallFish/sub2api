@@ -29,8 +29,8 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
     let configurationErrorMessage: string | null = null;
     try {
       config = resolveCaptchaProvider(settings);
-    } catch (error) {
-      configurationErrorMessage = error instanceof Error ? error.message : "Captcha configuration is invalid";
+    } catch {
+      configurationErrorMessage = t("captcha.misconfigured");
     }
 
     const turnstileRef = useRef<TurnstileWidgetHandle>(null);
@@ -66,7 +66,7 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
         if (proof && proofRef.current !== proof) acceptProof(proof);
         return proof;
       } catch (error) {
-        onErrorRef.current?.(error instanceof Error ? error : new Error("Security verification failed"));
+        onErrorRef.current?.(normalizeVerificationError(error, t("captchaFailed")));
         return null;
       }
     }
@@ -96,7 +96,7 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
         }}
         onError={(error) => {
           proofRef.current = null;
-          onErrorRef.current?.(error instanceof Error ? error : new Error("Security verification failed"));
+          onErrorRef.current?.(normalizeVerificationError(error, t("captchaFailed")));
         }}
       />;
     }
@@ -115,3 +115,9 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
 );
 
 export default CaptchaChallenge;
+
+function normalizeVerificationError(error: unknown, fallback: string) {
+  if (error instanceof Error) return error;
+  if (typeof error === "string" && error.trim()) return new Error(error);
+  return new Error(fallback);
+}

@@ -21,7 +21,13 @@ import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { localizedErrorMessage } from "../../utils/localizedError";
+import {
+  errorMessage,
+  rawMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 import {
   captchaProofPayload,
   resolveCaptchaProvider,
@@ -89,11 +95,11 @@ function providerLabel(provider: OAuthProvider) {
 }
 
 export default function OAuthCallback() {
-  const { i18n, t } = useTranslation("auth");
+  const { t } = useTranslation("auth");
   const navigate = useNavigate();
   const [state, setState] = useState<CallbackState>("processing");
-  const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [message, setMessage] = useState<LocalizedMessage | null>(null);
+  const [status, setStatus] = useState<LocalizedMessage | null>(null);
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [provider, setProvider] = useState<OAuthProvider>("google");
   const [redirectTo, setRedirectTo] = useState("/console");
@@ -155,7 +161,7 @@ export default function OAuthCallback() {
       const params = parseFragmentParams();
       const fragmentError = params.get("error");
       if (fragmentError) {
-        setMessage(params.get("error_description") || params.get("error_message") || fragmentError);
+        setMessage(rawMessage(params.get("error_description") || params.get("error_message") || fragmentError));
         setState("error");
         return;
       }
@@ -179,7 +185,7 @@ export default function OAuthCallback() {
           || completion.error === "registration_completion_required";
         if (!active) return;
         if (registrationRequired && !resolvedEmail) {
-          setMessage(i18n.t("auth:oauth.emailUnavailable"));
+          setMessage(translationMessage("auth:oauth.emailUnavailable"));
           setState("error");
           return;
         }
@@ -194,16 +200,18 @@ export default function OAuthCallback() {
           }));
           if (!active) return;
           setSettings(publicSettings);
-          setMessage("");
+          setMessage(null);
           setState("registration");
           return;
         }
 
-        setMessage(completion.error || i18n.t("errors:oauthCallbackFailed"));
+        setMessage(completion.error
+          ? rawMessage(completion.error)
+          : translationMessage("errors:oauthCallbackFailed"));
         setState("error");
       } catch (error) {
         if (!active) return;
-        setMessage(localizedErrorMessage(error, "oauthCallbackFailed", { t: i18n.t, scope: "auth" }));
+        setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
         setState("error");
       }
     }
@@ -213,11 +221,11 @@ export default function OAuthCallback() {
     return () => {
       active = false;
     };
-  }, [i18n, navigate]);
+  }, [navigate]);
 
   function showExistingAccountError() {
     setStatus(null);
-    setMessage(t("oauth.existingAccount"));
+    setMessage(translationMessage("auth:oauth.existingAccount"));
     setState("error");
   }
 
@@ -236,17 +244,17 @@ export default function OAuthCallback() {
   async function handleSendCode() {
     if (requestInFlightRef.current || countdown > 0) return;
     if (captchaConfigurationInvalid) {
-      setMessage(t("captcha.misconfiguredSupport"));
+      setMessage(translationMessage("auth:captcha.misconfiguredSupport"));
       return;
     }
     if (turnstileRequired && !captchaProof) {
-      setMessage(t("captchaRequiredError"));
+      setMessage(translationMessage("auth:captchaRequiredError"));
       return;
     }
 
     requestInFlightRef.current = true;
     setSendingCode(true);
-    setMessage("");
+    setMessage(null);
     setStatus(null);
     try {
       const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
@@ -258,9 +266,9 @@ export default function OAuthCallback() {
         return;
       }
       setCountdown(Math.max(0, Math.floor(response.countdown)));
-      setStatus(t("codeSent"));
+      setStatus(translationMessage("auth:codeSent"));
     } catch (error) {
-      setMessage(localizedErrorMessage(error, "authSendCodeFailed", { t: i18n.t, scope: "auth" }));
+      setMessage(errorMessage(error, "authSendCodeFailed", "auth"));
     } finally {
       if (captchaRequired) resetCaptcha();
       requestInFlightRef.current = false;
@@ -272,16 +280,16 @@ export default function OAuthCallback() {
     event.preventDefault();
     if (requestInFlightRef.current || !canSubmit) return;
     if (emailVerifyEnabled && captchaConfigurationInvalid) {
-      setMessage(t("captcha.misconfiguredSupport"));
+      setMessage(translationMessage("auth:captcha.misconfiguredSupport"));
       return;
     }
     if (emailVerifyEnabled && turnstileRequired && !captchaProof) {
-      setMessage(t("captchaRequiredError"));
+      setMessage(translationMessage("auth:captchaRequiredError"));
       return;
     }
     requestInFlightRef.current = true;
     setSubmitting(true);
-    setMessage("");
+    setMessage(null);
     setStatus(null);
     try {
       if (!emailVerifyEnabled) {
@@ -291,7 +299,7 @@ export default function OAuthCallback() {
           invitation_code: inviteCode.trim() || undefined,
         });
         if (!isAuthResponse(response)) {
-          setMessage(t("oauthSignupFailed", { ns: "errors" }));
+          setMessage(translationMessage("errors:oauthSignupFailed"));
           return;
         }
         persistAuth(response);
@@ -312,14 +320,14 @@ export default function OAuthCallback() {
           return;
         }
         if (!isAuthResponse(response)) {
-          setMessage(t("oauthSignupFailed", { ns: "errors" }));
+          setMessage(translationMessage("errors:oauthSignupFailed"));
           return;
         }
       }
       clearOAuthAffiliateCode();
       navigate(redirectTo, { replace: true });
     } catch (error) {
-      setMessage(localizedErrorMessage(error, "oauthSignupFailed", { t: i18n.t, scope: "auth" }));
+      setMessage(errorMessage(error, "oauthSignupFailed", "auth"));
       setState("registration");
     } finally {
       if (emailVerifyEnabled && captchaRequired) resetCaptcha();
@@ -343,7 +351,7 @@ export default function OAuthCallback() {
         {state === "error" ? (
           <div className="text-center">
             <h1 className="text-xl font-semibold text-zinc-950">{t("oauth.failed")}</h1>
-            <p role="alert" className="mt-3 text-sm leading-6 text-zinc-500">{message}</p>
+            {message ? <p role="alert" className="mt-3 text-sm leading-6 text-zinc-500">{resolveLocalizedMessage(message)}</p> : null}
             <Link
               className="mt-6 inline-flex h-11 items-center justify-center rounded-md bg-zinc-950 px-5 text-sm font-semibold text-white"
               to="/login"
@@ -414,15 +422,15 @@ export default function OAuthCallback() {
                   settings={settings}
                   onVerify={(proof) => {
                     setCaptchaProof(proof);
-                    setMessage("");
+                    setMessage(null);
                   }}
                   onExpire={() => {
                     setCaptchaProof(null);
-                    setMessage(t("captchaExpired"));
+                    setMessage(translationMessage("auth:captchaExpired"));
                   }}
                   onError={() => {
                     setCaptchaProof(null);
-                    setMessage(t("captchaFailed"));
+                    setMessage(translationMessage("auth:captchaFailed"));
                   }}
                 />
                 <button
@@ -449,8 +457,8 @@ export default function OAuthCallback() {
                 </label>
               </>
             ) : null}
-            {message ? <p role="alert" className="text-sm text-red-600">{message}</p> : null}
-            {status ? <p role="status" className="text-sm text-emerald-700">{status}</p> : null}
+            {message ? <p role="alert" className="text-sm text-red-600">{resolveLocalizedMessage(message)}</p> : null}
+            {status ? <p role="status" className="text-sm text-emerald-700">{resolveLocalizedMessage(status)}</p> : null}
             <button
               className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
               disabled={!canSubmit || busy || (emailVerifyEnabled && (captchaConfigurationInvalid || (turnstileRequired && !captchaProof)))}
