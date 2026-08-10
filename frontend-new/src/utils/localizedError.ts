@@ -24,6 +24,10 @@ export function localizedErrorMessage(
     return t(error.code as keyof typeof en.errors, { ns: "errors" });
   }
 
+  if (error instanceof ApiError && error.messageSource === "synthetic") {
+    return translateQualifiedKey(t, fallbackKey);
+  }
+
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }

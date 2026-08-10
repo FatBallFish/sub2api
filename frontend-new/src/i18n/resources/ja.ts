@@ -93,6 +93,18 @@ const ja = {
     API_KEY_RATE_1D_EXCEEDED: "この API キーは 1 日の使用上限に達しました。",
     API_KEY_RATE_7D_EXCEEDED: "この API キーは 7 日間の使用上限に達しました。",
     INSUFFICIENT_BALANCE: "アカウント残高が不足しています。",
+    RATE_LIMITED: "リクエストが多すぎます。しばらくしてからお試しください。",
+    USER_NOT_FOUND: "ユーザーアカウントが見つかりません。",
+    AUTH_REQUIRED: "この操作にはログインが必要です。",
+    PASSWORD_INCORRECT: "現在のパスワードが正しくありません。",
+    INSUFFICIENT_PERMISSIONS: "この操作を実行するための権限がありません。",
+    INVALID_API_KEY: "API キーが無効です。",
+    INVALID_AUTH_RATE_LIMITED: "無効な認証試行が多すぎます。しばらくしてからお試しください。",
+    INVALID_AUTH_HEADER: "認証ヘッダーの形式が無効です。",
+    EMPTY_TOKEN: "アクセストークンが空です。",
+    ACCESS_DENIED: "アクセスが拒否されました。",
+    SUBSCRIPTION_NOT_FOUND: "有効なサブスクリプションが見つかりません。",
+    NOTIFY_CODE_USER_RATE_LIMIT: "確認コードのリクエストが多すぎます。しばらくしてからお試しください。",
   },
 } as const satisfies TranslationResource;
 

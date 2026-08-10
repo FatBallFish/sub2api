@@ -157,6 +157,20 @@ describe("apiRequest", () => {
     } satisfies Partial<ApiError>);
   });
 
+  it("preserves leading and trailing whitespace in a useful backend message", async () => {
+    const payload = { code: 409, message: "  exact backend detail  " };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      json: async () => payload,
+    });
+
+    await expect(apiRequest("/test")).rejects.toMatchObject({
+      message: "  exact backend detail  ",
+      payload,
+    } satisfies Partial<ApiError>);
+  });
+
   it("redirects authenticated routes to login on 401", async () => {
     localStorage.setItem("auth_token", "expired-token");
     localStorage.setItem("auth_user", JSON.stringify({ id: 1, email: "user@example.com" }));

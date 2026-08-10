@@ -91,6 +91,18 @@ const en = {
     API_KEY_RATE_1D_EXCEEDED: "This API key has reached its daily usage limit.",
     API_KEY_RATE_7D_EXCEEDED: "This API key has reached its 7-day usage limit.",
     INSUFFICIENT_BALANCE: "The account balance is insufficient.",
+    RATE_LIMITED: "Too many requests. Please slow down and try again later.",
+    USER_NOT_FOUND: "The user account was not found.",
+    AUTH_REQUIRED: "Sign in is required for this action.",
+    PASSWORD_INCORRECT: "The current password is incorrect.",
+    INSUFFICIENT_PERMISSIONS: "You do not have sufficient permission for this action.",
+    INVALID_API_KEY: "The API key is invalid.",
+    INVALID_AUTH_RATE_LIMITED: "Too many invalid authentication attempts. Try again later.",
+    INVALID_AUTH_HEADER: "The authorization header is invalid.",
+    EMPTY_TOKEN: "The access token is empty.",
+    ACCESS_DENIED: "Access was denied.",
+    SUBSCRIPTION_NOT_FOUND: "No active subscription was found.",
+    NOTIFY_CODE_USER_RATE_LIMIT: "Too many verification codes were requested. Try again later.",
   },
 } as const;
 
