@@ -1,4 +1,12 @@
+import type { TFunction } from "i18next";
 import type { LoginAgreementDocument, PublicSettings } from "../api/settings";
+
+const BUILT_IN_AGREEMENT_TITLE_KEYS = {
+  terms: "legalDocuments.terms",
+  "usage-policy": "legalDocuments.usagePolicy",
+  "supported-regions": "legalDocuments.supportedRegions",
+  "service-specific-terms": "legalDocuments.serviceSpecificTerms",
+} as const;
 
 export const LOGIN_AGREEMENT_STORAGE_KEY = "sub2api_login_agreement_consent";
 
@@ -52,4 +60,9 @@ export function findAgreementDocument(documents: LoginAgreementDocument[], slug:
 
 export function agreementDocumentPath(document: LoginAgreementDocument) {
   return `/legal/${encodeURIComponent(document.id || document.title)}`;
+}
+
+export function localizedAgreementTitle(document: LoginAgreementDocument, t: TFunction) {
+  const key = BUILT_IN_AGREEMENT_TITLE_KEYS[document.id as keyof typeof BUILT_IN_AGREEMENT_TITLE_KEYS];
+  return key ? t(key) : document.title;
 }

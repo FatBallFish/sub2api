@@ -74,6 +74,89 @@ describe("apiRequest", () => {
     } satisfies Partial<ApiError>);
   });
 
+  it("uses the standard backend reason as the semantic error code", async () => {
+    const payload = { code: 400, message: "user not found", reason: "INVALID_USER" };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => payload,
+    });
+
+    await expect(apiRequest("/auth/login", { method: "POST" })).rejects.toMatchObject({
+      status: 400,
+      code: "INVALID_USER",
+      message: "user not found",
+      payload,
+    } satisfies Partial<ApiError>);
+  });
+
+  it("prefers reason over other semantic error identifiers", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        reason: "REASON_CODE",
+        code: "STRING_CODE",
+        error_code: "ERROR_CODE",
+        error: { code: "NESTED_CODE", type: "NESTED_TYPE", message: "nested message" },
+        message: "top-level message",
+      }),
+    });
+
+    await expect(apiRequest("/test")).rejects.toMatchObject({
+      code: "REASON_CODE",
+      message: "top-level message",
+    });
+  });
+
+  it.each([
+    [{ code: "STRING_CODE", error_code: "ERROR_CODE", error: { code: "NESTED_CODE" } }, "STRING_CODE"],
+    [{ code: 400, error_code: "ERROR_CODE", error: { code: "NESTED_CODE" } }, "ERROR_CODE"],
+    [{ code: 400, error: { code: "NESTED_CODE", type: "NESTED_TYPE" } }, "NESTED_CODE"],
+    [{ code: 400, error: { type: "NESTED_TYPE" } }, "NESTED_TYPE"],
+    [{ code: 400, error: "LEGACY_ERROR" }, "LEGACY_ERROR"],
+  ])("normalizes supported semantic identifier shape %#", async (shape, expectedCode) => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: "request rejected", ...shape }),
+    });
+
+    await expect(apiRequest("/test")).rejects.toMatchObject({ code: expectedCode });
+  });
+
+  it("does not treat a numeric envelope code or status as a semantic code", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({ code: 422, status: 422, message: "invalid input" }),
+    });
+
+    await expect(apiRequest("/test")).rejects.toMatchObject({
+      status: 422,
+      code: undefined,
+      message: "invalid input",
+    } satisfies Partial<ApiError>);
+  });
+
+  it("preserves a nested error message with the raw response payload", async () => {
+    const payload = {
+      error: { type: "authorization_error", message: "Provider authorization was rejected" },
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => payload,
+    });
+
+    await expect(apiRequest("/test")).rejects.toMatchObject({
+      status: 403,
+      code: "authorization_error",
+      message: "Provider authorization was rejected",
+      payload,
+    } satisfies Partial<ApiError>);
+  });
+
   it("redirects authenticated routes to login on 401", async () => {
     localStorage.setItem("auth_token", "expired-token");
     localStorage.setItem("auth_user", JSON.stringify({ id: 1, email: "user@example.com" }));

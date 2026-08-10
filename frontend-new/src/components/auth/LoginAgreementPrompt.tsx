@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { ShieldCheck, X } from "@phosphor-icons/react";
+import { useTranslation } from "react-i18next";
 import type { LoginAgreementDocument } from "../../api/settings";
-import { agreementDocumentPath } from "../../utils/loginAgreement";
+import { agreementDocumentPath, localizedAgreementTitle } from "../../utils/loginAgreement";
 
 interface LoginAgreementPromptProps {
   accepted: boolean;
@@ -15,6 +16,7 @@ interface LoginAgreementPromptProps {
 }
 
 function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
+  const { t } = useTranslation();
   return (
     <>
       {documents.map((document, index) => (
@@ -26,7 +28,7 @@ function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
             rel="noopener noreferrer"
             className="font-bold text-zinc-900 underline underline-offset-4"
           >
-            {document.title}
+            {localizedAgreementTitle(document, t)}
           </Link>
         </span>
       ))}
@@ -35,6 +37,7 @@ function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
 }
 
 export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
+  const { t } = useTranslation();
   const { accepted, documents, mode, open, updatedAt, onAccept, onReject, onOpen } = props;
   if (documents.length === 0) return null;
 
@@ -92,7 +95,7 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
                   rel="noopener noreferrer"
                   className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4 text-sm font-bold text-zinc-900 transition hover:border-zinc-400"
                 >
-                  {document.title}
+                  {localizedAgreementTitle(document, t)}
                 </Link>
               ))}
             </div>

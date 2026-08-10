@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../../i18n";
 import Privacy from "./Privacy";
 import Terms from "./Terms";
 import LegalDocument from "./LegalDocument";
@@ -75,6 +76,35 @@ describe("public markdown pages", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Terms Markdown" })).toBeInTheDocument();
+  });
+
+  it("localizes built-in document headings without translating backend markdown", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          login_agreement_enabled: true,
+          login_agreement_documents: [
+            { id: "terms", title: "后台服务条款", content_md: "## Backend Markdown\n\nDo not translate this body." },
+          ],
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/legal/terms"]}>
+        <Routes>
+          <Route path="/legal/:documentId" element={<LegalDocument />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "利用規約", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Backend Markdown" })).toBeInTheDocument();
+    expect(screen.getByText("Do not translate this body.")).toBeInTheDocument();
   });
 
   it("redirects legal routes home when the agreement is disabled", async () => {
