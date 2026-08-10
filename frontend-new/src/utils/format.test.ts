@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import i18n from "../i18n";
 import { formatCredits, formatCurrency, formatDate, formatNumber } from "./format";
 
 describe("formatCredits", () => {
@@ -16,5 +17,19 @@ describe("formatCredits", () => {
     expect(formatCurrency(1234.5, "USD", "zh-CN")).toContain("1,234.50");
     expect(formatCurrency(1234.5, "USD", "zh-CN")).not.toBe(formatCurrency(1234.5, "USD", "en-US"));
     expect(formatDate("2026-06-19", "ja-JP", { timeZone: "UTC" })).toBe("2026年6月19日");
+  });
+
+  it("uses the active i18n locale when no explicit locale is provided", async () => {
+    const date = new Date(2026, 5, 19, 12);
+
+    await i18n.changeLanguage("en");
+    expect(formatCurrency(1234.5, "USD")).toBe("$1,234.50");
+    expect(formatDate(date)).toBe("June 19, 2026");
+
+    await i18n.changeLanguage("zh-TW");
+    expect(formatCurrency(1234.5, "USD")).toBe("US$1,234.50");
+
+    await i18n.changeLanguage("ja");
+    expect(formatDate(date)).toBe("2026年6月19日");
   });
 });

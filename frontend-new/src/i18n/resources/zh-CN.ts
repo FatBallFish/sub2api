@@ -20,16 +20,10 @@ const zhCN = {
     },
   },
   public: {
-    title: "首页",
     pageTitles: {
       home: "首页",
       pricing: "价格",
-      modelPricing: "模型价格",
       blog: "博客",
-      team: "团队",
-      privacy: "隐私政策",
-      terms: "服务条款",
-      legalDocument: "法律文档",
     },
     navigation: {
       pricing: "价格",
@@ -49,7 +43,6 @@ const zhCN = {
     home: {
       announcement: "现已支持 Claude 3.5 和 Gemini 1.5",
       heading: "一个端点，连接所有 AI 编程服务。",
-      headingAccent: "AI 编程服务。",
       description: "面向 Codex、Claude 和 Gemini 的专业网关，提供透明定价、每周额度重置和企业级可观测能力。",
       getApiKey: "获取 API 密钥",
       viewPricing: "查看价格",

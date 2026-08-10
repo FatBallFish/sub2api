@@ -20,16 +20,10 @@ const zhTW = {
     },
   },
   public: {
-    title: "首頁",
     pageTitles: {
       home: "首頁",
       pricing: "價格",
-      modelPricing: "模型價格",
       blog: "部落格",
-      team: "團隊",
-      privacy: "隱私權政策",
-      terms: "服務條款",
-      legalDocument: "法律文件",
     },
     navigation: {
       pricing: "價格",
@@ -49,7 +43,6 @@ const zhTW = {
     home: {
       announcement: "現已支援 Claude 3.5 與 Gemini 1.5",
       heading: "一個端點，串接所有 AI 程式開發服務。",
-      headingAccent: "AI 程式開發服務。",
       description: "Codex、Claude 與 Gemini 的專業閘道，提供透明定價、每週額度重設及企業級可觀測能力。",
       getApiKey: "取得 API 金鑰",
       viewPricing: "查看價格",

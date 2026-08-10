@@ -18,16 +18,10 @@ const en = {
     },
   },
   public: {
-    title: "Home",
     pageTitles: {
       home: "Home",
       pricing: "Pricing",
-      modelPricing: "Model Pricing",
       blog: "Blog",
-      team: "Team",
-      privacy: "Privacy Policy",
-      terms: "Terms of Service",
-      legalDocument: "Legal Document",
     },
     navigation: {
       pricing: "Pricing",
@@ -47,7 +41,6 @@ const en = {
     home: {
       announcement: "Now supporting Claude 3.5 & Gemini 1.5",
       heading: "One endpoint for every AI coding service.",
-      headingAccent: "AI coding service.",
       description: "The professional gateway for Codex, Claude, and Gemini. Transparent pricing, weekly resets, and enterprise-grade observability.",
       getApiKey: "Get API Key",
       viewPricing: "View Pricing",

@@ -20,16 +20,10 @@ const ja = {
     },
   },
   public: {
-    title: "ホーム",
     pageTitles: {
       home: "ホーム",
       pricing: "料金",
-      modelPricing: "モデル料金",
       blog: "ブログ",
-      team: "チーム",
-      privacy: "プライバシーポリシー",
-      terms: "利用規約",
-      legalDocument: "法的文書",
     },
     navigation: {
       pricing: "料金",
@@ -49,7 +43,6 @@ const ja = {
     home: {
       announcement: "Claude 3.5 と Gemini 1.5 に対応しました",
       heading: "すべての AI コーディングサービスを、ひとつのエンドポイントで。",
-      headingAccent: "AI コーディングサービスを、ひとつに。",
       description: "Codex、Claude、Gemini に対応するプロフェッショナルゲートウェイ。透明な料金体系、週次リセット、エンタープライズ級の可観測性を提供します。",
       getApiKey: "API キーを取得",
       viewPricing: "料金を見る",

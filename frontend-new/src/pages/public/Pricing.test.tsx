@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -86,5 +86,26 @@ describe("Pricing page", () => {
     render(<MemoryRouter><Pricing /></MemoryRouter>);
 
     expect(await screen.findByText("无法加载价格信息。")).toBeInTheDocument();
+  });
+
+  it("updates an already-rendered currency value when the active language changes", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: {
+        plans: [{ id: 2, name: "Runtime Plan", price: 29, currency: "USD", billing_period: "month", weekly_credits: 10, monthly_max_credits: 40, features: [] }],
+        topups: [],
+        faq: [],
+      } }),
+    });
+
+    render(<MemoryRouter><Pricing /></MemoryRouter>);
+    const price = await screen.findByText("$29");
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-TW");
+    });
+
+    expect(screen.getByText("US$29")).toBe(price);
   });
 });
