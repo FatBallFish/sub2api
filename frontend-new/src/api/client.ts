@@ -4,13 +4,21 @@ export class ApiError extends Error {
   status: number;
   code?: string;
   payload: unknown;
+  messageSource: "response" | "synthetic";
 
-  constructor(message: string, status: number, payload: unknown, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    payload: unknown,
+    code?: string,
+    messageSource: "response" | "synthetic" = "response",
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.payload = payload;
     this.code = code;
+    this.messageSource = messageSource;
   }
 }
 
@@ -70,14 +78,30 @@ function semanticErrorCode(payload?: APIEnvelope<unknown>): string | undefined {
     ?? nonEmptyString(payload.error);
 }
 
-function apiErrorMessage(payload: APIEnvelope<unknown> | undefined, status: number): string {
-  return nonEmptyString(payload?.message)
-    ?? nonEmptyString(payload?.detail)
-    ?? nonEmptyString(payload?.error)
-    ?? (typeof payload?.error === "object" && payload.error !== null
-      ? nonEmptyString(payload.error.message)
-      : undefined)
-    ?? `Request failed with status ${status}`;
+function apiErrorMessage(
+  payload: APIEnvelope<unknown> | undefined,
+  status: number,
+): { message: string; source: "response" | "synthetic" } {
+  const candidates = [
+    payload?.message,
+    payload?.detail,
+    typeof payload?.error === "string" ? payload.error : undefined,
+    typeof payload?.error === "object" && payload.error !== null
+      ? payload.error.message
+      : undefined,
+  ];
+  let blankResponseMessage: string | undefined;
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    if (candidate.trim()) return { message: candidate, source: "response" };
+    blankResponseMessage ??= candidate;
+  }
+
+  if (blankResponseMessage !== undefined) {
+    return { message: blankResponseMessage, source: "response" };
+  }
+  return { message: `Request failed with status ${status}`, source: "synthetic" };
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -120,11 +144,13 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
 
   if (!response.ok || payload?.success === false) {
+    const errorMessage = apiErrorMessage(payload, response.status);
     throw new ApiError(
-      apiErrorMessage(payload, response.status),
+      errorMessage.message,
       response.status,
       payload,
       semanticErrorCode(payload),
+      errorMessage.source,
     );
   }
 

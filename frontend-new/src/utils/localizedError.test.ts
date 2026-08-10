@@ -1,13 +1,24 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import { ApiError } from "../api/client";
-import { createI18nInstance } from "../i18n";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { ApiError, apiRequest } from "../api/client";
+import { createI18nInstance, type SupportedLocale } from "../i18n";
+import en from "../i18n/resources/en";
+import ja from "../i18n/resources/ja";
+import zhCN from "../i18n/resources/zh-CN";
+import zhTW from "../i18n/resources/zh-TW";
 import { localizedErrorMessage } from "./localizedError";
+
+const originalFetch = globalThis.fetch;
 
 describe("localizedErrorMessage", () => {
   let t: Awaited<ReturnType<typeof createI18nInstance>>["t"];
 
   beforeAll(async () => {
     ({ t } = await createI18nInstance({ initialLocale: "zh-CN", storage: null, documentElement: null }));
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
   });
 
   it("translates a known stable ApiError code in the active locale", () => {
@@ -38,4 +49,94 @@ describe("localizedErrorMessage", () => {
       expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
     },
   );
+
+  it("uses the localized caller fallback when apiRequest had no backend message", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({ code: 503 }),
+    });
+    const error = await apiRequest("/unavailable").catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
+  });
+
+  it("uses the localized caller fallback for a whitespace-only backend message", async () => {
+    const payload = { code: 503, message: "   \t  " };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => payload,
+    });
+    const error = await apiRequest("/unavailable").catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).payload).toBe(payload);
+    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
+  });
+
+  it.each([
+    ["en", [
+      "Too many requests. Please slow down and try again later.",
+      "The user account was not found.",
+      "Sign in is required for this action.",
+      "The current password is incorrect.",
+      "You do not have sufficient permission for this action.",
+      "The API key is invalid.",
+      "Too many invalid authentication attempts. Try again later.",
+    ]],
+    ["zh-CN", [
+      "请求过于频繁，请稍后重试。",
+      "未找到该用户账号。",
+      "此操作需要先登录。",
+      "当前密码错误。",
+      "你没有足够的权限执行此操作。",
+      "API 密钥无效。",
+      "无效认证尝试次数过多，请稍后重试。",
+    ]],
+    ["zh-TW", [
+      "請求過於頻繁，請稍後再試。",
+      "找不到此使用者帳號。",
+      "此操作需要先登入。",
+      "目前密碼錯誤。",
+      "你沒有足夠的權限執行此操作。",
+      "API 金鑰無效。",
+      "無效驗證嘗試次數過多，請稍後再試。",
+    ]],
+    ["ja", [
+      "リクエストが多すぎます。しばらくしてからお試しください。",
+      "ユーザーアカウントが見つかりません。",
+      "この操作にはログインが必要です。",
+      "現在のパスワードが正しくありません。",
+      "この操作を実行するための権限がありません。",
+      "API キーが無効です。",
+      "無効な認証試行が多すぎます。しばらくしてからお試しください。",
+    ]],
+  ] as [SupportedLocale, string[]][])("localizes common stable errors in %s", async (locale, expected) => {
+    const instance = await createI18nInstance({ initialLocale: locale, storage: null, documentElement: null });
+    const codes = [
+      "RATE_LIMITED",
+      "USER_NOT_FOUND",
+      "AUTH_REQUIRED",
+      "PASSWORD_INCORRECT",
+      "INSUFFICIENT_PERMISSIONS",
+      "INVALID_API_KEY",
+      "INVALID_AUTH_RATE_LIMITED",
+    ];
+
+    expect(codes.map((code) => localizedErrorMessage(
+      new ApiError("backend message", 400, {}, code),
+      "errors.unknown",
+      instance.t,
+    ))).toEqual(expected);
+  });
+
+  it("keeps all locale error resource keys aligned", () => {
+    const expectedKeys = Object.keys(en.errors).sort();
+
+    expect(Object.keys(zhCN.errors).sort()).toEqual(expectedKeys);
+    expect(Object.keys(zhTW.errors).sort()).toEqual(expectedKeys);
+    expect(Object.keys(ja.errors).sort()).toEqual(expectedKeys);
+  });
 });

@@ -93,6 +93,18 @@ const zhCN = {
     API_KEY_RATE_1D_EXCEEDED: "该 API 密钥已达到每日使用限额。",
     API_KEY_RATE_7D_EXCEEDED: "该 API 密钥已达到 7 天使用限额。",
     INSUFFICIENT_BALANCE: "账号余额不足。",
+    RATE_LIMITED: "请求过于频繁，请稍后重试。",
+    USER_NOT_FOUND: "未找到该用户账号。",
+    AUTH_REQUIRED: "此操作需要先登录。",
+    PASSWORD_INCORRECT: "当前密码错误。",
+    INSUFFICIENT_PERMISSIONS: "你没有足够的权限执行此操作。",
+    INVALID_API_KEY: "API 密钥无效。",
+    INVALID_AUTH_RATE_LIMITED: "无效认证尝试次数过多，请稍后重试。",
+    INVALID_AUTH_HEADER: "授权请求头格式无效。",
+    EMPTY_TOKEN: "访问令牌为空。",
+    ACCESS_DENIED: "访问被拒绝。",
+    SUBSCRIPTION_NOT_FOUND: "未找到有效订阅。",
+    NOTIFY_CODE_USER_RATE_LIMIT: "验证码请求过于频繁，请稍后重试。",
   },
 } as const satisfies TranslationResource;
 

@@ -93,6 +93,18 @@ const zhTW = {
     API_KEY_RATE_1D_EXCEEDED: "此 API 金鑰已達每日使用上限。",
     API_KEY_RATE_7D_EXCEEDED: "此 API 金鑰已達 7 天使用上限。",
     INSUFFICIENT_BALANCE: "帳號餘額不足。",
+    RATE_LIMITED: "請求過於頻繁，請稍後再試。",
+    USER_NOT_FOUND: "找不到此使用者帳號。",
+    AUTH_REQUIRED: "此操作需要先登入。",
+    PASSWORD_INCORRECT: "目前密碼錯誤。",
+    INSUFFICIENT_PERMISSIONS: "你沒有足夠的權限執行此操作。",
+    INVALID_API_KEY: "API 金鑰無效。",
+    INVALID_AUTH_RATE_LIMITED: "無效驗證嘗試次數過多，請稍後再試。",
+    INVALID_AUTH_HEADER: "授權標頭格式無效。",
+    EMPTY_TOKEN: "存取權杖為空。",
+    ACCESS_DENIED: "存取遭拒。",
+    SUBSCRIPTION_NOT_FOUND: "找不到有效的訂閱。",
+    NOTIFY_CODE_USER_RATE_LIMIT: "驗證碼請求過於頻繁，請稍後再試。",
   },
 } as const satisfies TranslationResource;
 
