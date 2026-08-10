@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { ArrowRight, CheckCircle, Question, Copy, Check } from "@phosphor-icons/react";
 import { listApiKeys, revealApiKey } from "../../api/keys";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import type { ApiKey } from "../../types/keys";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 import {
   buildClientConfigFiles,
   gatewayBaseUrl,
@@ -15,8 +24,8 @@ import {
   type InstallShellId,
 } from "../../utils/clientConfig";
 
-function maskKey(value: string) {
-  if (!value) return "Select an API key";
+function maskKey(value: string, emptyLabel: string) {
+  if (!value) return emptyLabel;
   if (value.includes("....")) return value;
   if (value.startsWith("sk-")) return `sk-....${value.slice(-4)}`;
   return `${value.slice(0, 3)}-....${value.slice(-4)}`;
@@ -27,6 +36,8 @@ function copyPayload(files: { path: string; content: string }[]) {
 }
 
 export default function InstallGuide() {
+  const { t } = useTranslation("console");
+  usePageTitle(t("installGuide.title"));
   const [params] = useSearchParams();
   const preferredKeyId = Number(params.get("key"));
   const [selectedClient, setSelectedClient] = useState<InstallClientId>("claude");
@@ -38,7 +49,7 @@ export default function InstallGuide() {
   const [copiedIndex, setCopiedIndex] = useState<number | "all" | null>(null);
   const [loading, setLoading] = useState(true);
   const [copying, setCopying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -59,7 +70,7 @@ export default function InstallGuide() {
       })
       .catch((reason: unknown) => {
         if (active) {
-          setError(reason instanceof Error ? reason.message : "Unable to load API keys.");
+          setError(errorMessage(reason, "apiKeysLoadFailed"));
         }
       })
       .finally(() => {
@@ -81,7 +92,7 @@ export default function InstallGuide() {
   );
   const shellOptions = getInstallShellOptions(activeClient);
   const activeShell = normalizeShellForClient(activeClient, selectedShell);
-  const displayKey = revealedKey ?? maskKey(selectedKey?.key ?? "");
+  const displayKey = revealedKey ?? maskKey(selectedKey?.key ?? "", t("installGuide.selectApiKey"));
   const files = selectedKey
     ? buildClientConfigFiles({
         platform: selectedKey.group?.platform,
@@ -93,7 +104,7 @@ export default function InstallGuide() {
     : [];
 
   const revealSelectedKey = async () => {
-    if (!selectedKey) throw new Error("Create an active API key first.");
+    if (!selectedKey) throw new Error("selected API key is required");
     if (revealedKey) return revealedKey;
     const revealed = await revealApiKey(selectedKey.id);
     setRevealedKey(revealed.key);
@@ -102,7 +113,7 @@ export default function InstallGuide() {
 
   const copyConfig = async (index?: number) => {
     if (!selectedKey) {
-      setError("Create an active API key first.");
+      setError(translationMessage("console:installGuide.createKeyFirst"));
       return;
     }
 
@@ -122,7 +133,7 @@ export default function InstallGuide() {
       setCopiedIndex(typeof index === "number" ? index : "all");
       window.setTimeout(() => setCopiedIndex(null), 2000);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to copy configuration.");
+      setError(errorMessage(reason, "apiKeyCopyFailed"));
     } finally {
       setCopying(false);
     }
@@ -131,31 +142,31 @@ export default function InstallGuide() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Install Guide</h1>
-        <p className="text-sm text-zinc-500">Configure each client with the right endpoint and key file format.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{t("installGuide.title")}</h1>
+        <p className="text-sm text-zinc-500">{t("installGuide.description")}</p>
       </div>
 
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
-          {error}
+          {resolveLocalizedMessage(error)}
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="space-y-8 lg:col-span-2">
           <div className="space-y-12">
-            <InstallStep step={1} title="Choose API Key">
+            <InstallStep step={1} title={t("installGuide.chooseApiKey")}>
               <div className="space-y-4">
                 <p className="text-sm text-zinc-500">
-                  Select an active key. The configuration copy action reveals the key once and writes the full snippet to your clipboard.
+                  {t("installGuide.chooseApiKeyDescription")}
                 </p>
                 {loading ? (
                   <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm font-medium text-zinc-500">
-                    Loading active keys...
+                    {t("installGuide.loadingKeys")}
                   </div>
                 ) : keys.length === 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
-                    No active API key found. Create one in API Keys before installing a client.
+                    {t("installGuide.noActiveKey")}
                   </div>
                 ) : (
                   <div className="grid gap-3">
@@ -173,9 +184,11 @@ export default function InstallGuide() {
                       >
                         <span>
                           <span className="block text-sm font-bold text-zinc-900">{key.name}</span>
-                          <span className="mt-1 block text-xs font-mono text-zinc-400">{maskKey(key.key)}</span>
+                          <span className="mt-1 block text-xs font-mono text-zinc-400">{maskKey(key.key, t("installGuide.selectApiKey"))}</span>
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{key.status}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                          {key.status === "active" ? t("installGuide.statusActive") : key.status}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -183,7 +196,7 @@ export default function InstallGuide() {
               </div>
             </InstallStep>
 
-            <InstallStep step={2} title="Select Client">
+            <InstallStep step={2} title={t("installGuide.selectClient")}>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {clientOptions.map((client) => (
@@ -226,16 +239,15 @@ export default function InstallGuide() {
               </div>
             </InstallStep>
 
-            <InstallStep step={3} title="Configure Files">
+            <InstallStep step={3} title={t("installGuide.configureFiles")}>
               <div className="space-y-4">
                 <p className="text-sm text-zinc-500">
-                  Endpoint: <code className="rounded bg-zinc-100 px-1 font-mono">{baseUrl}</code>. Keep secret keys in the
-                  dedicated auth file or environment variable shown below.
+                  {t("installGuide.endpointPrefix")} <code className="rounded bg-zinc-100 px-1 font-mono">{baseUrl}</code>. {t("installGuide.endpointDescription")}
                 </p>
 
                 {files.map((file, index) => (
                   <div key={`${file.path}-${index}`} className="space-y-2">
-                    {file.hint ? <p className="text-xs font-medium text-amber-600">{file.hint}</p> : null}
+                    {file.hint ? <p className="text-xs font-medium text-amber-600">{localizedFileHint(file.hint, t)}</p> : null}
                     <div className="group relative rounded-xl bg-zinc-900">
                       <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
                         <span className="font-mono text-xs text-zinc-400">{file.path}</span>
@@ -243,7 +255,7 @@ export default function InstallGuide() {
                           type="button"
                           onClick={() => void copyConfig(index)}
                           disabled={copying || !selectedKey}
-                          aria-label={`Copy ${file.path}`}
+                          aria-label={t("installGuide.copyFile", { path: file.path })}
                           className="rounded-lg border border-white/10 bg-white/5 p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {copiedIndex === index ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
@@ -263,17 +275,16 @@ export default function InstallGuide() {
                   className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
                 >
                   {copiedIndex === "all" ? <Check size={16} /> : <Copy size={16} />}
-                  Copy all configuration
+                  {copying ? t("installGuide.copying") : t("installGuide.copyAll")}
                 </button>
               </div>
             </InstallStep>
 
-            <InstallStep step={4} title="Verify Connection">
+            <InstallStep step={4} title={t("installGuide.verifyConnection")}>
               <div className="flex items-center gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-6 text-emerald-900">
                 <CheckCircle size={24} weight="fill" />
                 <div className="text-sm">
-                  <span className="font-bold">Run a smoke test:</span> Ask your selected client to list models or send a small
-                  completion request using the Mikiko profile.
+                  <span className="font-bold">{t("installGuide.smokeTestLabel")}</span> {t("installGuide.smokeTestDescription")}
                 </div>
               </div>
             </InstallStep>
@@ -283,13 +294,12 @@ export default function InstallGuide() {
         <div className="space-y-6">
           <div className="space-y-4 rounded-[2rem] border border-zinc-200 bg-zinc-50 p-8">
             <Question size={32} weight="duotone" className="text-zinc-400" />
-            <h3 className="font-bold text-zinc-900">Need Help?</h3>
+            <h3 className="font-bold text-zinc-900">{t("installGuide.needHelp")}</h3>
             <p className="text-sm leading-relaxed text-zinc-500">
-              Use one key per environment and rotate keys regularly. If you change the key group, revisit this guide because
-              available clients depend on the group platform.
+              {t("installGuide.helpDescription")}
             </p>
             <a href="/console/api-keys" className="group flex items-center gap-2 text-sm font-bold text-zinc-900">
-              Manage API Keys
+              {t("installGuide.manageApiKeys")}
               <ArrowRight size={16} weight="bold" className="transition-transform group-hover:translate-x-1" />
             </a>
           </div>
@@ -297,6 +307,19 @@ export default function InstallGuide() {
       </div>
     </div>
   );
+}
+
+function localizedFileHint(hint: string, t: TFunction<"console">) {
+  switch (hint) {
+    case "Optional persistent settings for Claude Code.":
+      return t("installGuide.hintClaudeSettings");
+    case "API keys belong in auth.json, not config.toml.":
+      return t("installGuide.hintCodexAuth");
+    case "Place this in your OpenCode config file and merge with existing providers if needed.":
+      return t("installGuide.hintOpenCode");
+    default:
+      return hint;
+  }
 }
 
 function InstallStep({ step, title, children }: { step: number; title: string; children: React.ReactNode }) {

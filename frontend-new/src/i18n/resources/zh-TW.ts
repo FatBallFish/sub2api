@@ -1,4 +1,5 @@
 import type { TranslationResource } from "./en";
+import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const zhTW = {
   common: {
@@ -388,6 +389,7 @@ const zhTW = {
       copied: "已複製 API 金鑰「{{name}}」。",
       dismissError: "關閉錯誤提示",
     },
+    ...remainingConsole["zh-TW"],
   },
   errors: {
     scoped: {
@@ -408,6 +410,7 @@ const zhTW = {
       },
       apiKeys: {},
     },
+    ...remainingErrors["zh-TW"],
     unknown: "發生錯誤，請稍後再試。",
     publicPricingLoadFailed: "無法載入價格資訊。",
     modelPricingLoadFailed: "無法載入模型價格。",

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import UsageHistory from "./UsageHistory";
 
 function jsonResponse(data: unknown) {
@@ -345,5 +346,61 @@ describe("UsageHistory", () => {
         expect.any(Object),
       );
     });
+  });
+
+  it("localizes usage controls and pagination while preserving row data", async () => {
+    await i18n.changeLanguage("ja");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === "/api/v1/settings/public") {
+        return Promise.resolve(jsonResponse({ table_default_page_size: 20, table_page_size_options: [20, 50] }));
+      }
+      if (url.includes("/api/v1/keys?")) {
+        return Promise.resolve(jsonResponse({ items: [], total: 0, page: 1, page_size: 100, pages: 1 }));
+      }
+      if (url.includes("/usage/stats")) {
+        return Promise.resolve(jsonResponse({ total_requests: 1294, total_tokens: 2000, total_actual_cost: 1.25, average_duration_ms: 250 }));
+      }
+      return Promise.resolve(jsonResponse({
+        items: [{
+          id: 1,
+          api_key_id: 9,
+          request_id: "req_dynamic",
+          model: "claude-3-5-sonnet",
+          inbound_endpoint: "/v1/chat/completions",
+          input_tokens: 10,
+          output_tokens: 20,
+          cache_read_tokens: 0,
+          cache_creation_tokens: 0,
+          actual_cost: 0.1,
+          total_cost: 0.1,
+          funding_source: "balance",
+          balance_cost: 0.1,
+          duration_ms: 250,
+          created_at: "2026-06-18T08:00:00Z",
+          api_key: { id: 9, name: "Prod-CLI" },
+        }],
+        total: 41,
+        page: 1,
+        page_size: 20,
+      }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<UsageHistory />);
+
+    expect(screen.getByText("利用履歴を読み込み中...")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "利用履歴" })).toBeInTheDocument();
+    expect(document.title).toBe("利用履歴 | Mikiko CC");
+    expect(screen.getByPlaceholderText("モデルまたはエンドポイントを検索...")).toBeInTheDocument();
+    expect(screen.getByText("claude-3-5-sonnet")).toBeInTheDocument();
+    expect(screen.getAllByText("Prod-CLI").length).toBeGreaterThan(0);
+    expect(screen.getByText("1 / 3 ページ")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "次のページ" })).toBeEnabled();
+
+    const requestCount = fetchMock.mock.calls.length;
+    await i18n.changeLanguage("zh-TW");
+    expect(await screen.findByRole("heading", { name: "使用記錄" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
   });
 });

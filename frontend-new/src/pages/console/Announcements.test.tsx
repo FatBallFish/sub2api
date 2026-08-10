@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import Announcements from "./Announcements";
 
 function jsonResponse(data: unknown) {
@@ -11,6 +12,7 @@ function jsonResponse(data: unknown) {
 
 describe("Announcements", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
@@ -115,5 +117,92 @@ describe("Announcements", () => {
     });
     expect(screen.getAllByText("Fast routing").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Region failover").length).toBeGreaterThan(0);
+  });
+
+  it("renders Traditional Chinese controls and switches locale without refetching announcements", async () => {
+    vi.stubEnv("TZ", "Asia/Shanghai");
+    await act(async () => {
+      await i18n.changeLanguage("zh-TW");
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        {
+          id: 1,
+          title: "Tokyo model release",
+          content: "Dynamic announcement body.",
+          notify_mode: "silent",
+          created_at: "2026-06-18T18:00:00Z",
+          updated_at: "2026-06-18T08:00:00Z",
+        },
+        {
+          id: 2,
+          title: "Scheduled maintenance",
+          content: "Configured maintenance notice.",
+          notify_mode: "popup",
+          read_at: "2026-06-18T09:00:00Z",
+          created_at: "2026-06-17T08:00:00Z",
+          updated_at: "2026-06-17T08:00:00Z",
+        },
+      ]),
+    );
+    globalThis.fetch = fetchMock;
+
+    render(<Announcements />);
+
+    expect(screen.getByText("正在載入公告...")).toBeInTheDocument();
+    await screen.findByRole("heading", { name: "公告" });
+
+    expect(screen.getByPlaceholderText("搜尋公告...")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "公告篩選" })).toHaveValue("all");
+    expect(screen.getAllByText("精選")[0]).toHaveClass("console-inverted-label");
+    expect(screen.getAllByText("Tokyo model release").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Dynamic announcement body.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2026年6月19日").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("模型").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "將 Tokyo model release 標示為已讀" }).length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "公告篩選" }), { target: { value: "unread" } });
+    expect(screen.queryByText("Scheduled maintenance")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByRole("heading", { name: "お知らせ" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "お知らせフィルター" })).toHaveValue("unread");
+    expect(screen.getAllByText("Tokyo model release").length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByPlaceholderText("お知らせを検索..."), { target: { value: "missing" } });
+    expect(screen.getByText("お知らせが見つかりません。")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("localizes an announcement mark-read failure", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("zh-TW");
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            id: 7,
+            title: "Configured title",
+            content: "Configured body.",
+            notify_mode: "silent",
+            created_at: "2026-06-18T08:00:00Z",
+            updated_at: "2026-06-18T08:00:00Z",
+          },
+        ]),
+      )
+      .mockRejectedValueOnce(new Error("private upstream detail"));
+    globalThis.fetch = fetchMock;
+
+    render(<Announcements />);
+    const markReadButtons = await screen.findAllByRole("button", { name: "將 Configured title 標示為已讀" });
+    fireEvent.click(markReadButtons[0]);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("無法將公告標示為已讀。");
+    expect(screen.getAllByText("Configured title").length).toBeGreaterThan(0);
   });
 });

@@ -1,4 +1,5 @@
 import type { TranslationResource } from "./en";
+import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const zhCN = {
   common: {
@@ -388,6 +389,7 @@ const zhCN = {
       copied: "已复制 API 密钥“{{name}}”。",
       dismissError: "关闭错误提示",
     },
+    ...remainingConsole["zh-CN"],
   },
   errors: {
     scoped: {
@@ -408,6 +410,7 @@ const zhCN = {
       },
       apiKeys: {},
     },
+    ...remainingErrors["zh-CN"],
     unknown: "出现错误，请稍后重试。",
     publicPricingLoadFailed: "无法加载价格信息。",
     modelPricingLoadFailed: "无法加载模型价格。",

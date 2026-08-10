@@ -1,4 +1,5 @@
 import type { TranslationResource } from "./en";
+import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const ja = {
   common: {
@@ -388,6 +389,7 @@ const ja = {
       copied: "API キー「{{name}}」をコピーしました。",
       dismissError: "エラーを閉じる",
     },
+    ...remainingConsole.ja,
   },
   errors: {
     scoped: {
@@ -408,6 +410,7 @@ const ja = {
       },
       apiKeys: {},
     },
+    ...remainingErrors.ja,
     unknown: "エラーが発生しました。しばらくしてからもう一度お試しください。",
     publicPricingLoadFailed: "料金情報を読み込めませんでした。",
     modelPricingLoadFailed: "モデル料金を読み込めませんでした。",

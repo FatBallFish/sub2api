@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   ArrowClockwise,
   ImageSquare,
@@ -22,6 +24,15 @@ import {
   type PlaygroundMode,
 } from "../../api/playground";
 import type { ApiKey } from "../../types/keys";
+import { ApiError } from "../../api/client";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import {
+  errorMessage,
+  rawMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 
 type SelectablePlaygroundMode = PlaygroundConfig["mode"];
 
@@ -54,50 +65,62 @@ function compactJSON(value: unknown) {
   }
 }
 
+function isSerializedProviderResponse(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return false;
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function modelSuggestions(group: AvailableGroup | undefined, gatewayModels: string[]) {
   const scoped = group?.supported_model_scopes?.filter(Boolean) ?? [];
   return Array.from(new Set([...gatewayModels, ...scoped]));
 }
 
-function formatTime(value: string) {
+function formatTime(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
-
-const defaultPrompt = "Say hello and confirm this model is available.";
 
 function resolveMode(config: PlaygroundConfig): PlaygroundMode {
   return isImageGenerationModel(config.model) ? "image" : config.mode;
 }
 
-function modeLabel(mode: PlaygroundMode) {
+function modeLabel(mode: PlaygroundMode, t: TFunction<"console">) {
   switch (mode) {
     case "responses":
-      return "Responses API";
+      return t("playground.modes.responses");
     case "messages":
-      return "Claude Messages";
+      return t("playground.modes.messages");
     case "image":
-      return "Images API";
+      return t("playground.modes.image");
     default:
-      return "Chat Completions";
+      return t("playground.modes.chat");
   }
 }
 
-function modeHint(mode: PlaygroundMode) {
+function modeHint(mode: PlaygroundMode, t: TFunction<"console">) {
   switch (mode) {
     case "responses":
-      return "OpenAI checks use /v1/responses.";
+      return t("playground.hintResponses");
     case "messages":
-      return "Claude native checks use /v1/messages.";
+      return t("playground.hintMessages");
     case "image":
-      return "Image models return visual results from /v1/images/generations.";
+      return t("playground.hintImages");
     default:
-      return "Chat checks use /v1/chat/completions.";
+      return t("playground.hintChat");
   }
 }
 
 export default function Playground() {
+  const { t, i18n } = useTranslation("console");
+  const locale = i18n.resolvedLanguage || i18n.language;
+  usePageTitle(t("playground.title"));
   const draft = useMemo(() => loadPlaygroundDraft(), []);
   const skipNextPersist = useRef(false);
   const [config, setConfig] = useState<PlaygroundConfig>({
@@ -106,13 +129,14 @@ export default function Playground() {
     mode: draft?.config.mode ?? defaultConfig.mode,
   });
   const [messages, setMessages] = useState<PlaygroundMessage[]>(draft?.messages ?? []);
-  const [prompt, setPrompt] = useState(defaultPrompt);
+  const [prompt, setPrompt] = useState<string>(() => t("playground.defaultPrompt"));
+  const defaultPromptRef = useRef(t("playground.defaultPrompt"));
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [groups, setGroups] = useState<AvailableGroup[]>([]);
   const [gatewayModels, setGatewayModels] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
   const [rawPreview, setRawPreview] = useState("");
 
   const selectedKey = keys.find((key) => key.id === config.apiKeyId);
@@ -131,6 +155,9 @@ export default function Playground() {
     ])
       .then(([keysResult, groupsResult]) => {
         if (!active) return;
+        if (keysResult.status === "rejected" && groupsResult.status === "rejected") {
+          setError(errorMessage(keysResult.reason, "playgroundLoadFailed"));
+        }
         const loadedKeys = keysResult.status === "fulfilled" ? keysResult.value.items : [];
         const loadedGroups = groupsResult.status === "fulfilled" ? groupsResult.value : [];
         setKeys(loadedKeys);
@@ -141,9 +168,6 @@ export default function Playground() {
           groupId: current.groupId ?? loadedKeys[0]?.group_id ?? loadedGroups[0]?.id ?? null,
         }));
       })
-      .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : "Unable to load playground data.");
-      })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -151,6 +175,12 @@ export default function Playground() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const nextDefault = t("playground.defaultPrompt");
+    setPrompt((current) => current === defaultPromptRef.current ? nextDefault : current);
+    defaultPromptRef.current = nextDefault;
+  }, [locale, t]);
 
   useEffect(() => {
     if (skipNextPersist.current) {
@@ -184,11 +214,11 @@ export default function Playground() {
   async function runPlayground(event: FormEvent) {
     event.preventDefault();
     if (!selectedKey) {
-      setError("Select an active API key first.");
+      setError(translationMessage("console:playground.selectActiveKey"));
       return;
     }
     if (!prompt.trim()) {
-      setError("Enter a message before running the test.");
+      setError(translationMessage("console:playground.messageRequired"));
       return;
     }
 
@@ -247,7 +277,7 @@ export default function Playground() {
         },
       );
       const images = extractImagesFromResponse(response);
-      const content = extractTextFromResponse(response) || (images.length ? "Image generated successfully." : compactJSON(response));
+      const content = extractTextFromResponse(response) || (images.length ? "" : compactJSON(response));
       const assistantMessage: PlaygroundMessage = {
         id: streamingAssistantId,
         role: "assistant",
@@ -265,17 +295,12 @@ export default function Playground() {
       setRawPreview(compactJSON(response));
       setPrompt("");
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "Playground request failed.";
+      const message = reason instanceof Error
+        && !(reason instanceof ApiError)
+        && isSerializedProviderResponse(reason.message)
+        ? rawMessage(reason.message)
+        : errorMessage(reason, "playgroundRequestFailed");
       setError(message);
-      setMessages((current) => [
-        ...current,
-        {
-          id: messageID("assistant"),
-          role: "assistant",
-          content: message,
-          createdAt: nowISO(),
-        },
-      ]);
     } finally {
       setSending(false);
     }
@@ -291,7 +316,7 @@ export default function Playground() {
 
   function resetMessages() {
     setMessages([]);
-    setPrompt(defaultPrompt);
+    setPrompt(t("playground.defaultPrompt"));
     setRawPreview("");
     setError(null);
   }
@@ -299,7 +324,7 @@ export default function Playground() {
   if (loading) {
     return (
       <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm font-medium text-zinc-500">
-        Loading playground...
+        {t("playground.loading")}
       </div>
     );
   }
@@ -308,9 +333,9 @@ export default function Playground() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Playground</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{t("playground.title")}</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Validate an API key, group route, model, and multimodal request without leaving the console.
+            {t("playground.description")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -320,7 +345,7 @@ export default function Playground() {
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-bold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
           >
             <ArrowClockwise size={16} weight="bold" />
-            Reset parameters
+            {t("playground.resetParameters")}
           </button>
           <button
             type="button"
@@ -328,14 +353,14 @@ export default function Playground() {
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-bold text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
           >
             <ArrowClockwise size={16} weight="bold" />
-            Reset messages
+            {t("playground.resetMessages")}
           </button>
         </div>
       </div>
 
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-          {error}
+          {resolveLocalizedMessage(error)}
         </div>
       ) : null}
 
@@ -343,11 +368,11 @@ export default function Playground() {
         <aside className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 border-b border-zinc-100 pb-4">
             <SlidersHorizontal size={18} weight="bold" className="text-zinc-900" />
-            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Configuration</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">{t("playground.configuration")}</h2>
           </div>
 
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Group
+            {t("playground.group")}
             <select
               value={config.groupId ?? ""}
               onChange={(event) => {
@@ -357,7 +382,7 @@ export default function Playground() {
               }}
               className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none focus:border-zinc-400"
             >
-              <option value="">All available groups</option>
+              <option value="">{t("playground.allGroups")}</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
                   {group.name}{group.platform ? ` · ${group.platform}` : ""}
@@ -367,13 +392,13 @@ export default function Playground() {
           </label>
 
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">
-            API Key
+            {t("playground.apiKey")}
             <select
               value={config.apiKeyId ?? ""}
               onChange={(event) => updateConfig({ apiKeyId: event.target.value ? Number(event.target.value) : null })}
               className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none focus:border-zinc-400"
             >
-              <option value="">Select key</option>
+              <option value="">{t("playground.selectKey")}</option>
               {compatibleKeys.map((key) => (
                 <option key={key.id} value={key.id}>
                   {key.name}
@@ -383,7 +408,7 @@ export default function Playground() {
           </label>
 
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Model
+            {t("playground.model")}
             <input
               list="playground-models"
               value={config.model}
@@ -398,21 +423,21 @@ export default function Playground() {
           </label>
 
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">
-            API mode
+            {t("playground.apiMode")}
             <select
               value={config.mode}
               disabled={mode === "image"}
               onChange={(event) => updateConfig({ mode: event.target.value as SelectablePlaygroundMode })}
               className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none focus:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
             >
-              <option value="chat">Chat Completions</option>
-              <option value="responses">Responses API</option>
-              <option value="messages">Claude Messages</option>
+              <option value="chat">{t("playground.modes.chat")}</option>
+              <option value="responses">{t("playground.modes.responses")}</option>
+              <option value="messages">{t("playground.modes.messages")}</option>
             </select>
           </label>
 
           <label className="block text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Image URL
+            {t("playground.imageUrl")}
             <input
               value={config.imageUrl}
               onChange={(event) => updateConfig({ imageUrl: event.target.value })}
@@ -422,14 +447,14 @@ export default function Playground() {
           </label>
 
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Temperature" value={config.temperature} min={0} max={2} step={0.1} onChange={(value) => updateConfig({ temperature: value })} />
-            <NumberField label="Top P" value={config.topP} min={0} max={1} step={0.05} onChange={(value) => updateConfig({ topP: value })} />
-            <NumberField label="Frequency Penalty" value={config.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => updateConfig({ frequencyPenalty: value })} />
-            <NumberField label="Presence Penalty" value={config.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => updateConfig({ presencePenalty: value })} />
+            <NumberField label={t("playground.temperature")} value={config.temperature} min={0} max={2} step={0.1} onChange={(value) => updateConfig({ temperature: value })} />
+            <NumberField label={t("playground.topP")} value={config.topP} min={0} max={1} step={0.05} onChange={(value) => updateConfig({ topP: value })} />
+            <NumberField label={t("playground.frequencyPenalty")} value={config.frequencyPenalty} min={-2} max={2} step={0.1} onChange={(value) => updateConfig({ frequencyPenalty: value })} />
+            <NumberField label={t("playground.presencePenalty")} value={config.presencePenalty} min={-2} max={2} step={0.1} onChange={(value) => updateConfig({ presencePenalty: value })} />
           </div>
 
           <label className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-bold text-zinc-700">
-            Stream output
+            {t("playground.streamOutput")}
             <input
               type="checkbox"
               checked={config.stream}
@@ -441,8 +466,8 @@ export default function Playground() {
 
           <div className="rounded-xl border border-zinc-200 bg-zinc-950 p-3 text-xs text-zinc-300">
             <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-              <span>{modeLabel(mode)}</span>
-              <span>{selectedGroup?.platform ?? "auto"}</span>
+              <span>{modeLabel(mode, t)}</span>
+              <span>{selectedGroup?.platform ?? t("playground.auto")}</span>
             </div>
             <pre className="max-h-56 overflow-auto whitespace-pre-wrap">{compactJSON(buildPlaygroundPayload({ ...config, apiKey: "", mode, prompt }))}</pre>
           </div>
@@ -451,11 +476,11 @@ export default function Playground() {
         <section className="flex h-[calc(100vh-220px)] min-h-[560px] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">Conversation</h2>
-              <p className="mt-1 text-xs text-zinc-400">Stored in this browser only.</p>
+              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500">{t("playground.conversation")}</h2>
+              <p className="mt-1 text-xs text-zinc-400">{t("playground.browserOnly")}</p>
             </div>
             <span className="rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-              {messages.length} messages
+              {t("playground.messageCount", { count: messages.length })}
             </span>
           </div>
 
@@ -464,8 +489,8 @@ export default function Playground() {
               <div className="flex h-full min-h-[280px] items-center justify-center text-center">
                 <div>
                   <ImageSquare size={36} weight="duotone" className="mx-auto text-zinc-300" />
-                  <p className="mt-3 text-sm font-bold text-zinc-700">No requests yet</p>
-                  <p className="mt-1 text-xs text-zinc-400">Send a prompt to verify routing, credentials, and model output.</p>
+                  <p className="mt-3 text-sm font-bold text-zinc-700">{t("playground.empty")}</p>
+                  <p className="mt-1 text-xs text-zinc-400">{t("playground.emptyDescription")}</p>
                 </div>
               </div>
             ) : (
@@ -474,10 +499,10 @@ export default function Playground() {
           </div>
 
           <form onSubmit={runPlayground} className="border-t border-zinc-100 p-4">
-            <label className="sr-only" htmlFor="playground-message">Message</label>
+            <label className="sr-only" htmlFor="playground-message">{t("playground.message")}</label>
             <textarea
               id="playground-message"
-              aria-label="Message"
+              aria-label={t("playground.message")}
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               rows={4}
@@ -485,7 +510,7 @@ export default function Playground() {
             />
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-zinc-400">
-                {modeHint(mode)}
+                {modeHint(mode, t)}
               </p>
               <button
                 type="submit"
@@ -493,14 +518,14 @@ export default function Playground() {
                 className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {sending ? <SpinnerGap size={16} className="animate-spin" /> : <PaperPlaneTilt size={16} weight="bold" />}
-                Run test
+                {sending ? t("playground.running") : t("playground.runTest")}
               </button>
             </div>
           </form>
 
           {rawPreview ? (
             <details className="border-t border-zinc-100 px-5 py-4 text-xs text-zinc-500">
-              <summary className="cursor-pointer font-bold uppercase tracking-widest text-zinc-400">Raw response</summary>
+              <summary className="cursor-pointer font-bold uppercase tracking-widest text-zinc-400">{t("playground.rawResponse")}</summary>
               <pre className="mt-3 max-h-72 overflow-auto rounded-xl bg-zinc-950 p-3 text-zinc-300">{rawPreview}</pre>
             </details>
           ) : null}
@@ -537,20 +562,21 @@ function NumberField({ label, value, min, max, step, onChange }: NumberFieldProp
 }
 
 function MessageBubble({ message }: { message: PlaygroundMessage }) {
+  const { t, i18n } = useTranslation("console");
   const isUser = message.role === "user";
   return (
     <article className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[82%] rounded-2xl border px-4 py-3 shadow-sm ${isUser ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-800"}`}>
         <div className={`mb-2 flex items-center justify-between gap-6 text-[10px] font-bold uppercase tracking-widest ${isUser ? "text-zinc-400" : "text-zinc-400"}`}>
-          <span>{message.role}</span>
-          <span>{formatTime(message.createdAt)}</span>
+          <span>{t(`playground.role.${message.role}`)}</span>
+          <span>{formatTime(message.createdAt, i18n.resolvedLanguage || i18n.language)}</span>
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
+        <p className="whitespace-pre-wrap text-sm leading-6">{message.content || t("playground.imageGenerated")}</p>
         {message.images && message.images.length > 0 ? (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {message.images.map((src, index) => (
               <a key={src} href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
-                <img src={src} alt={`Generated result ${index + 1}`} className="h-auto w-full object-cover" />
+                <img src={src} alt={t("playground.generatedResult", { index: index + 1 })} className="h-auto w-full object-cover" />
               </a>
             ))}
           </div>
