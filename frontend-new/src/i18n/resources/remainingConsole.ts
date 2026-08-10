@@ -277,9 +277,9 @@ const ja = {
     title: "プレイグラウンド", description: "コンソールを離れずに API キー、グループルート、モデル、マルチモーダルリクエストを確認できます。", loading: "プレイグラウンドを読み込んでいます...", resetParameters: "パラメーターをリセット", resetMessages: "メッセージをリセット", configuration: "設定", group: "グループ", allGroups: "利用可能なすべてのグループ", apiKey: "API キー", selectKey: "キーを選択", model: "モデル", apiMode: "API モード", modes: { chat: "チャット補完", responses: "Responses API", messages: "Claude Messages", image: "画像 API" }, imageUrl: "画像 URL", temperature: "温度", topP: "Top P", frequencyPenalty: "頻度ペナルティ", presencePenalty: "存在ペナルティ", streamOutput: "ストリーム出力", auto: "自動", conversation: "会話", browserOnly: "このブラウザにのみ保存されます。", messageCount_one: "{{count}} 件のメッセージ", messageCount_other: "{{count}} 件のメッセージ", empty: "リクエストはまだありません", emptyDescription: "プロンプトを送信して、ルーティング、認証情報、モデル出力を確認します。", message: "メッセージ", defaultPrompt: "挨拶をして、このモデルが利用可能であることを確認してください。", runTest: "テストを実行", running: "実行中...", rawResponse: "生のレスポンス", selectActiveKey: "最初に有効な API キーを選択してください。", messageRequired: "テストを実行する前にメッセージを入力してください。", imageGenerated: "画像を生成しました。", generatedResult: "生成結果 {{index}}", hintResponses: "OpenAI の確認には /v1/responses を使用します。", hintMessages: "Claude ネイティブの確認には /v1/messages を使用します。", hintImages: "画像モデルは /v1/images/generations から画像結果を返します。", hintChat: "チャットの確認には /v1/chat/completions を使用します。", role: { user: "ユーザー", assistant: "アシスタント", system: "システム" },
   },
   usageHistory: {
-    title: "利用履歴", description: "リクエストログ、Token 消費量、クレジット使用量を確認します。", unavailable: "利用履歴を利用できません", loading: "利用履歴を読み込み中...", refreshLabel: "利用履歴を更新", refresh: "更新", refreshing: "更新中...", exportCsv: "CSV をエクスポート", totalRequests: "合計リクエスト", tokenVolume: "Token 使用量", totalCredits: "合計クレジット", averageDuration: "平均所要時間", searchPlaceholder: "モデルまたはエンドポイントを検索...", columnsLabel: "列", apiKeyLabel: "API キー", allApiKeys: "すべての API キー", keyNumber: "キー #{{id}}", timeRangeLabel: "期間", today: "今日", lastDay: "昨日", last7Days: "過去 7 日間", last30Days: "過去 30 日間", details: "詳細", empty: "使用記録がありません。", inputOutput: "入力/出力", cacheRead: "キャッシュ読み取り", hitRate: "ヒット率", totalTokens: "合計 Token", cacheCreated: "キャッシュ作成", hidden: "非表示", viewDetails: "リクエスト {{id}} の詳細を表示", recently: "最近", justNow: "たった今", minutesAgo: "{{count}}分前", hoursAgo: "{{count}}時間前", daysAgo: "{{count}}日前", fundingGlobalPlan: "グローバルプラン", fundingMixed: "混合請求", fundingSubscription: "サブスクリプション", fundingFree: "無料", fundingWallet: "ウォレット", breakdownMixed: "プラン {{plan}} + ウォレット {{wallet}}", breakdownPlan: "プラン {{credits}}", breakdownIncluded: "含まれるクレジット {{credits}}", noCharge: "請求なし", breakdownWallet: "ウォレット {{credits}}", showingPage: "{{page}} / {{pageCount}} ページを表示中", pageStatus: "{{page}} / {{pageCount}} ページ", rows: "行数", rowsPerPage: "1 ページあたりの行数", previousPage: "前のページ", previous: "前へ", nextPage: "次のページ", next: "次へ",
-    columns: { apiKey: "API キー", model: "モデル", endpoint: "エンドポイント", tokens: "Token", credits: "クレジット", firstToken: "最初の Token", duration: "所要時間", time: "時刻", ip: "IP" },
-    csv: { apiKey: "API キー", model: "モデル", endpoint: "エンドポイント", inputTokens: "入力 Token", outputTokens: "出力 Token", cacheRead: "キャッシュ読み取り", cacheCreate: "キャッシュ作成", credits: "クレジット", funding: "請求元", globalPlanCredits: "グローバルプランクレジット", walletCredits: "ウォレットクレジット", subscriptionCredits: "サブスクリプションクレジット", duration: "所要時間", createdAt: "作成日時" },
+    title: "利用履歴", description: "リクエストログ、トークン消費量、クレジット使用量を確認します。", unavailable: "利用履歴を利用できません", loading: "利用履歴を読み込み中...", refreshLabel: "利用履歴を更新", refresh: "更新", refreshing: "更新中...", exportCsv: "CSV をエクスポート", totalRequests: "合計リクエスト", tokenVolume: "トークン使用量", totalCredits: "合計クレジット", averageDuration: "平均所要時間", searchPlaceholder: "モデルまたはエンドポイントを検索...", columnsLabel: "列", apiKeyLabel: "API キー", allApiKeys: "すべての API キー", keyNumber: "キー #{{id}}", timeRangeLabel: "期間", today: "今日", lastDay: "昨日", last7Days: "過去 7 日間", last30Days: "過去 30 日間", details: "詳細", empty: "使用記録がありません。", inputOutput: "入力/出力", cacheRead: "キャッシュ読み取り", hitRate: "ヒット率", totalTokens: "合計トークン", cacheCreated: "キャッシュ作成", hidden: "非表示", viewDetails: "リクエスト {{id}} の詳細を表示", recently: "最近", justNow: "たった今", minutesAgo: "{{count}}分前", hoursAgo: "{{count}}時間前", daysAgo: "{{count}}日前", fundingGlobalPlan: "グローバルプラン", fundingMixed: "混合請求", fundingSubscription: "サブスクリプション", fundingFree: "無料", fundingWallet: "ウォレット", breakdownMixed: "プラン {{plan}} + ウォレット {{wallet}}", breakdownPlan: "プラン {{credits}}", breakdownIncluded: "含まれるクレジット {{credits}}", noCharge: "請求なし", breakdownWallet: "ウォレット {{credits}}", showingPage: "{{page}} / {{pageCount}} ページを表示中", pageStatus: "{{page}} / {{pageCount}} ページ", rows: "行数", rowsPerPage: "1 ページあたりの行数", previousPage: "前のページ", previous: "前へ", nextPage: "次のページ", next: "次へ",
+    columns: { apiKey: "API キー", model: "モデル", endpoint: "エンドポイント", tokens: "トークン", credits: "クレジット", firstToken: "最初のトークン", duration: "所要時間", time: "時刻", ip: "IP" },
+    csv: { apiKey: "API キー", model: "モデル", endpoint: "エンドポイント", inputTokens: "入力トークン", outputTokens: "出力トークン", cacheRead: "キャッシュ読み取りトークン", cacheCreate: "キャッシュ作成トークン", credits: "クレジット", funding: "請求元", globalPlanCredits: "グローバルプランクレジット", walletCredits: "ウォレットクレジット", subscriptionCredits: "サブスクリプションクレジット", duration: "所要時間", createdAt: "作成日時" },
   },
   billing: {
     title: "サブスクリプションとクレジット", description: "請求、サブスクリプション、ウォレットクレジットを管理します。", unavailable: "請求情報を利用できません", loading: "請求情報を読み込んでいます...", notScheduled: "予定なし",
@@ -294,8 +294,7 @@ const ja = {
 
 export const remainingConsole = { en, "zh-CN": zhCN, "zh-TW": zhTW, ja } as const;
 
-export const remainingErrors = {
-  en: {
+const remainingErrorsEn = {
     announcementsLoadFailed: "Unable to load announcements.",
     announcementMarkReadFailed: "Unable to mark the announcement as read.",
     referralLoadFailed: "Unable to load referral.",
@@ -303,7 +302,14 @@ export const remainingErrors = {
     playgroundLoadFailed: "Unable to load playground data.",
     playgroundRequestFailed: "Playground request failed.",
     usageHistoryLoadFailed: "Unable to load usage history.",
-  },
+    billingLoadFailed: "Unable to load billing information.",
+    billingCancelOrderFailed: "Unable to cancel the payment order.",
+    billingCreateTopUpOrderFailed: "Unable to create the top-up payment order.",
+    billingCreatePlanOrderFailed: "Unable to create the subscription order.",
+} as const;
+
+export const remainingErrors = {
+  en: remainingErrorsEn,
   "zh-CN": {
     announcementsLoadFailed: "无法加载公告。",
     announcementMarkReadFailed: "无法将公告标记为已读。",
@@ -312,7 +318,11 @@ export const remainingErrors = {
     playgroundLoadFailed: "无法加载调试台数据。",
     playgroundRequestFailed: "调试台请求失败。",
     usageHistoryLoadFailed: "无法加载使用记录。",
-  },
+    billingLoadFailed: "无法加载账单信息。",
+    billingCancelOrderFailed: "无法取消付款订单。",
+    billingCreateTopUpOrderFailed: "无法创建充值付款订单。",
+    billingCreatePlanOrderFailed: "无法创建订阅订单。",
+  } satisfies StringResourceShape<typeof remainingErrorsEn>,
   "zh-TW": {
     announcementsLoadFailed: "無法載入公告。",
     announcementMarkReadFailed: "無法將公告標示為已讀。",
@@ -321,7 +331,11 @@ export const remainingErrors = {
     playgroundLoadFailed: "無法載入測試台資料。",
     playgroundRequestFailed: "測試台請求失敗。",
     usageHistoryLoadFailed: "無法載入使用記錄。",
-  },
+    billingLoadFailed: "無法載入帳單資訊。",
+    billingCancelOrderFailed: "無法取消付款訂單。",
+    billingCreateTopUpOrderFailed: "無法建立儲值付款訂單。",
+    billingCreatePlanOrderFailed: "無法建立訂閱訂單。",
+  } satisfies StringResourceShape<typeof remainingErrorsEn>,
   ja: {
     announcementsLoadFailed: "お知らせを読み込めませんでした。",
     announcementMarkReadFailed: "お知らせを既読にできませんでした。",
@@ -330,5 +344,9 @@ export const remainingErrors = {
     playgroundLoadFailed: "プレイグラウンドのデータを読み込めませんでした。",
     playgroundRequestFailed: "プレイグラウンドのリクエストに失敗しました。",
     usageHistoryLoadFailed: "利用履歴を読み込めませんでした。",
-  },
+    billingLoadFailed: "請求情報を読み込めませんでした。",
+    billingCancelOrderFailed: "支払い注文をキャンセルできませんでした。",
+    billingCreateTopUpOrderFailed: "追加クレジットの支払い注文を作成できませんでした。",
+    billingCreatePlanOrderFailed: "サブスクリプション注文を作成できませんでした。",
+  } satisfies StringResourceShape<typeof remainingErrorsEn>,
 } as const;

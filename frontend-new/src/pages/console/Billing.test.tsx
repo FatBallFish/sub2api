@@ -18,6 +18,30 @@ function checkoutInfoResponse(methods = ["stripe"]) {
   );
 }
 
+function billingResponse({
+  plans = [],
+  addOns = [],
+  activity = [],
+}: {
+  plans?: Array<Record<string, unknown>>;
+  addOns?: Array<Record<string, unknown>>;
+  activity?: Array<Record<string, unknown>>;
+} = {}) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data: {
+        wallet: { available_balance: 15, add_on_credits: 15, currency: "USD" },
+        plans,
+        add_ons: addOns,
+        payment_methods: [{ type: "stripe", available: true }],
+        activity,
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+}
+
 describe("Billing", () => {
   let openMock: ReturnType<typeof vi.spyOn>;
 
@@ -1253,5 +1277,209 @@ describe("Billing", () => {
     expect(screen.getByText("$1,234.50")).toBeInTheDocument();
     expect(screen.getByText("Configured activity")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("localizes billing load failures reactively without replaying requests", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") return Promise.reject(new TypeError("Failed to fetch"));
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+
+    expect(await screen.findByText("无法加载账单信息。")).toBeInTheDocument();
+    expect(screen.queryByText("出现错误，请稍后重试。")).not.toBeInTheDocument();
+    const requestCount = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByText("請求情報を読み込めませんでした。")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+  });
+
+  it("uses the billing load fallback when an action refresh fails", async () => {
+    await i18n.changeLanguage("en");
+    let billingLoads = 0;
+    const pendingOrder = {
+      id: 77,
+      date: "2026-06-15T00:00:00Z",
+      reference: "refresh_pending",
+      type: "balance",
+      label: "Add-on Credits",
+      amount: 10,
+      currency: "USD",
+      status: "PENDING",
+    };
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        billingLoads += 1;
+        return billingLoads === 1
+          ? Promise.resolve(billingResponse({ activity: [pendingOrder] }))
+          : Promise.reject(new TypeError("refresh failed"));
+      }
+      if (path === "/api/v1/payment/orders/77/cancel") {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: { message: "cancelled" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel order refresh_pending" }));
+
+    expect(await screen.findByText("Unable to load billing information.")).toBeInTheDocument();
+  });
+
+  it("uses a specific fallback when cancelling a payment order fails", async () => {
+    await i18n.changeLanguage("en");
+    const pendingOrder = {
+      id: 77,
+      date: "2026-06-15T00:00:00Z",
+      reference: "cancel_pending",
+      type: "balance",
+      label: "Add-on Credits",
+      amount: 10,
+      currency: "USD",
+      status: "PENDING",
+    };
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") return Promise.resolve(billingResponse({ activity: [pendingOrder] }));
+      if (path === "/api/v1/payment/orders/77/cancel") return Promise.reject(new Error("socket reset"));
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel order cancel_pending" }));
+
+    expect(await screen.findByText("Unable to cancel the payment order.")).toBeInTheDocument();
+    expect(screen.queryByText("Something went wrong.")).not.toBeInTheDocument();
+  });
+
+  it("uses a specific fallback when creating a top-up order fails", async () => {
+    await i18n.changeLanguage("en");
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") return Promise.reject(new TypeError("Failed to fetch"));
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Create payment order" }));
+
+    expect(await screen.findByText("Unable to create the top-up payment order.")).toBeInTheDocument();
+    expect(screen.queryByText("Something went wrong.")).not.toBeInTheDocument();
+  });
+
+  it("uses a specific fallback for a code-less ApiError when creating a plan order fails", async () => {
+    await i18n.changeLanguage("en");
+    const plan = {
+      id: 102,
+      name: "Pro",
+      price: 49,
+      currency: "USD",
+      billing_period: "month",
+      weekly_credits: 60,
+      monthly_max_credits: 240,
+      features: [],
+    };
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") return Promise.resolve(billingResponse({ plans: [plan] }));
+      if (path === "/api/v1/payment/orders") return Promise.resolve(new Response("", { status: 503 }));
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Upgrade to Pro" }));
+
+    expect(await screen.findByText("Unable to create the subscription order.")).toBeInTheDocument();
+    expect(screen.queryByText("Something went wrong.")).not.toBeInTheDocument();
+  });
+
+  it("uses payment and subscription scopes for known order errors", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const plan = {
+      id: 102,
+      name: "Pro",
+      price: 49,
+      currency: "USD",
+      billing_period: "month",
+      weekly_credits: 60,
+      monthly_max_credits: 240,
+      features: [],
+    };
+    const dailyLimitResponse = () => new Response(JSON.stringify({
+      success: false,
+      code: "DAILY_LIMIT_EXCEEDED",
+      message: "raw daily limit",
+    }), { status: 429, headers: { "Content-Type": "application/json" } });
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({
+          plans: [plan],
+          addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }],
+        }));
+      }
+      if (path === "/api/v1/payment/orders") return Promise.resolve(dailyLimitResponse());
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "创建付款订单" }));
+    expect(await screen.findByText("已达到每日支付限额。")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "升级到 Pro" }));
+    expect(await screen.findByText("已达到订阅的每日用量限额。")).toBeInTheDocument();
+    expect(screen.queryByText("raw daily limit")).not.toBeInTheDocument();
+  });
+
+  it("preserves raw backend response messages for unmapped payment errors", async () => {
+    await i18n.changeLanguage("en");
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(new Response(JSON.stringify({
+          success: false,
+          code: "PROCESSOR_MAINTENANCE",
+          message: "Processor maintenance window",
+        }), { status: 503, headers: { "Content-Type": "application/json" } }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Create payment order" }));
+
+    expect(await screen.findByText("Processor maintenance window")).toBeInTheDocument();
+    expect(screen.queryByText("Unable to create the top-up payment order.")).not.toBeInTheDocument();
   });
 });

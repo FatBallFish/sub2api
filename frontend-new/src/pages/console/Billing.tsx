@@ -285,7 +285,7 @@ export default function Billing() {
     return Promise.allSettled([getConsoleBilling(), getPaymentCheckoutInfo()])
       .then(([billingResult, checkoutResult]) => {
         if (billingResult.status === "rejected") {
-          setError(errorMessage(billingResult.reason, "unknown", "payment"));
+          setError(errorMessage(billingResult.reason, "billingLoadFailed", "payment"));
           return;
         }
         const data = billingResult.value;
@@ -309,7 +309,7 @@ export default function Billing() {
     loadBilling()
       .catch((reason: unknown) => {
         if (active) {
-          setError(errorMessage(reason, "unknown", "payment"));
+          setError(errorMessage(reason, "billingLoadFailed", "payment"));
         }
       });
 
@@ -428,7 +428,7 @@ export default function Billing() {
       await cancelPaymentOrder(item.id);
       await loadBilling();
     } catch (reason) {
-      setOrderActionError(errorMessage(reason, "unknown", "payment"));
+      setOrderActionError(errorMessage(reason, "billingCancelOrderFailed", "payment"));
     } finally {
       setOrderActionId(null);
     }
@@ -498,7 +498,7 @@ export default function Billing() {
       });
       await handleCreatedPaymentOrder(result, "top_up");
     } catch (reason) {
-      setTopUpError(errorMessage(reason, "unknown", "payment"));
+      setTopUpError(errorMessage(reason, "billingCreateTopUpOrderFailed", "payment"));
     } finally {
       setTopUpLoading(false);
     }
@@ -541,7 +541,7 @@ export default function Billing() {
       });
       await handleCreatedPaymentOrder(result, "plan");
     } catch (reason) {
-      setPlanError(errorMessage(reason, "unknown", "payment"));
+      setPlanError(errorMessage(reason, "billingCreatePlanOrderFailed", "subscription"));
     } finally {
       setPlanLoadingId(null);
     }
