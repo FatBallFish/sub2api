@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
 import ConsoleLayout from "./ConsoleLayout";
 import type { ConsoleBootstrap } from "../types/console";
 import i18n from "../i18n";
@@ -201,7 +202,14 @@ describe("ConsoleLayout", () => {
     expect(menuButton).toHaveAttribute("aria-expanded", "true");
     const drawer = screen.getByRole("dialog", { name: "Console navigation" });
     expect(drawer).toBeInTheDocument();
-    expect(within(drawer).getByRole("button", { name: "Close navigation" })).toHaveFocus();
+    const closeButton = within(drawer).getByRole("button", { name: "Close navigation" });
+    const drawerLinks = within(drawer).getAllByRole("link");
+    expect(closeButton).toHaveFocus();
+
+    await userEvent.tab({ shift: true });
+    expect(drawerLinks.at(-1)).toHaveFocus();
+    await userEvent.tab();
+    expect(closeButton).toHaveFocus();
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Console navigation" })).not.toBeInTheDocument();

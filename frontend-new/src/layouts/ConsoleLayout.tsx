@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Layout,
@@ -26,6 +26,7 @@ import { formatCredits } from "../utils/format";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 import { useTranslation } from "react-i18next";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -90,6 +91,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
   const [theme, setTheme] = useState<ConsoleTheme>(() => readConsoleTheme());
   const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileNavCloseRef = useRef<HTMLButtonElement>(null);
+  const mobileNavRef = useRef<HTMLElement>(null);
   const planPercent = Math.min(Math.max(bootstrap.global_plan.used_percent, 0), 100);
   const visibleNavItems = useMemo(
     () => navItems.filter((item) => item.id !== "referral" || bootstrap.affiliate_enabled !== false),
@@ -98,19 +100,13 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
   const activeRoute = routeMetadata.find((item) => item.href === location.pathname) ?? routeMetadata[0];
   usePageTitle(t(activeRoute.labelKey));
 
-  useEffect(() => {
-    if (!mobileNavOpen) return;
-    mobileNavCloseRef.current?.focus();
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setMobileNavOpen(false);
-      queueMicrotask(() => mobileNavTriggerRef.current?.focus());
-    };
-
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [mobileNavOpen]);
+  useFocusTrap({
+    active: mobileNavOpen,
+    containerRef: mobileNavRef,
+    initialFocusRef: mobileNavCloseRef,
+    restoreFocusRef: mobileNavTriggerRef,
+    onEscape: () => setMobileNavOpen(false),
+  });
 
   const logout = () => {
     clearAuthStorage();
@@ -127,10 +123,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
 
   const isDark = theme === "dark";
 
-  const closeMobileNavigation = (restoreFocus = false) => {
-    setMobileNavOpen(false);
-    if (restoreFocus) queueMicrotask(() => mobileNavTriggerRef.current?.focus());
-  };
+  const closeMobileNavigation = () => setMobileNavOpen(false);
 
   const closeMobileNavigationOnSelection = () => setMobileNavOpen(false);
 
@@ -143,7 +136,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             ref={mobileNavCloseRef}
             type="button"
             aria-label={t("shell.closeNavigation")}
-            onClick={() => closeMobileNavigation(true)}
+            onClick={closeMobileNavigation}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
           >
             <X size={20} weight="bold" />
@@ -215,10 +208,11 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
           <button
             type="button"
             aria-label={t("shell.closeNavigation")}
-            onClick={() => closeMobileNavigation(true)}
+            onClick={closeMobileNavigation}
             className="fixed inset-0 z-40 bg-zinc-950/40 lg:hidden"
           />
           <aside
+            ref={mobileNavRef}
             id={MOBILE_NAVIGATION_ID}
             role="dialog"
             aria-modal="true"
