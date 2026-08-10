@@ -65,6 +65,62 @@ describe("hardcoded copy AST analysis", () => {
       ["ui-descriptor", "Billing notice"],
     ]);
   });
+
+  it("detects fixed copy in logical UI branches", () => {
+    const findings = scanHardcodedCopy(fixture(`
+      function Example({ ready, error, message }) {
+        return <>
+          <div>{ready && "Ready now"}</div>
+          <div>{error || "Try again"}</div>
+          <div>{message ?? "No message"}</div>
+        </>;
+      }
+    `));
+
+    expect(findings.map(({ category, value }) => [category, value])).toEqual([
+      ["jsx-expression", "Ready now"],
+      ["jsx-expression", "Try again"],
+      ["jsx-expression", "No message"],
+    ]);
+  });
+
+  it("detects fixed copy nested in user-facing call wrappers", () => {
+    const findings = scanHardcodedCopy(fixture(`
+      function Example({ name }) {
+        setActionError(normalize("Could not save"));
+        const item = { message: format("Payment failed") };
+        return <>
+          <div>{formatLabel("Retry now")}</div>
+          <Button label={wrap(\`Open \${name}\`)} />
+        </>;
+      }
+    `));
+
+    expect(findings.map(({ category, value }) => [category, value])).toEqual([
+      ["ui-state", "Could not save"],
+      ["ui-descriptor", "Payment failed"],
+      ["jsx-expression", "Retry now"],
+      ["jsx-attribute", "Open ${...}"],
+    ]);
+  });
+
+  it("resolves simple lexical const copy only when it reaches a UI context", () => {
+    const findings = scanHardcodedCopy(fixture(`
+      const unused = "Internal fixture value";
+      function A() {
+        const label = "Retry";
+        return <button>{label}</button>;
+      }
+      function B({ backend }) {
+        const label = backend.title;
+        return <button>{label}</button>;
+      }
+    `));
+
+    expect(findings.map(({ category, value }) => [category, value])).toEqual([
+      ["jsx-expression", "Retry"],
+    ]);
+  });
 });
 
 describe("translation usage AST analysis", () => {
@@ -107,5 +163,59 @@ describe("translation usage AST analysis", () => {
     const audit = auditTranslationUsage([], keys, new Set(["errors.KNOWN_CODE"]));
 
     expect(audit.unused).toEqual(["errors.NEW_UNUSED_CODE"]);
+  });
+
+  it("resolves same-name translation functions in their lexical scopes", () => {
+    const keys = new Set([
+      "public.actions.continue",
+      "console.actions.continue",
+    ]);
+    const audit = auditTranslationUsage([
+      fixture(`
+        function PublicPage() {
+          const { t } = useTranslation("public");
+          return <button>{t("actions.continue")}</button>;
+        }
+        function ConsolePage() {
+          const { t } = useTranslation("console");
+          return <button>{t("actions.continue")}</button>;
+        }
+      `),
+    ], keys);
+
+    expect([...audit.used].sort()).toEqual([...keys].sort());
+    expect(audit.unused).toEqual([]);
+  });
+
+  it("resolves a top-level descriptor key when it has one resource namespace", () => {
+    const keys = new Set(["console.apiKeys.active"]);
+    const audit = auditTranslationUsage([
+      fixture(`
+        const tabs = [{ labelKey: "apiKeys.active" }];
+      `),
+    ], keys);
+
+    expect([...audit.used]).toEqual(["console.apiKeys.active"]);
+    expect(audit.unused).toEqual([]);
+  });
+
+  it("rejects direct calls to suffixed plural resource keys", () => {
+    const audit = auditTranslationUsage([
+      fixture(`
+        const { t } = useTranslation("console");
+        t("referral.users_one", { count: 1 });
+        t("referral.users_other", { count: 2 });
+      `),
+    ], pluralKeys);
+
+    expect([...audit.used]).toEqual([]);
+    expect(audit.unused).toEqual([
+      "console.referral.users_one",
+      "console.referral.users_other",
+    ]);
+    expect(audit.pluralMisuses).toEqual([
+      "src/Fixture.tsx:3 plural key console.referral.users_one must be called as console.referral.users with count",
+      "src/Fixture.tsx:4 plural key console.referral.users_other must be called as console.referral.users with count",
+    ]);
   });
 });

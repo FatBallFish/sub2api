@@ -14,6 +14,7 @@ import {
 } from "../../utils/localizedMessage";
 import {
   buildClientConfigFiles,
+  CLIENT_CONFIG_HINT_KEYS,
   gatewayBaseUrl,
   getInstallClientOptions,
   getInstallShellOptions,
@@ -21,14 +22,7 @@ import {
   normalizeShellForClient,
   type InstallClientId,
   type InstallShellId,
-  type ClientConfigHintId,
 } from "../../utils/clientConfig";
-
-const CLIENT_CONFIG_HINT_KEYS = {
-  claudeSettings: "installGuide.hintClaudeSettings",
-  codexAuth: "installGuide.hintCodexAuth",
-  openCodeMerge: "installGuide.hintOpenCode",
-} as const satisfies Record<ClientConfigHintId, string>;
 
 function maskKey(value: string, emptyLabel: string) {
   if (!value) return emptyLabel;
