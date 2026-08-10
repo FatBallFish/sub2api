@@ -569,6 +569,121 @@ describe("Billing", () => {
     expect(verificationCalls).toBe(2);
   });
 
+  it.each([
+    {
+      name: "continues after an isolated third-attempt failure",
+      outcomes: ["PENDING", "PENDING", "reject", "PENDING"] as const,
+      advanceMs: 12_000,
+      expectedCalls: 4,
+      unavailable: false,
+    },
+    {
+      name: "stops after three consecutive failures",
+      outcomes: ["reject", "reject", "reject"] as const,
+      advanceMs: 15_000,
+      expectedCalls: 3,
+      unavailable: true,
+    },
+  ])("$name", async ({ outcomes, advanceMs, expectedCalls, unavailable }) => {
+    let verificationCalls = 0;
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(orderResponse({
+          order_id: 812,
+          out_trade_no: "order-retry-812",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: "PENDING",
+        }));
+      }
+      if (path === "/api/v1/payment/orders/verify") {
+        const outcome = outcomes[verificationCalls];
+        verificationCalls += 1;
+        if (outcome === "reject") return Promise.reject(new TypeError("verification unavailable"));
+        return Promise.resolve(orderResponse({
+          id: 812,
+          out_trade_no: "order-retry-812",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: outcome ?? "PENDING",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    const createButton = await screen.findByRole("button", { name: "Create payment order" });
+    vi.useFakeTimers();
+    fireEvent.click(createButton);
+    await act(async () => void await vi.advanceTimersByTimeAsync(0));
+    await act(async () => void await vi.advanceTimersByTimeAsync(advanceMs));
+
+    expect(verificationCalls).toBe(expectedCalls);
+    if (unavailable) {
+      expect(screen.getByText("Payment status unavailable")).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText("Payment status unavailable")).not.toBeInTheDocument();
+    }
+  });
+
+  it("stops after the total verification attempt limit", async () => {
+    let verificationCalls = 0;
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(orderResponse({
+          order_id: 813,
+          out_trade_no: "order-timeout-813",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: "PENDING",
+        }));
+      }
+      if (path === "/api/v1/payment/orders/verify") {
+        verificationCalls += 1;
+        return Promise.resolve(orderResponse({
+          id: 813,
+          out_trade_no: "order-timeout-813",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: "PENDING",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    const createButton = await screen.findByRole("button", { name: "Create payment order" });
+    vi.useFakeTimers();
+    fireEvent.click(createButton);
+    await act(async () => void await vi.advanceTimersByTimeAsync(0));
+    await act(async () => void await vi.advanceTimersByTimeAsync(300_000));
+
+    expect(verificationCalls).toBe(100);
+    expect(screen.getByText("Still waiting for payment")).toBeInTheDocument();
+    await act(async () => void await vi.advanceTimersByTimeAsync(3000));
+    expect(verificationCalls).toBe(100);
+  });
+
   it("does not overlap payment verification and ignores a late response from an older order", async () => {
     const firstVerification = deferred<Response>();
     let createdOrders = 0;

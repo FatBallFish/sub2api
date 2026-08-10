@@ -332,13 +332,15 @@ export default function Billing() {
     stopPaymentPolling();
     const generation = paymentPollGenerationRef.current;
 
-    let attempts = 0;
+    let totalAttempts = 0;
+    let consecutiveFailures = 0;
     const checkOrder = async () => {
       if (generation !== paymentPollGenerationRef.current) return;
-      attempts += 1;
+      totalAttempts += 1;
       try {
         const current = await verifyPaymentOrder(outTradeNo);
         if (generation !== paymentPollGenerationRef.current) return;
+        consecutiveFailures = 0;
         setTopUpOrder((order) => order?.out_trade_no?.trim() === outTradeNo
           ? { ...order, status: current.status }
           : order);
@@ -384,19 +386,10 @@ export default function Billing() {
           await loadBilling();
           return;
         }
-        if (attempts >= 100) {
-          stopPaymentPolling();
-          setPaymentDialog((dialog) => ({
-            ...dialog,
-            type: "info",
-            title: translationMessage("console:billing.dialog.waitingTitle"),
-            message: translationMessage("console:billing.dialog.waitingMessage"),
-          }));
-          return;
-        }
       } catch {
         if (generation !== paymentPollGenerationRef.current) return;
-        if (attempts >= 3) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 3) {
           stopPaymentPolling();
           setPaymentDialog((dialog) => ({
             ...dialog,
@@ -406,6 +399,16 @@ export default function Billing() {
           }));
           return;
         }
+      }
+      if (totalAttempts >= 100) {
+        stopPaymentPolling();
+        setPaymentDialog((dialog) => ({
+          ...dialog,
+          type: "info",
+          title: translationMessage("console:billing.dialog.waitingTitle"),
+          message: translationMessage("console:billing.dialog.waitingMessage"),
+        }));
+        return;
       }
       scheduleNextCheck();
     };
