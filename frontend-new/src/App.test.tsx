@@ -260,20 +260,11 @@ describe("App console routes", () => {
             JSON.stringify({
               success: true,
               data: {
-                id: 88,
                 out_trade_no: "sub2_paid",
-                amount: 10,
-                pay_amount: 72,
-                fee_rate: 0,
-                currency: "USD",
-                amount_currency: "USD",
-                payment_currency: "CNY",
-                payment_type: "alipay",
                 status: "COMPLETED",
-                order_type: "balance",
+                paid: true,
                 created_at: "2026-06-18T08:00:00Z",
                 expires_at: "2026-06-18T09:00:00Z",
-                refund_amount: 0,
               },
             }),
             { status: 200, headers: { "Content-Type": "application/json" } },
@@ -296,9 +287,12 @@ describe("App console routes", () => {
     });
 
     expect(screen.getByText("sub2_paid")).toBeInTheDocument();
-    expect(screen.getByText("CN¥72")).toBeInTheDocument();
-    expect(screen.getByText("Credited")).toBeInTheDocument();
-    expect(screen.getByText("$10")).toBeInTheDocument();
+    expect(screen.getByText("COMPLETED")).toBeInTheDocument();
+    expect(screen.getByText("Created")).toBeInTheDocument();
+    expect(screen.getByText("Expires")).toBeInTheDocument();
+    expect(screen.queryByText("Amount")).not.toBeInTheDocument();
+    expect(screen.queryByText("Credited")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/NaN|undefined/);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/payment/public/orders/verify",
       expect.objectContaining({

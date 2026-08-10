@@ -69,6 +69,16 @@ export interface PaymentOrderResult {
   plan_id?: number;
 }
 
+export interface PublicOrderVerifyResult {
+  out_trade_no: string;
+  status: string;
+  paid: boolean;
+  created_at: string;
+  expires_at: string;
+  paid_at?: string;
+  completed_at?: string;
+}
+
 export interface PaymentMethodLimits {
   payment_type: string;
   currency?: string;

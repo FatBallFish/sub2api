@@ -6,14 +6,33 @@ import PaymentResult from "./PaymentResult";
 
 const originalFetch = globalThis.fetch;
 
-function paymentOrder(outTradeNo: string, id: number) {
+function publicOrder(outTradeNo: string, status = "COMPLETED") {
+  const result = {
+    out_trade_no: outTradeNo,
+    status,
+    paid: status === "COMPLETED",
+    created_at: "2026-08-10T00:00:00Z",
+    expires_at: "2026-08-10T01:00:00Z",
+  };
+  return status === "COMPLETED"
+    ? {
+        ...result,
+        paid_at: "2026-08-10T00:30:00Z",
+        completed_at: "2026-08-10T00:31:00Z",
+      }
+    : result;
+}
+
+function fullOrder(outTradeNo: string) {
   return {
-    id,
+    id: 88,
     amount: 10,
-    pay_amount: 10,
+    pay_amount: 72,
     fee_rate: 0,
     currency: "USD",
-    payment_type: "stripe",
+    amount_currency: "USD",
+    payment_currency: "CNY",
+    payment_type: "alipay",
     out_trade_no: outTradeNo,
     status: "COMPLETED",
     order_type: "balance",
@@ -48,24 +67,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("localizes a successful payment result and keeps the order reference raw", async () => {
+it("renders the exact minimal public order response without absent financial details", async () => {
   await i18n.changeLanguage("ja");
   globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
     success: true,
-    data: {
-      id: 8,
-      amount: 10,
-      pay_amount: 10,
-      fee_rate: 0,
-      currency: "USD",
-      payment_type: "stripe",
-      out_trade_no: "ORDER-RAW-8",
-      status: "COMPLETED",
-      order_type: "balance",
-      created_at: "2026-08-10T00:00:00Z",
-      expires_at: "2026-08-10T01:00:00Z",
-      refund_amount: 0,
-    },
+    data: publicOrder("ORDER-RAW-8"),
   }), { status: 200, headers: { "Content-Type": "application/json" } }));
 
   render(
@@ -77,8 +83,43 @@ it("localizes a successful payment result and keeps the order reference raw", as
   expect(await screen.findByRole("heading", { name: "支払いが完了しました" })).toBeInTheDocument();
   expect(screen.getByText("注文番号")).toBeInTheDocument();
   expect(screen.getByText("ORDER-RAW-8")).toBeInTheDocument();
+  expect(screen.getByText("作成日時")).toBeInTheDocument();
+  expect(screen.getByText("有効期限")).toBeInTheDocument();
+  expect(screen.getByText("支払日時")).toBeInTheDocument();
+  expect(screen.getByText("完了日時")).toBeInTheDocument();
+  expect(screen.getAllByText(/2026/)).toHaveLength(4);
+  expect(screen.queryByText("金額")).not.toBeInTheDocument();
+  expect(screen.queryByText("入金額")).not.toBeInTheDocument();
+  expect(document.body).not.toHaveTextContent(/NaN|undefined/);
   expect(screen.getByRole("button", { name: "言語を切り替える" })).toBeInTheDocument();
   expect(document.title).toBe("支払い完了 | Mikiko CC");
+});
+
+it("keeps financial details for the signed resume-token response", async () => {
+  await i18n.changeLanguage("en");
+  globalThis.fetch = vi.fn().mockResolvedValue(response({
+    success: true,
+    data: fullOrder("ORDER-RESUME-88"),
+  }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/result?resume_token=resume-88"]}>
+      <PaymentResult />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("ORDER-RESUME-88")).toBeInTheDocument();
+  expect(screen.getByText("Amount")).toBeInTheDocument();
+  expect(screen.getByText("CN¥72")).toBeInTheDocument();
+  expect(screen.getByText("Credited")).toBeInTheDocument();
+  expect(screen.getByText("$10")).toBeInTheDocument();
+  expect(globalThis.fetch).toHaveBeenCalledWith(
+    "/api/v1/payment/public/orders/resolve",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ resume_token: "resume-88" }),
+    }),
+  );
 });
 
 it("preserves an unknown provider message from public verification", async () => {
@@ -119,20 +160,7 @@ it("localizes pending and missing-reference states", async () => {
   await i18n.changeLanguage("zh-CN");
   globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
     success: true,
-    data: {
-      id: 9,
-      amount: 20,
-      pay_amount: 20,
-      fee_rate: 0,
-      currency: "USD",
-      payment_type: "stripe",
-      out_trade_no: "ORDER-PENDING-9",
-      status: "PENDING",
-      order_type: "balance",
-      created_at: "2026-08-10T00:00:00Z",
-      expires_at: "2026-08-10T01:00:00Z",
-      refund_amount: 0,
-    },
+    data: publicOrder("ORDER-PENDING-9", "PENDING"),
   }), { status: 200, headers: { "Content-Type": "application/json" } }));
 
   const view = render(
@@ -177,7 +205,7 @@ it("keeps an unknown payment provider message unchanged across locale changes", 
 it("verifies an anonymous order through only the public endpoint without redirecting to login", async () => {
   const fetchMock = vi.fn().mockResolvedValue(response({
     success: true,
-    data: paymentOrder("ORDER-PUBLIC", 12),
+    data: publicOrder("ORDER-PUBLIC"),
   }));
   globalThis.fetch = fetchMock;
 
@@ -201,7 +229,7 @@ it("clears order A while order B loads and does not restore A when B fails", asy
   globalThis.fetch = vi.fn((_, options?: RequestInit) => {
     const body = JSON.parse(String(options?.body)) as { out_trade_no: string };
     if (body.out_trade_no === "ORDER-A") {
-      return Promise.resolve(response({ success: true, data: paymentOrder("ORDER-A", 20) }));
+      return Promise.resolve(response({ success: true, data: publicOrder("ORDER-A") }));
     }
     return orderB.promise;
   });
@@ -230,7 +258,7 @@ it("ignores a stale order A completion after order B succeeds", async () => {
   globalThis.fetch = vi.fn((_, options?: RequestInit) => {
     const body = JSON.parse(String(options?.body)) as { out_trade_no: string };
     if (body.out_trade_no === "ORDER-A") return orderA.promise;
-    return Promise.resolve(response({ success: true, data: paymentOrder("ORDER-B", 31) }));
+    return Promise.resolve(response({ success: true, data: publicOrder("ORDER-B") }));
   });
 
   render(
@@ -244,7 +272,7 @@ it("ignores a stale order A completion after order B succeeds", async () => {
   expect(await screen.findByText("ORDER-B")).toBeInTheDocument();
 
   await act(async () => {
-    orderA.resolve(response({ success: true, data: paymentOrder("ORDER-A", 30) }));
+    orderA.resolve(response({ success: true, data: publicOrder("ORDER-A") }));
     await orderA.promise;
   });
   expect(screen.getByText("ORDER-B")).toBeInTheDocument();
