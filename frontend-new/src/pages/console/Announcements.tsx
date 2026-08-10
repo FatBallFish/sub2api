@@ -12,7 +12,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { listAnnouncements, markAnnouncementRead } from "../../api/announcements";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { UserAnnouncement } from "../../types/announcements";
+import type { AnnouncementCategory, UserAnnouncement } from "../../types/announcements";
 import {
   errorMessage,
   resolveLocalizedMessage,
@@ -20,7 +20,6 @@ import {
 } from "../../utils/localizedMessage";
 import { MarkdownContent } from "../../utils/markdown";
 
-type AnnouncementCategory = "notice" | "model" | "feature" | "release";
 type AnnouncementFilter = "all" | "unread";
 
 function formatDate(value: string, locale: string, recently: string) {
