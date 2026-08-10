@@ -8,6 +8,11 @@ import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitc
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatDate } from "../../utils/format";
 import {
+  BILLING_STATUS_LABEL_KEYS,
+  normalizeOrderStatus,
+  type PaymentOrderStatus,
+} from "../../utils/paymentStatus";
+import {
   errorMessage,
   resolveLocalizedMessage,
   translationMessage,
@@ -25,12 +30,8 @@ function formatMoney(value: number, currency = "USD", locale = "en") {
   }).format(value);
 }
 
-function normalizeStatus(status?: string) {
-  return (status || "").trim().toUpperCase();
-}
-
 function isSuccess(status?: string) {
-  const normalized = normalizeStatus(status);
+  const normalized = normalizeOrderStatus(status);
   return normalized === "COMPLETED" || normalized === "PAID";
 }
 
@@ -116,7 +117,11 @@ export default function PaymentResult() {
     };
   }, [outTradeNo, resumeToken]);
 
-  const status = normalizeStatus(order?.status);
+  const status = normalizeOrderStatus(order?.status);
+  const statusLabelKey = BILLING_STATUS_LABEL_KEYS[status as PaymentOrderStatus];
+  const statusLabel = statusLabelKey
+    ? i18n.t(statusLabelKey, { ns: "console" })
+    : (order?.status?.trim() || status);
   const Icon = loading ? Clock : isSuccess(status) ? CheckCircle : WarningCircle;
   const title = isSuccess(status)
     ? t("payment.completed")
@@ -151,7 +156,7 @@ export default function PaymentResult() {
             </div>
             <div className="flex justify-between gap-4">
               <span className="text-zinc-500">{t("payment.status")}</span>
-              <span className="font-bold text-zinc-900">{status}</span>
+              <span className="font-bold text-zinc-900">{statusLabel}</span>
             </div>
             {hasAmountDetails(order) ? (
               <>

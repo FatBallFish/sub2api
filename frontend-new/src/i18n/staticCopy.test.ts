@@ -6,6 +6,10 @@ import { CLIENT_CONFIG_DISPLAY_TARGET_KEYS, CLIENT_CONFIG_HINT_KEYS } from "../u
 import { BUILT_IN_AGREEMENT_TITLE_KEYS } from "../utils/loginAgreement";
 import { GLOBAL_ERROR_CODES, SCOPED_ERROR_KEYS } from "../utils/localizedError";
 import { BILLING_STATUS_LABEL_KEYS } from "../utils/paymentStatus";
+import {
+  OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS,
+  REFERRAL_INVITEE_STATUS_LABEL_KEYS,
+} from "../utils/statusLabels";
 import en from "./resources/en";
 import {
   auditTranslationUsage,
@@ -137,6 +141,8 @@ interface DynamicTranslationContracts {
   clientConfigHintKeys: readonly string[];
   clientConfigDisplayTargetKeys: readonly string[];
   playgroundRoleLabelKeys: readonly string[];
+  overviewAnnouncementTypeLabelKeys: readonly string[];
+  referralInviteeStatusLabelKeys: readonly string[];
 }
 
 function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> = {}): Set<string> {
@@ -146,6 +152,8 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     clientConfigHintKeys: Object.values(CLIENT_CONFIG_HINT_KEYS),
     clientConfigDisplayTargetKeys: Object.values(CLIENT_CONFIG_DISPLAY_TARGET_KEYS),
     playgroundRoleLabelKeys: Object.values(PLAYGROUND_ROLE_LABEL_KEYS),
+    overviewAnnouncementTypeLabelKeys: Object.values(OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS),
+    referralInviteeStatusLabelKeys: Object.values(REFERRAL_INVITEE_STATUS_LABEL_KEYS),
     ...overrides,
   };
   return new Set([
@@ -154,6 +162,8 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     ...contracts.clientConfigHintKeys.map((key) => `console.${key}`),
     ...contracts.clientConfigDisplayTargetKeys.map((key) => `console.${key}`),
     ...contracts.playgroundRoleLabelKeys.map((key) => `console.${key}`),
+    ...contracts.overviewAnnouncementTypeLabelKeys.map((key) => `console.${key}`),
+    ...contracts.referralInviteeStatusLabelKeys.map((key) => `console.${key}`),
     // Runtime contracts below are finite typed values exported by production code.
     ...ANNOUNCEMENT_CATEGORIES.map((category) => `console.announcements.categories.${category}`),
     ...GLOBAL_ERROR_CODES.map((code) => `errors.${code}`),

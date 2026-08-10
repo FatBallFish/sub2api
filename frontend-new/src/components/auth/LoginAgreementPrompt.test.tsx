@@ -1,4 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -187,5 +188,49 @@ describe("LoginAgreementPrompt", () => {
     );
 
     expect(screen.getByText(/Updated August 10, 2026/)).toBeInTheDocument();
+  });
+
+  it("traps modal focus, closes on Escape, and restores focus to the review button", async () => {
+    const onReject = vi.fn();
+    const view = render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open
+          onAccept={vi.fn()}
+          onReject={onReject}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const close = screen.getByRole("button", { name: "关闭条款" });
+    const accept = screen.getByRole("button", { name: "接受并继续" });
+    await waitFor(() => expect(close).toHaveFocus());
+
+    await userEvent.tab({ shift: true });
+    expect(accept).toHaveFocus();
+    await userEvent.tab();
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onReject).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open={false}
+          onAccept={vi.fn()}
+          onReject={onReject}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: "查看" })).toHaveFocus());
   });
 });
