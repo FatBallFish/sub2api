@@ -120,7 +120,7 @@ describe("InstallGuide", () => {
             key: "sk-live-prod-abcdef",
             name: "Production Gateway",
             group_id: 10,
-            group: { id: 10, name: "Default", platform: "openai" },
+            group: { id: 10, name: "Default", platform: "openai", allow_messages_dispatch: true },
             status: "active",
             quota: 100,
             quota_used: 25,
@@ -147,9 +147,21 @@ describe("InstallGuide", () => {
     expect(document.title).toBe("インストールガイド | Mikiko CC");
     expect(screen.getByRole("heading", { name: "APIキーを選択" })).toBeInTheDocument();
     expect(screen.getByText("Production Gateway")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Codex CLI" }));
     expect(screen.getByRole("button", { name: "~/.codex/config.toml をコピー" })).toBeInTheDocument();
     expect(screen.getByText("API キーは config.toml ではなく auth.json に保存します。")).toBeInTheDocument();
 
+    await userEvent.click(screen.getByRole("button", { name: "Claude Code" }));
+    expect(screen.getByText("ターミナル")).toBeInTheDocument();
+    expect(screen.getByText("~/.claude/settings.json")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ターミナル をコピー" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Windows CMD" }));
+    expect(screen.getByText("コマンドプロンプト")).toBeInTheDocument();
+    expect(screen.getByText("%userprofile%\\.claude\\settings.json")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "コマンドプロンプト をコピー" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Codex CLI" }));
     const requestCount = fetchMock.mock.calls.length;
     await i18n.changeLanguage("zh-CN");
     expect(await screen.findByRole("heading", { name: "安装指南" })).toBeInTheDocument();

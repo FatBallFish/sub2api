@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { ArrowRight, CheckCircle, Question, Copy, Check } from "@phosphor-icons/react";
 import { listApiKeys, revealApiKey } from "../../api/keys";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
@@ -14,6 +15,7 @@ import {
 } from "../../utils/localizedMessage";
 import {
   buildClientConfigFiles,
+  CLIENT_CONFIG_DISPLAY_TARGET_KEYS,
   CLIENT_CONFIG_HINT_KEYS,
   gatewayBaseUrl,
   getInstallClientOptions,
@@ -22,6 +24,7 @@ import {
   normalizeShellForClient,
   type InstallClientId,
   type InstallShellId,
+  type ClientConfigFile,
 } from "../../utils/clientConfig";
 
 function maskKey(value: string, emptyLabel: string) {
@@ -31,8 +34,12 @@ function maskKey(value: string, emptyLabel: string) {
   return `${value.slice(0, 3)}-....${value.slice(-4)}`;
 }
 
-function copyPayload(files: { path: string; content: string }[]) {
-  return files.map((file) => `# ${file.path}\n${file.content}`).join("\n\n");
+function configFileLabel(file: ClientConfigFile, t: TFunction<"console">) {
+  return file.displayTargetId ? t(CLIENT_CONFIG_DISPLAY_TARGET_KEYS[file.displayTargetId]) : file.path;
+}
+
+function copyPayload(files: ClientConfigFile[], t: TFunction<"console">) {
+  return files.map((file) => `# ${configFileLabel(file, t)}\n${file.content}`).join("\n\n");
 }
 
 export default function InstallGuide() {
@@ -128,7 +135,7 @@ export default function InstallGuide() {
         baseUrl,
         apiKey: realKey,
       });
-      const payload = typeof index === "number" ? realFiles[index]?.content ?? "" : copyPayload(realFiles);
+      const payload = typeof index === "number" ? realFiles[index]?.content ?? "" : copyPayload(realFiles, t);
       await navigator.clipboard.writeText(payload);
       setCopiedIndex(typeof index === "number" ? index : "all");
       window.setTimeout(() => setCopiedIndex(null), 2000);
@@ -245,28 +252,31 @@ export default function InstallGuide() {
                   {t("installGuide.endpointPrefix")} <code className="rounded bg-zinc-100 px-1 font-mono">{baseUrl}</code>. {t("installGuide.endpointDescription")}
                 </p>
 
-                {files.map((file, index) => (
-                  <div key={`${file.path}-${index}`} className="space-y-2">
-                    {file.hintId ? <p className="text-xs font-medium text-amber-600">{t(CLIENT_CONFIG_HINT_KEYS[file.hintId])}</p> : null}
-                    <div className="group relative rounded-xl bg-zinc-900">
-                      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
-                        <span className="font-mono text-xs text-zinc-400">{file.path}</span>
-                        <button
-                          type="button"
-                          onClick={() => void copyConfig(index)}
-                          disabled={copying || !selectedKey}
-                          aria-label={t("installGuide.copyFile", { path: file.path })}
-                          className="rounded-lg border border-white/10 bg-white/5 p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {copiedIndex === index ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                        </button>
+                {files.map((file, index) => {
+                  const label = configFileLabel(file, t);
+                  return (
+                    <div key={`${file.path ?? file.displayTargetId}-${index}`} className="space-y-2">
+                      {file.hintId ? <p className="text-xs font-medium text-amber-600">{t(CLIENT_CONFIG_HINT_KEYS[file.hintId])}</p> : null}
+                      <div className="group relative rounded-xl bg-zinc-900">
+                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
+                          <span className="font-mono text-xs text-zinc-400">{label}</span>
+                          <button
+                            type="button"
+                            onClick={() => void copyConfig(index)}
+                            disabled={copying || !selectedKey}
+                            aria-label={t("installGuide.copyFile", { path: label })}
+                            className="rounded-lg border border-white/10 bg-white/5 p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {copiedIndex === index ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
+                          </button>
+                        </div>
+                        <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-zinc-300">
+                          <code>{file.content}</code>
+                        </pre>
                       </div>
-                      <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-zinc-300">
-                        <code>{file.content}</code>
-                      </pre>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <button
                   type="button"
