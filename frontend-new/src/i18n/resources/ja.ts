@@ -316,6 +316,7 @@ const ja = {
       viewAllAnnouncements: "すべてのお知らせを見る",
       announcementUpdate: "更新",
       announcementNotice: "お知らせ",
+      announcementMaintenance: "メンテナンス",
       addOnCredits: "追加クレジット",
       never: "なし",
       recently: "最近",

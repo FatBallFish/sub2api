@@ -81,6 +81,7 @@ it("renders the exact minimal public order response without absent financial det
   );
 
   expect(await screen.findByRole("heading", { name: "支払いが完了しました" })).toBeInTheDocument();
+  expect(screen.getByText("完了")).toBeInTheDocument();
   expect(screen.getByText("注文番号")).toBeInTheDocument();
   expect(screen.getByText("ORDER-RAW-8")).toBeInTheDocument();
   expect(screen.getByText("作成日時")).toBeInTheDocument();
@@ -170,6 +171,7 @@ it("localizes pending and missing-reference states", async () => {
   );
 
   expect(await screen.findByRole("heading", { name: "付款处理中" })).toBeInTheDocument();
+  expect(screen.getByText("待付款")).toBeInTheDocument();
   view.unmount();
 
   render(
@@ -182,6 +184,22 @@ it("localizes pending and missing-reference states", async () => {
     await i18n.changeLanguage("ja");
   });
   expect(screen.getByText("支払い注文番号がありません。")).toBeInTheDocument();
+});
+
+it("preserves an unknown future payment status", async () => {
+  await i18n.changeLanguage("ja");
+  globalThis.fetch = vi.fn().mockResolvedValue(response({
+    success: true,
+    data: publicOrder("ORDER-FUTURE", "PROVIDER_REVIEW"),
+  }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/result?out_trade_no=ORDER-FUTURE"]}>
+      <PaymentResult />
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("PROVIDER_REVIEW")).toBeInTheDocument();
 });
 
 it("keeps an unknown payment provider message unchanged across locale changes", async () => {

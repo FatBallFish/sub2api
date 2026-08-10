@@ -52,6 +52,7 @@ describe("Overview", () => {
           affiliate_enabled: true,
           latest_announcements: [
             { id: 1, title: "New model routes", type: "update", published_at: "2026-06-18T07:00:00Z" },
+            { id: 2, title: "Configured custom type", type: "provider-custom", published_at: "2026-06-18T07:00:00Z" },
           ],
         },
       }),
@@ -82,6 +83,7 @@ describe("Overview", () => {
     expect(screen.queryByText("85%")).not.toBeInTheDocument();
     expect(screen.getByText("18.500000")).toBeInTheDocument();
     expect(screen.getByText("New model routes")).toBeInTheDocument();
+    expect(screen.getByText("provider-custom")).toBeInTheDocument();
     expect(screen.getByLabelText("Fri: 2.100000 Credits, 120 requests, 120,000 tokens")).toHaveAttribute(
       "title",
       "Fri: 2.100000 Credits, 120 requests, 120,000 tokens",
@@ -190,7 +192,7 @@ describe("Overview", () => {
     expect(screen.getByText("10:00")).toBeInTheDocument();
     expect(screen.getByText("2.500000 Credits")).toBeInTheDocument();
     expect(screen.getByText("3 requests")).toBeInTheDocument();
-    expect(screen.getByLabelText("10:00: 2.500000 Credits, 3 requests, 5,000 tokens")).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "10:00: 2.500000 Credits, 3 requests, 5,000 tokens" })).toHaveAttribute(
       "title",
       "10:00: 2.500000 Credits, 3 requests, 5,000 tokens",
     );
@@ -231,7 +233,7 @@ describe("Overview", () => {
           referral_summary: { earnings: 18.5, invited: 4, orders: 2 },
           affiliate_enabled: true,
           latest_announcements: [
-            { id: 1, title: "Backend configured announcement", type: "update", published_at: null },
+            { id: 1, title: "Backend configured announcement", type: "maintenance", published_at: null },
           ],
         },
       }),
@@ -255,6 +257,7 @@ describe("Overview", () => {
     expect(screen.getByText("Enterprise Tokyo のクォータ")).toBeInTheDocument();
     expect(screen.getByText("Production Gateway")).toBeInTheDocument();
     expect(screen.getByText("Backend configured announcement")).toBeInTheDocument();
+    expect(screen.getByText("メンテナンス")).toBeInTheDocument();
     expect(screen.getByLabelText(/2\.100000 クレジット、1,200 件のリクエスト、120,000 トークン/)).toBeInTheDocument();
     expect(document.title).toBe("概要 | Mikiko CC");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -266,6 +269,7 @@ describe("Overview", () => {
     expect(screen.getByRole("heading", { name: "概览" })).toBeInTheDocument();
     expect(screen.getByText("1,234.500000")).toBeInTheDocument();
     expect(screen.getByText("Enterprise Tokyo 配额")).toBeInTheDocument();
+    expect(screen.getByText("维护")).toBeInTheDocument();
     expect(document.title).toBe("概览 | Mikiko CC");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -276,6 +280,7 @@ describe("Overview", () => {
     expect(screen.getByText("可用額度")).toBeInTheDocument();
     expect(screen.getByLabelText(/2\.100000 額度、1,200 次請求、120,000 Token/)).toBeInTheDocument();
     expect(screen.getByText("Enterprise Tokyo 配額")).toBeInTheDocument();
+    expect(screen.getByText("維護")).toBeInTheDocument();
     expect(document.title).toBe("概覽 | Mikiko CC");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

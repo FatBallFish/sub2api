@@ -52,6 +52,7 @@ describe("Referral", () => {
     expect(screen.getByText("4.000000")).toBeInTheDocument();
     expect(screen.getByText("12.500000")).toBeInTheDocument();
     expect(screen.getByText("al***@gmail.com")).toBeInTheDocument();
+    expect(screen.getByText("Active")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: /copy invite link/i }));
 
@@ -85,8 +86,15 @@ describe("Referral", () => {
                 id: 1,
                 email: "to***@example.jp",
                 joined_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                status: "Active",
+                status: "rewarded",
                 earnings: 12.5,
+              },
+              {
+                id: 2,
+                email: "ne***@example.jp",
+                joined_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+                status: "joined",
+                earnings: 0,
               },
             ],
           },
@@ -105,7 +113,8 @@ describe("Referral", () => {
     expect(screen.getByText("1,234 人")).toBeInTheDocument();
     expect(screen.getAllByText(/12\.5%/).length).toBeGreaterThan(0);
     expect(screen.getByText("2時間前")).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("特典付与済み")).toBeInTheDocument();
+    expect(screen.getByText("参加済み")).toBeInTheDocument();
     expect(screen.getByText("to***@example.jp")).toBeInTheDocument();
     expect(screen.getByText("https://example.com/register?ref=TOKYO-CODE")).toBeInTheDocument();
 
@@ -119,7 +128,8 @@ describe("Referral", () => {
 
     expect(screen.getByRole("heading", { name: "推薦計畫" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "已複製邀請連結" })).toBeInTheDocument();
-    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("已發放獎勵")).toBeInTheDocument();
+    expect(screen.getByText("已加入")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

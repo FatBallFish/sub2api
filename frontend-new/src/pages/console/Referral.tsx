@@ -13,6 +13,7 @@ import { getConsoleReferral } from "../../api/console";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ConsoleReferral } from "../../types/console";
 import { formatCredits, formatNumber } from "../../utils/format";
+import { REFERRAL_INVITEE_STATUS_LABEL_KEYS } from "../../utils/statusLabels";
 import {
   errorMessage,
   resolveLocalizedMessage,
@@ -38,6 +39,12 @@ function relativeTime(value: string, t: TFunction<"console">) {
   const diffHours = Math.round(diffMinutes / 60);
   if (diffHours < 24) return t("referral.hoursAgo", { count: diffHours });
   return t("referral.daysAgo", { count: Math.round(diffHours / 24) });
+}
+
+function inviteeStatusLabel(status: string, t: TFunction<"console">) {
+  const normalized = status.trim().toLowerCase();
+  const key = REFERRAL_INVITEE_STATUS_LABEL_KEYS[normalized as keyof typeof REFERRAL_INVITEE_STATUS_LABEL_KEYS];
+  return key ? t(key) : status;
 }
 
 export default function Referral() {
@@ -199,7 +206,7 @@ export default function Referral() {
                   <td className="px-6 py-4 text-sm text-zinc-500">{relativeTime(row.joined_at, t)}</td>
                   <td className="px-6 py-4">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                      {row.status}
+                      {inviteeStatusLabel(row.status, t)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm font-bold text-zinc-900 text-right">{formatCredits(row.earnings, locale)}</td>

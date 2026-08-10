@@ -287,7 +287,7 @@ describe("App console routes", () => {
     });
 
     expect(screen.getByText("sub2_paid")).toBeInTheDocument();
-    expect(screen.getByText("COMPLETED")).toBeInTheDocument();
+    expect(screen.getByText("Completed")).toBeInTheDocument();
     expect(screen.getByText("Created")).toBeInTheDocument();
     expect(screen.getByText("Expires")).toBeInTheDocument();
     expect(screen.queryByText("Amount")).not.toBeInTheDocument();

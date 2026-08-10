@@ -14,6 +14,7 @@ import { motion } from "motion/react";
 import { getConsoleOverview } from "../../api/console";
 import type { ConsoleGlobalPlan, ConsoleOverview } from "../../types/console";
 import { formatCredits, formatNumber } from "../../utils/format";
+import { OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS } from "../../utils/statusLabels";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -99,6 +100,12 @@ function defaultGlobalPlan(t: TFunction<"console">): ConsoleGlobalPlan {
     quota_remaining: 0,
     used_percent: 0,
   };
+}
+
+function announcementTypeLabel(type: string, t: TFunction<"console">) {
+  const normalized = type.trim().toLowerCase();
+  const key = OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS[normalized as keyof typeof OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS];
+  return key ? t(key) : type;
 }
 
 export default function Overview() {
@@ -243,6 +250,7 @@ export default function Overview() {
               ) : overview.usage_trend.map((point, i) => (
                 <motion.div
                   key={`${point.date}-${i}`}
+                  role="img"
                   aria-label={usageTrendLabel(point, range, locale, t)}
                   title={usageTrendLabel(point, range, locale, t)}
                   initial={{ height: 0 }}
@@ -345,11 +353,7 @@ export default function Overview() {
                   <span className={`text-[9px] uppercase tracking-widest font-bold ${
                     item.type === "update" ? "text-emerald-600" : "text-amber-600"
                   }`}>
-                    {item.type === "update"
-                      ? t("overview.announcementUpdate")
-                      : item.type === "notice"
-                        ? t("overview.announcementNotice")
-                        : item.type}
+                    {announcementTypeLabel(item.type, t)}
                   </span>
                 </div>
               ))}
