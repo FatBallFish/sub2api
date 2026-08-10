@@ -15,6 +15,7 @@ import { login, register, sendVerifyCode, startOAuth } from "../../api/auth";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
 import LoginAgreementPrompt from "../../components/auth/LoginAgreementPrompt";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
 import {
   captchaProofPayload,
   resolveCaptchaProvider,
@@ -323,7 +324,10 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white selection:bg-zinc-900 selection:text-white">
+    <div className="relative flex min-h-screen bg-white selection:bg-zinc-900 selection:text-white">
+      <div className="absolute right-4 top-4 z-30 md:right-8 md:top-8">
+        <LanguageSwitcher />
+      </div>
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-zinc-950 p-16 lg:flex">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(24,24,27,1)_0%,rgba(9,9,11,1)_100%)]" />
         <div
