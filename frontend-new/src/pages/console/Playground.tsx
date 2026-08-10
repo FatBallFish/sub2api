@@ -133,7 +133,7 @@ export default function Playground() {
   const defaultPromptRef = useRef(t("playground.defaultPrompt"));
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [groups, setGroups] = useState<AvailableGroup[]>([]);
-  const [gatewayModels, setGatewayModels] = useState<string[]>([]);
+  const [gatewayModelResult, setGatewayModelResult] = useState<{ apiKeyId: number; models: string[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<LocalizedMessage | null>(null);
@@ -144,6 +144,9 @@ export default function Playground() {
     key.id === config.apiKeyId && (!config.groupId || key.group_id === config.groupId));
   const selectedGroup = groups.find((group) => group.id === config.groupId);
   const mode: PlaygroundMode = resolveMode(config);
+  const gatewayModels = gatewayModelResult && gatewayModelResult.apiKeyId === selectedKey?.id
+    ? gatewayModelResult.models
+    : [];
   const availableModels = modelSuggestions(selectedGroup, gatewayModels);
   const compatibleKeys = config.groupId
     ? keys.filter((key) => key.group_id === config.groupId)
@@ -206,16 +209,15 @@ export default function Playground() {
 
   useEffect(() => {
     const selectedKeyId = selectedKey?.id;
-    setGatewayModels([]);
     if (!selectedKeyId) return;
     let active = true;
     revealApiKey(selectedKeyId)
       .then((revealed) => listGatewayModels(revealed.key))
       .then((models) => {
-        if (active) setGatewayModels(models);
+        if (active) setGatewayModelResult({ apiKeyId: selectedKeyId, models });
       })
       .catch(() => {
-        if (active) setGatewayModels([]);
+        if (active) setGatewayModelResult({ apiKeyId: selectedKeyId, models: [] });
       });
     return () => {
       active = false;
