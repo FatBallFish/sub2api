@@ -36,4 +36,9 @@ describe("formatCredits", () => {
   it("keeps non-ISO string values unchanged", () => {
     expect(formatDate("release-42", "en")).toBe("release-42");
   });
+
+  it("uses an explicit UTC timezone for calendar dates", () => {
+    expect(formatDate("2026-08-10", "en", { timeZone: "America/Los_Angeles" })).toBe("August 9, 2026");
+    expect(formatDate("2026-08-10", "en", { timeZone: "UTC" })).toBe("August 10, 2026");
+  });
 });
