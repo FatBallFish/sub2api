@@ -9,11 +9,21 @@ import {
   TrendUp
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { isAuthenticated } from "../../utils/authStorage";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 export default function Home() {
+  const { t } = useTranslation("public");
   const gatewayEndpoint = typeof window === "undefined" ? "https://console.example.com/v1" : `${window.location.origin}/v1`;
   const ctaHref = isAuthenticated() ? "/console" : "/login";
+  usePageTitle(t("pageTitles.home"));
+
+  const features = [
+    { icon: Globe, title: t("home.endpointTitle"), desc: t("home.endpointDescription") },
+    { icon: ShieldCheck, title: t("home.keyManagementTitle"), desc: t("home.keyManagementDescription") },
+    { icon: TrendUp, title: t("home.usageTrackingTitle"), desc: t("home.usageTrackingDescription") },
+  ];
 
   return (
     <>
@@ -28,21 +38,21 @@ export default function Home() {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
               <Lightning size={12} weight="fill" className="text-amber-500" />
-              Now supporting Claude 3.5 & Gemini 1.5
+              {t("home.announcement")}
             </div>
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1]">
-              One endpoint for every <span className="text-zinc-400">AI coding service.</span>
+              {t("home.heading")}
             </h1>
             <p className="text-lg text-zinc-500 leading-relaxed max-w-md">
-              The professional gateway for Codex, Claude, and Gemini. Transparent pricing, weekly resets, and enterprise-grade observability.
+              {t("home.description")}
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <Link to={ctaHref} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-900 text-white px-8 py-4 rounded-full font-bold hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-zinc-200 group">
-                Get API Key
+                {t("home.getApiKey")}
                 <ArrowRight size={18} weight="bold" className="group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link to="/pricing" className="w-full sm:w-auto text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors">
-                View Pricing
+                {t("home.viewPricing")}
               </Link>
             </div>
             <div className="flex items-center gap-4 text-xs font-medium text-zinc-400">
@@ -51,7 +61,7 @@ export default function Home() {
                   <div key={i} className="h-6 w-6 rounded-full border-2 border-white bg-zinc-100" />
                 ))}
               </div>
-              New users get $10.50 credits on signup
+              {t("home.signupCredit")}
             </div>
           </motion.div>
 
@@ -90,7 +100,7 @@ fallback = "codex-turbo"`}</code>
       {/* Trust Bar */}
       <section className="py-12 border-y border-zinc-100 bg-zinc-50/50">
         <div className="max-w-7xl mx-auto px-8 flex flex-col items-center gap-8">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Supported Clients & Tools</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{t("home.supportedTools")}</span>
           <div className="flex flex-wrap justify-center gap-x-12 gap-y-8 opacity-40 hover:opacity-100 transition-opacity duration-500">
             {["Codex CLI", "Claude Code", "Gemini CLI", "OpenCode", "CC Switch"].map(name => (
               <span key={name} className="text-sm font-bold tracking-tight grayscale">{name}</span>
@@ -102,11 +112,7 @@ fallback = "codex-turbo"`}</code>
       {/* Value Prop */}
       <section className="py-24 px-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          {[
-            { icon: Globe, title: "One Endpoint", desc: "Access every major AI coding model through a single, stable API endpoint." },
-            { icon: ShieldCheck, title: "Key Management", desc: "Create, rotate, and audit keys with granular usage limits and expiration." },
-            { icon: TrendUp, title: "Usage Tracking", desc: "Real-time observability into token consumption, costs, and performance." },
-          ].map((item, i) => (
+          {features.map((item, i) => (
             <motion.div
               key={i}
               whileHover={{ y: -5 }}
@@ -126,14 +132,13 @@ fallback = "codex-turbo"`}</code>
       <section className="py-32 px-8">
         <div className="max-w-4xl mx-auto p-12 rounded-[2.5rem] bg-zinc-900 text-white text-center space-y-8 relative overflow-hidden shadow-2xl">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 bg-white/5 rounded-full blur-3xl" />
-          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Ready to build?</h2>
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight">{t("home.ctaTitle")}</h2>
           <p className="text-zinc-400 max-w-lg mx-auto leading-relaxed">
-            Join thousands of developers using our gateway to power their AI coding workflows.
-            No credit card required to start.
+            {t("home.ctaDescription")}
           </p>
           <div className="pt-4">
             <Link to={ctaHref} className="inline-flex items-center gap-2 bg-white text-zinc-900 px-8 py-4 rounded-full font-bold hover:scale-105 transition-all active:scale-95">
-              Get Started for Free
+              {t("home.getStarted")}
               <ArrowRight size={18} weight="bold" />
             </Link>
           </div>

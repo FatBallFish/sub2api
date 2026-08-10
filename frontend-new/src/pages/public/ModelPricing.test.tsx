@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import ModelPricing from "./ModelPricing";
 
 describe("ModelPricing page", () => {
@@ -163,5 +164,26 @@ describe("ModelPricing page", () => {
     expect(screen.getByText("4K")).toBeInTheDocument();
     expect(screen.getByText("Not supported by this group")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /official \(in\/out\)/i })).not.toBeInTheDocument();
+  });
+
+  it("localizes Traditional Chinese table and unsupported labels while preserving model data", async () => {
+    await i18n.changeLanguage("zh-TW");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ success: true, data: {
+        selected_group_id: 8,
+        groups: [{ id: 8, name: "Backend Group", platform: "openai", rate_multiplier: 0.5 }],
+        products: [{ id: "custom", label: "Backend Product", status: "live", description: "Backend Description", multiplier: "0.5x", rule_text: "Backend Rule", supported: true, rows: [
+          { model: "backend-model", availability: "unsupported", unsupported_reason: "Backend unsupported reason" },
+        ] }],
+      } }),
+    });
+
+    render(<ModelPricing isConsole />);
+    expect(screen.getByText("正在載入模型價格...")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "模型價格" })).toBeInTheDocument();
+    expect(screen.getByText("不支援此模型")).toBeInTheDocument();
+    expect(screen.getByText("backend-model")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Backend Group · openai · 0.500x" })).toBeInTheDocument();
+    expect(document.title).toBe("模型價格 | Mikiko CC");
   });
 });
