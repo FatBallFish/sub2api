@@ -2,6 +2,34 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import Billing from "./Billing";
+import {
+  classifyPaymentPollingStatus,
+  hasCheckoutActions,
+  PAYMENT_ORDER_STATUSES,
+  type PaymentPollingClassification,
+  type PaymentOrderStatus,
+} from "../../utils/paymentStatus";
+
+const backendPaymentStatuses = [
+  { status: "PENDING", zhCN: "待付款", checkout: true, polling: "continue" },
+  { status: "PAID", zhCN: "已付款", checkout: false, polling: "paid" },
+  { status: "RECHARGING", zhCN: "充值入账中", checkout: false, polling: "continue" },
+  { status: "COMPLETED", zhCN: "已完成", checkout: false, polling: "paid" },
+  { status: "EXPIRED", zhCN: "已过期", checkout: false, polling: "terminal" },
+  { status: "CANCELLED", zhCN: "已取消", checkout: false, polling: "terminal" },
+  { status: "FAILED", zhCN: "失败", checkout: false, polling: "terminal" },
+  { status: "REFUND_REQUESTED", zhCN: "已申请退款", checkout: false, polling: "refund" },
+  { status: "REFUNDING", zhCN: "退款中", checkout: false, polling: "refund" },
+  { status: "REFUND_PENDING", zhCN: "退款处理中", checkout: false, polling: "refund" },
+  { status: "PARTIALLY_REFUNDED", zhCN: "部分退款", checkout: false, polling: "refund" },
+  { status: "REFUNDED", zhCN: "已退款", checkout: false, polling: "refund" },
+  { status: "REFUND_FAILED", zhCN: "退款失败", checkout: false, polling: "refund" },
+] as const satisfies ReadonlyArray<{
+  status: PaymentOrderStatus;
+  zhCN: string;
+  checkout: boolean;
+  polling: PaymentPollingClassification;
+}>;
 
 function checkoutInfoResponse(methods = ["stripe"]) {
   return new Response(
@@ -68,6 +96,63 @@ describe("Billing", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it("keeps the frontend payment status contract aligned with the backend enum", () => {
+    expect(backendPaymentStatuses.map(({ status }) => status)).toEqual(PAYMENT_ORDER_STATUSES);
+  });
+
+  it.each([
+    ...backendPaymentStatuses.map(({ status, checkout, polling }) => ({ status, checkout, polling })),
+    { status: "", checkout: true, polling: "continue" as const },
+    { status: "FUTURE_PROVIDER_STATE", checkout: false, polling: "continue" as const },
+  ])("classifies $status checkout and polling safely", ({ status, checkout, polling }) => {
+    expect(hasCheckoutActions(status)).toBe(checkout);
+    expect(classifyPaymentPollingStatus(status)).toBe(polling);
+  });
+
+  it("localizes every fixed backend payment status without translating unknown future statuses", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const activity = [
+      ...backendPaymentStatuses.map(({ status }, index) => ({
+        id: index + 1,
+        date: "2026-06-15T00:00:00Z",
+        reference: `order_${status.toLowerCase()}`,
+        type: "balance",
+        label: `Backend order ${index + 1}`,
+        amount: 10,
+        currency: "USD",
+        status,
+      })),
+      {
+        id: backendPaymentStatuses.length + 1,
+        date: "2026-06-15T00:00:00Z",
+        reference: "order_future_provider_state",
+        type: "balance",
+        label: "Backend future order",
+        amount: 10,
+        currency: "USD",
+        status: "FUTURE_PROVIDER_STATE",
+      },
+    ];
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") return Promise.resolve(billingResponse({ activity }));
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    await screen.findByText("order_pending");
+
+    for (const { status, zhCN } of backendPaymentStatuses) {
+      const row = screen.getByText(`order_${status.toLowerCase()}`).closest("tr");
+      expect(row).not.toBeNull();
+      expect(within(row!).getByText(zhCN)).toBeInTheDocument();
+    }
+    const futureRow = screen.getByText("order_future_provider_state").closest("tr");
+    expect(within(futureRow!).getByText("FUTURE_PROVIDER_STATE")).toBeInTheDocument();
   });
 
   it("renders wallet, global plan, add-ons, and activity from the billing BFF endpoint", async () => {
@@ -428,6 +513,60 @@ describe("Billing", () => {
       }),
     );
     expect(screen.getByText(/payment confirmed/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    { initialStatus: "PENDING", initialCheckout: true },
+    { initialStatus: "RECHARGING", initialCheckout: false },
+  ])("hides checkout while a $initialStatus order continues through recharging", async ({ initialStatus, initialCheckout }) => {
+    let verificationCalls = 0;
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(orderResponse({
+          order_id: 811,
+          out_trade_no: "order-recharging-811",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          pay_url: "https://checkout.example/pay/811",
+          status: initialStatus,
+        }));
+      }
+      if (path === "/api/v1/payment/orders/verify") {
+        verificationCalls += 1;
+        return Promise.resolve(orderResponse({
+          id: 811,
+          out_trade_no: "order-recharging-811",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: "RECHARGING",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    const createButton = await screen.findByRole("button", { name: "Create payment order" });
+    vi.useFakeTimers();
+    fireEvent.click(createButton);
+    await act(async () => void await vi.advanceTimersByTimeAsync(0));
+    expect(screen.queryAllByRole("link", { name: "Continue payment" }).length > 0).toBe(initialCheckout);
+
+    await act(async () => void await vi.advanceTimersByTimeAsync(3000));
+    expect(screen.queryAllByRole("link", { name: "Continue payment" })).toHaveLength(0);
+    expect(verificationCalls).toBe(1);
+
+    await act(async () => void await vi.advanceTimersByTimeAsync(3000));
+    expect(verificationCalls).toBe(2);
   });
 
   it("does not overlap payment verification and ignores a late response from an older order", async () => {
@@ -1289,7 +1428,7 @@ describe("Billing", () => {
       expect(screen.getByText("sub2_pending")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("PENDING")).toBeInTheDocument();
+    expect(screen.getByText("Pending")).toBeInTheDocument();
     expect(screen.getByText("$10")).toBeInTheDocument();
     expect(screen.getByText("Paid CN¥72")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /pay again/i })).toHaveAttribute("href", "https://checkout.example/pay/77");
