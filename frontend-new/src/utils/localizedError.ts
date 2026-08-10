@@ -50,7 +50,7 @@ export function localizedErrorMessage(
     return t(fallbackKey, { ns: "errors" });
   }
 
-  if (error instanceof Error && error.message.trim()) {
+  if (error instanceof ApiError && error.messageSource === "response" && error.message.trim()) {
     return error.message;
   }
 

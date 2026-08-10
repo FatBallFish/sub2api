@@ -9,6 +9,7 @@ const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render
 
 interface MockRenderOptions {
   sitekey: string;
+  language: string;
   theme: "light" | "dark" | "auto";
   size: "normal" | "compact" | "flexible";
   callback: (token: string) => void;
@@ -169,6 +170,22 @@ describe("TurnstileWidget", () => {
     await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(2));
     expect(turnstile.remove).toHaveBeenCalledWith("widget-old");
     expect(renderOptions(turnstile, 1).sitekey).toBe("new-site-key");
+  });
+
+  it("passes the mapped locale and recreates the widget when language changes", async () => {
+    await i18n.changeLanguage("en");
+    const turnstile = installTurnstile(["widget-en", "widget-zh"]);
+    render(<TurnstileWidget siteKey="site-key" onVerify={vi.fn()} />);
+    await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(1));
+    expect(renderOptions(turnstile).language).toBe("en");
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-TW");
+    });
+
+    await waitFor(() => expect(turnstile.render).toHaveBeenCalledTimes(2));
+    expect(turnstile.remove).toHaveBeenCalledWith("widget-en");
+    expect(renderOptions(turnstile, 1).language).toBe("zh-TW");
   });
 
   it("reports a script load failure to the parent", async () => {

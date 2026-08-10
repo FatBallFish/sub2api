@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { ShieldCheck, X } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import type { LoginAgreementDocument } from "../../api/settings";
+import { formatDate } from "../../utils/format";
 import { agreementDocumentPath, localizedAgreementTitle } from "../../utils/loginAgreement";
 
 interface LoginAgreementPromptProps {
@@ -37,9 +38,12 @@ function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
 }
 
 export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { accepted, documents, mode, open, updatedAt, onAccept, onReject, onOpen } = props;
   if (documents.length === 0) return null;
+  const formattedUpdatedAt = updatedAt
+    ? formatDate(updatedAt, i18n.resolvedLanguage || i18n.language)
+    : "";
 
   return (
     <>
@@ -79,7 +83,7 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
                 <h2 id="login-agreement-title" className="text-lg font-bold text-zinc-900">{t("agreement.title", { ns: "auth" })}</h2>
                 <p className="mt-1 text-sm leading-6 text-zinc-500">
                   {t("agreement.description", { ns: "auth" })}
-                  {updatedAt ? ` ${t("agreement.updated", { ns: "auth", date: updatedAt })}` : ""}
+                  {formattedUpdatedAt ? ` ${t("agreement.updated", { ns: "auth", date: formattedUpdatedAt })}` : ""}
                 </p>
               </div>
               <button type="button" aria-label={t("agreement.close", { ns: "auth" })} onClick={onReject} className="text-zinc-400 hover:text-zinc-900">

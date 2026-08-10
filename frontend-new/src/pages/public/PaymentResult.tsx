@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle, Clock, WarningCircle } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
-import { resolvePaymentOrderByResumeToken, verifyPaymentOrder, verifyPaymentOrderPublic } from "../../api/payment";
+import { resolvePaymentOrderByResumeToken, verifyPaymentOrderPublic } from "../../api/payment";
 import type { PaymentOrderResult } from "../../types/payment";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -64,17 +64,14 @@ export default function PaymentResult() {
 
     async function resolveOrder() {
       setLoading(true);
+      setOrder(null);
       setError(null);
       try {
         let resolved: PaymentOrderResult | null = null;
         if (resumeToken) {
           resolved = await resolvePaymentOrderByResumeToken(resumeToken);
         } else if (outTradeNo) {
-          try {
-            resolved = await verifyPaymentOrder(outTradeNo);
-          } catch {
-            resolved = await verifyPaymentOrderPublic(outTradeNo);
-          }
+          resolved = await verifyPaymentOrderPublic(outTradeNo);
         }
         if (!active) return;
         if (resolved) {
@@ -121,7 +118,7 @@ export default function PaymentResult() {
         </div>
 
         {error ? (
-          <p className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-medium text-rose-700">{resolveLocalizedMessage(error)}</p>
+          <p role="alert" className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-medium text-rose-700">{resolveLocalizedMessage(error)}</p>
         ) : null}
 
         {order ? (
