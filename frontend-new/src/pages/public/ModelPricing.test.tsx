@@ -173,7 +173,28 @@ describe("ModelPricing page", () => {
         selected_group_id: 8,
         groups: [{ id: 8, name: "Backend Group", platform: "openai", rate_multiplier: 0.5 }],
         products: [{ id: "custom", label: "Backend Product", status: "live", description: "Backend Description", multiplier: "0.5x", rule_text: "Backend Rule", supported: true, rows: [
-          { model: "backend-model", availability: "unsupported", unsupported_reason: "Backend unsupported reason" },
+          {
+            model: "backend-token-model",
+            label: "Backend Token Model",
+            billing_mode: "token",
+            availability: "available",
+            multiplier: 0.5,
+            multiplier_group_name: "Backend Group",
+            input: { official: 3, gateway: 1.5 },
+            output: { official: 8.5, gateway: 4.25 },
+            cache_write: { official: 0.5, gateway: 0.25 },
+            cache_read: { official: 0.1, gateway: 0.05 },
+          },
+          {
+            model: "backend-image-model",
+            label: "Backend Image Model",
+            billing_mode: "image",
+            availability: "available",
+            request_prices: [
+              { label: "Backend Tier", price: { official: 0.02, gateway: 0.0084 } },
+            ],
+          },
+          { model: "backend-unsupported-model", availability: "unsupported", unsupported_reason: "Backend unsupported reason" },
         ] }],
       } }),
     });
@@ -182,7 +203,14 @@ describe("ModelPricing page", () => {
     expect(screen.getByText("正在載入模型價格...")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "模型價格" })).toBeInTheDocument();
     expect(screen.getByText("不支援此模型")).toBeInTheDocument();
-    expect(screen.getByText("backend-model")).toBeInTheDocument();
+    expect(screen.getByText("Backend Token Model")).toBeInTheDocument();
+    expect(screen.getByText("backend-token-model")).toBeInTheDocument();
+    expect(screen.getByText("US$1.50 / US$4.25")).toBeInTheDocument();
+    expect(screen.getByText("Backend Group · 0.500x")).toBeInTheDocument();
+    expect(screen.getByText("Backend Image Model")).toBeInTheDocument();
+    expect(screen.getByText("Backend Tier")).toBeInTheDocument();
+    expect(screen.getByText("US$0.01 / 每次")).toBeInTheDocument();
+    expect(screen.getByText("backend-unsupported-model")).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Backend Group · openai · 0.500x" })).toBeInTheDocument();
     expect(document.title).toBe("模型價格 | Mikiko CC");
   });
