@@ -20,6 +20,13 @@ import { formatCredits } from "../../utils/format";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import {
+  classifyPaymentPollingStatus,
+  hasCheckoutActions,
+  isPendingOrder,
+  normalizeOrderStatus,
+  type PaymentOrderStatus,
+} from "../../utils/paymentStatus";
+import {
   errorMessage,
   resolveLocalizedMessage,
   translationMessage,
@@ -163,10 +170,6 @@ function topUpCredits(amount: number, selectedTopUp: ConsoleBilling["add_ons"][n
   return amount * multiplier;
 }
 
-function normalizeOrderStatus(status?: string) {
-  return (status || "").trim().toUpperCase();
-}
-
 function statusClass(status: string) {
   switch (normalizeOrderStatus(status)) {
     case "COMPLETED":
@@ -185,24 +188,6 @@ function statusClass(status: string) {
     default:
       return "border-zinc-200 bg-zinc-50 text-zinc-600";
   }
-}
-
-function isPendingOrder(status?: string) {
-  return normalizeOrderStatus(status) === "PENDING";
-}
-
-function isPaidOrderStatus(status?: string) {
-  const normalized = normalizeOrderStatus(status);
-  return normalized === "COMPLETED" || normalized === "PAID";
-}
-
-function isTerminalOrderStatus(status?: string) {
-  const normalized = normalizeOrderStatus(status);
-  return normalized === "FAILED" || normalized === "CANCELLED" || normalized === "EXPIRED";
-}
-
-function hasCheckoutActions(status?: string) {
-  return !isPaidOrderStatus(status) && !isTerminalOrderStatus(status);
 }
 
 function orderPaymentSummary(item: ConsoleBilling["activity"][number], locale: string, t: TFunction<"console">) {
@@ -235,18 +220,23 @@ function paymentMethodLabel(method: string, t: TFunction<"console">) {
 
 function orderStatusLabel(status: string | undefined, t: TFunction<"console">) {
   const normalized = normalizeOrderStatus(status);
-  const labels: Record<string, string> = {
-    COMPLETED: t("billing.statuses.completed"),
-    PAID: t("billing.statuses.paid"),
-    PENDING: t("billing.statuses.pending"),
-    CANCELLED: t("billing.statuses.cancelled"),
-    EXPIRED: t("billing.statuses.expired"),
-    FAILED: t("billing.statuses.failed"),
-    REFUNDED: t("billing.statuses.refunded"),
-    REFUND_PENDING: t("billing.statuses.refundPending"),
-    REFUND_FAILED: t("billing.statuses.refundFailed"),
-  };
-  return labels[normalized] ?? (normalized || t("billing.statuses.unknown"));
+  const labelKeys = {
+    PENDING: "billing.statuses.pending",
+    PAID: "billing.statuses.paid",
+    RECHARGING: "billing.statuses.recharging",
+    COMPLETED: "billing.statuses.completed",
+    EXPIRED: "billing.statuses.expired",
+    CANCELLED: "billing.statuses.cancelled",
+    FAILED: "billing.statuses.failed",
+    REFUND_REQUESTED: "billing.statuses.refundRequested",
+    REFUNDING: "billing.statuses.refunding",
+    REFUND_PENDING: "billing.statuses.refundPending",
+    PARTIALLY_REFUNDED: "billing.statuses.partiallyRefunded",
+    REFUNDED: "billing.statuses.refunded",
+    REFUND_FAILED: "billing.statuses.refundFailed",
+  } as const satisfies Record<PaymentOrderStatus, `billing.statuses.${string}`>;
+  const labelKey = labelKeys[normalized as PaymentOrderStatus];
+  return labelKey ? t(labelKey) : (normalized || t("billing.statuses.unknown"));
 }
 
 type PaymentDialogNotice = {
@@ -349,7 +339,17 @@ export default function Billing() {
       try {
         const current = await verifyPaymentOrder(outTradeNo);
         if (generation !== paymentPollGenerationRef.current) return;
-        if (isPaidOrderStatus(current.status)) {
+        setTopUpOrder((order) => order?.out_trade_no?.trim() === outTradeNo
+          ? { ...order, status: current.status }
+          : order);
+        setPlanOrder((order) => order?.out_trade_no?.trim() === outTradeNo
+          ? { ...order, status: current.status }
+          : order);
+        setPaymentDialog((dialog) => dialog?.order?.out_trade_no?.trim() === outTradeNo
+          ? { ...dialog, order: { ...dialog.order, status: current.status } }
+          : dialog);
+        const pollingClassification = classifyPaymentPollingStatus(current.status);
+        if (pollingClassification === "paid") {
           stopPaymentPolling();
           setPaymentDialog((dialog) => ({
             ...dialog,
@@ -360,13 +360,25 @@ export default function Billing() {
           await loadBilling();
           return;
         }
-        if (isTerminalOrderStatus(current.status)) {
+        if (pollingClassification === "terminal") {
           stopPaymentPolling();
           setPaymentDialog((dialog) => ({
             ...dialog,
             type: "error",
             title: translationMessage("console:billing.dialog.paymentNotCompletedTitle"),
             message: translationMessage("console:billing.dialog.paymentNotCompletedMessage"),
+            status: normalizeOrderStatus(current.status),
+          }));
+          await loadBilling();
+          return;
+        }
+        if (pollingClassification === "refund") {
+          stopPaymentPolling();
+          setPaymentDialog((dialog) => ({
+            ...dialog,
+            type: "info",
+            title: translationMessage("console:billing.dialog.orderStatusUpdatedTitle"),
+            message: translationMessage("console:billing.dialog.orderStatusUpdatedMessage"),
             status: normalizeOrderStatus(current.status),
           }));
           await loadBilling();
@@ -448,7 +460,7 @@ export default function Billing() {
     }
 
     await loadBilling();
-    if (checkoutAvailable) beginOrderStatusPolling(order);
+    if (classifyPaymentPollingStatus(order.status) === "continue") beginOrderStatusPolling(order);
   }
 
   async function cancelActivityOrder(item: ConsoleBilling["activity"][number]) {
