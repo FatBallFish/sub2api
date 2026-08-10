@@ -1,5 +1,5 @@
 import { getJSON, postJSON } from "./client";
-import type { CheckoutInfo, CreateOrderRequest, CreateOrderResult, GlobalPlanUpgradeQuote, PaymentOrderResult } from "../types/payment";
+import type { CheckoutInfo, CreateOrderRequest, CreateOrderResult, GlobalPlanUpgradeQuote, PaymentOrderResult, PublicOrderVerifyResult } from "../types/payment";
 
 export function createPaymentOrder(request: CreateOrderRequest) {
   return postJSON<CreateOrderResult>("/payment/orders", request);
@@ -24,7 +24,7 @@ export function verifyPaymentOrder(outTradeNo: string) {
 }
 
 export function verifyPaymentOrderPublic(outTradeNo: string) {
-  return postJSON<PaymentOrderResult>("/payment/public/orders/verify", { out_trade_no: outTradeNo });
+  return postJSON<PublicOrderVerifyResult>("/payment/public/orders/verify", { out_trade_no: outTradeNo });
 }
 
 export function resolvePaymentOrderByResumeToken(resumeToken: string) {
