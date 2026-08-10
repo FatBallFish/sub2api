@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { ArrowRight, CheckCircle, Question, Copy, Check } from "@phosphor-icons/react";
 import { listApiKeys, revealApiKey } from "../../api/keys";
 import { getPublicSettings, type PublicSettings } from "../../api/settings";
@@ -22,7 +21,14 @@ import {
   normalizeShellForClient,
   type InstallClientId,
   type InstallShellId,
+  type ClientConfigHintId,
 } from "../../utils/clientConfig";
+
+const CLIENT_CONFIG_HINT_KEYS = {
+  claudeSettings: "installGuide.hintClaudeSettings",
+  codexAuth: "installGuide.hintCodexAuth",
+  openCodeMerge: "installGuide.hintOpenCode",
+} as const satisfies Record<ClientConfigHintId, string>;
 
 function maskKey(value: string, emptyLabel: string) {
   if (!value) return emptyLabel;
@@ -247,7 +253,7 @@ export default function InstallGuide() {
 
                 {files.map((file, index) => (
                   <div key={`${file.path}-${index}`} className="space-y-2">
-                    {file.hint ? <p className="text-xs font-medium text-amber-600">{localizedFileHint(file.hint, t)}</p> : null}
+                    {file.hintId ? <p className="text-xs font-medium text-amber-600">{t(CLIENT_CONFIG_HINT_KEYS[file.hintId])}</p> : null}
                     <div className="group relative rounded-xl bg-zinc-900">
                       <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
                         <span className="font-mono text-xs text-zinc-400">{file.path}</span>
@@ -307,19 +313,6 @@ export default function InstallGuide() {
       </div>
     </div>
   );
-}
-
-function localizedFileHint(hint: string, t: TFunction<"console">) {
-  switch (hint) {
-    case "Optional persistent settings for Claude Code.":
-      return t("installGuide.hintClaudeSettings");
-    case "API keys belong in auth.json, not config.toml.":
-      return t("installGuide.hintCodexAuth");
-    case "Place this in your OpenCode config file and merge with existing providers if needed.":
-      return t("installGuide.hintOpenCode");
-    default:
-      return hint;
-  }
 }
 
 function InstallStep({ step, title, children }: { step: number; title: string; children: React.ReactNode }) {

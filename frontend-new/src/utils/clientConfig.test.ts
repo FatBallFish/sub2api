@@ -23,6 +23,8 @@ describe("clientConfig", () => {
     expect(files.map((file) => file.path)).toEqual(["~/.codex/config.toml", "~/.codex/auth.json"]);
     expect(files[0].content).toContain('base_url = "https://api.example.com/v1"');
     expect(files[0].content).not.toContain("OPENAI_API_KEY");
+    expect(files[0].hintId).toBe("codexAuth");
+    expect(files[0]).not.toHaveProperty("hint");
     expect(files[1].content).toContain('"OPENAI_API_KEY": "sk-live"');
   });
 
@@ -39,6 +41,8 @@ describe("clientConfig", () => {
     expect(files[0].content).toContain('export ANTHROPIC_BASE_URL="https://api.example.com/v1"');
     expect(files[0].content).toContain('export ANTHROPIC_AUTH_TOKEN="sk-claude"');
     expect(files[1].content).toContain('"CLAUDE_CODE_ATTRIBUTION_HEADER": "0"');
+    expect(files[1].hintId).toBe("claudeSettings");
+    expect(files[1]).not.toHaveProperty("hint");
   });
 
   it("builds Gemini CLI config against v1beta", () => {
@@ -53,6 +57,20 @@ describe("clientConfig", () => {
     expect(files).toHaveLength(1);
     expect(files[0].content).toContain('$env:GOOGLE_GEMINI_BASE_URL="https://api.example.com/v1beta"');
     expect(files[0].content).toContain('$env:GEMINI_API_KEY="sk-gemini"');
+  });
+
+  it("uses a stable hint ID for OpenCode merge guidance", () => {
+    const files = buildClientConfigFiles({
+      platform: "openai",
+      clientId: "opencode",
+      shellId: "unix",
+      baseUrl: "https://api.example.com",
+      apiKey: "sk-opencode",
+    });
+
+    expect(files[0].path).toBe("opencode.json");
+    expect(files[0].hintId).toBe("openCodeMerge");
+    expect(files[0]).not.toHaveProperty("hint");
   });
 
   it("limits OpenAI install clients to Codex unless messages dispatch is enabled", () => {
