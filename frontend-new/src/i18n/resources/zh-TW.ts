@@ -316,6 +316,7 @@ const zhTW = {
       viewAllAnnouncements: "查看所有公告",
       announcementUpdate: "更新",
       announcementNotice: "通知",
+      announcementMaintenance: "維護",
       addOnCredits: "附加額度",
       never: "從未",
       recently: "最近",

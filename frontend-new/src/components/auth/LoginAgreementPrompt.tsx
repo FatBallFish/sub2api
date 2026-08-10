@@ -1,9 +1,11 @@
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { ShieldCheck, X } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import type { LoginAgreementDocument } from "../../api/settings";
 import { formatDate } from "../../utils/format";
 import { agreementDocumentPath, localizedAgreementTitle } from "../../utils/loginAgreement";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 interface LoginAgreementPromptProps {
   accepted: boolean;
@@ -40,6 +42,16 @@ function DocumentLinks({ documents }: { documents: LoginAgreementDocument[] }) {
 export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
   const { i18n, t } = useTranslation();
   const { accepted, documents, mode, open, updatedAt, onAccept, onReject, onOpen } = props;
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const reviewButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap({
+    active: open,
+    containerRef: dialogRef,
+    initialFocusRef: closeButtonRef,
+    restoreFocusRef: reviewButtonRef,
+    onEscape: onReject,
+  });
   if (documents.length === 0) return null;
   const formattedUpdatedAt = updatedAt
     ? formatDate(updatedAt, i18n.resolvedLanguage || i18n.language, { timeZone: "UTC" })
@@ -61,7 +73,7 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600">
           <ShieldCheck size={18} className="shrink-0 text-zinc-500" />
           <span className="flex-1">{t("agreement.reviewPrompt", { ns: "auth" })}</span>
-          <button type="button" onClick={onOpen} className="font-bold text-zinc-900 underline underline-offset-4">
+          <button ref={reviewButtonRef} type="button" onClick={onOpen} className="font-bold text-zinc-900 underline underline-offset-4">
             {t("agreement.review", { ns: "auth" })}
           </button>
         </div>
@@ -70,9 +82,11 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
       {open ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/60 p-4 backdrop-blur-sm">
           <section
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-agreement-title"
+            tabIndex={-1}
             className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl"
           >
             <header className="flex items-start gap-4 border-b border-zinc-100 px-6 py-5">
@@ -86,7 +100,7 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
                   {formattedUpdatedAt ? ` ${t("agreement.updated", { ns: "auth", date: formattedUpdatedAt })}` : ""}
                 </p>
               </div>
-              <button type="button" aria-label={t("agreement.close", { ns: "auth" })} onClick={onReject} className="text-zinc-400 hover:text-zinc-900">
+              <button ref={closeButtonRef} type="button" aria-label={t("agreement.close", { ns: "auth" })} onClick={onReject} className="text-zinc-400 hover:text-zinc-900">
                 <X size={20} />
               </button>
             </header>

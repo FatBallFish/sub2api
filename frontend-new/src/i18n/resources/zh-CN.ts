@@ -316,6 +316,7 @@ const zhCN = {
       viewAllAnnouncements: "查看所有公告",
       announcementUpdate: "更新",
       announcementNotice: "通知",
+      announcementMaintenance: "维护",
       addOnCredits: "附加额度",
       never: "从未",
       recently: "最近",

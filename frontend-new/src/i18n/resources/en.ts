@@ -319,6 +319,7 @@ const en = {
       viewAllAnnouncements: "View All Announcements",
       announcementUpdate: "Update",
       announcementNotice: "Notice",
+      announcementMaintenance: "Maintenance",
       addOnCredits: "Add-on Credits",
       never: "Never",
       recently: "Recently",
