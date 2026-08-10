@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import LoginAgreementPrompt from "./LoginAgreementPrompt";
 
@@ -13,6 +13,10 @@ const documents = [
 describe("LoginAgreementPrompt", () => {
   beforeEach(async () => {
     await i18n.changeLanguage("zh-CN");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("uses localized built-in titles in checkbox links and preserves custom titles", () => {
@@ -145,5 +149,43 @@ describe("LoginAgreementPrompt", () => {
     );
 
     expect(screen.getByText(/更新于 release-42/)).toBeInTheDocument();
+  });
+
+  it("keeps date-only and ISO update values on the UTC calendar day", async () => {
+    vi.stubEnv("TZ", "America/Los_Angeles");
+    await i18n.changeLanguage("en");
+    const view = render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open
+          updatedAt="2026-08-10"
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Updated August 10, 2026/)).toBeInTheDocument();
+
+    view.rerender(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open
+          updatedAt="2026-08-10T00:00:00Z"
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Updated August 10, 2026/)).toBeInTheDocument();
   });
 });

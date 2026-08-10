@@ -42,7 +42,7 @@ export default function LoginAgreementPrompt(props: LoginAgreementPromptProps) {
   const { accepted, documents, mode, open, updatedAt, onAccept, onReject, onOpen } = props;
   if (documents.length === 0) return null;
   const formattedUpdatedAt = updatedAt
-    ? formatDate(updatedAt, i18n.resolvedLanguage || i18n.language)
+    ? formatDate(updatedAt, i18n.resolvedLanguage || i18n.language, { timeZone: "UTC" })
     : "";
 
   return (
