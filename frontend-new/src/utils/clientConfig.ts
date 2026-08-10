@@ -2,6 +2,7 @@ export type GroupPlatform = "anthropic" | "openai" | "gemini" | "antigravity" | 
 export type CcSwitchClientType = "claude" | "gemini";
 export type InstallClientId = "codex" | "codex-ws" | "claude" | "gemini" | "opencode";
 export type InstallShellId = "unix" | "cmd" | "powershell" | "windows";
+export type ClientConfigHintId = "claudeSettings" | "codexAuth" | "openCodeMerge";
 
 export interface InstallClientOption {
   id: InstallClientId;
@@ -16,7 +17,7 @@ export interface InstallShellOption {
 export interface ClientConfigFile {
   path: string;
   content: string;
-  hint?: string;
+  hintId?: ClientConfigHintId;
 }
 
 export interface BuildClientConfigInput {
@@ -160,7 +161,7 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
       {
         path: "%userprofile%\\.claude\\settings.json",
         content: claudeSettingsContent(baseUrl, apiKey),
-        hint: "Optional persistent settings for Claude Code.",
+        hintId: "claudeSettings",
       },
     ];
   }
@@ -176,7 +177,7 @@ $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
       {
         path: "%userprofile%\\.claude\\settings.json",
         content: claudeSettingsContent(baseUrl, apiKey),
-        hint: "Optional persistent settings for Claude Code.",
+        hintId: "claudeSettings",
       },
     ];
   }
@@ -191,7 +192,7 @@ export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
     {
       path: "~/.claude/settings.json",
       content: claudeSettingsContent(baseUrl, apiKey),
-      hint: "Optional persistent settings for Claude Code.",
+      hintId: "claudeSettings",
     },
   ];
 }
@@ -258,7 +259,7 @@ requires_openai_auth = true
 
 [features]${websockets ? "\nresponses_websockets_v2 = true" : ""}
 goals = true`,
-      hint: "API keys belong in auth.json, not config.toml.",
+      hintId: "codexAuth",
     },
     {
       path: `${configDir}/auth.json`,
@@ -300,7 +301,7 @@ function generateOpenCodeConfig(platform: string, baseUrl: string, apiKey: strin
       null,
       2,
     ),
-    hint: "Place this in your OpenCode config file and merge with existing providers if needed.",
+    hintId: "openCodeMerge",
   };
 }
 
