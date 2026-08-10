@@ -1417,7 +1417,7 @@ describe("Billing", () => {
     expect(screen.queryByText("Something went wrong.")).not.toBeInTheDocument();
   });
 
-  it("uses payment and subscription scopes for known order errors", async () => {
+  it("uses the payment scope for top-up and plan order errors", async () => {
     await i18n.changeLanguage("zh-CN");
     const plan = {
       id: 102,
@@ -1453,7 +1453,10 @@ describe("Billing", () => {
     expect(await screen.findByText("已达到每日支付限额。")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "升级到 Pro" }));
-    expect(await screen.findByText("已达到订阅的每日用量限额。")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText("已达到每日支付限额。")).toHaveLength(2);
+    });
+    expect(screen.queryByText("已达到订阅的每日用量限额。")).not.toBeInTheDocument();
     expect(screen.queryByText("raw daily limit")).not.toBeInTheDocument();
   });
 
