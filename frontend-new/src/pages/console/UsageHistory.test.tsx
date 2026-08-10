@@ -12,6 +12,7 @@ function jsonResponse(data: unknown) {
 
 describe("UsageHistory", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     localStorage.clear();
   });
@@ -37,7 +38,7 @@ describe("UsageHistory", () => {
               api_key_id: 9,
               request_id: "req_1",
               model: "claude-3-5-sonnet",
-              inbound_endpoint: "/v1/chat/completions",
+              inbound_endpoint: "/v1/chat,\ncompletions",
               upstream_endpoint: "/v1/messages",
               input_tokens: 1024,
               output_tokens: 400,
@@ -95,11 +96,12 @@ describe("UsageHistory", () => {
       return Document.prototype.createElement.call(document, tagName, options);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /export csv/i }));
+    fireEvent.click(screen.getByRole("button", { name: /export current page/i }));
 
     const blob = createObjectURL.mock.calls[0][0] as Blob;
     await expect(blob.text()).resolves.toContain("0.054321,Mixed funding,0.040000,0.014321,0.000000");
-    expect(anchor.download).toBe("usage-history.csv");
+    await expect(blob.text()).resolves.toContain('claude-3-5-sonnet,"/v1/chat,\ncompletions"');
+    expect(anchor.download).toBe("usage-history-current-page.csv");
     expect(anchor.href).toBe(objectUrl);
     expect(click).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith(objectUrl);
@@ -295,7 +297,18 @@ describe("UsageHistory", () => {
   });
 
   it("filters stats and logs by today and paginates using configured page sizes", async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-US",
+      calendar: "gregory",
+      numberingSystem: "latn",
+      timeZone: "Asia/Tokyo",
+    });
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = input.toString();
       if (url === "/api/v1/settings/public") {
@@ -326,7 +339,11 @@ describe("UsageHistory", () => {
       );
     });
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`end_date=${today}`), expect.any(Object));
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining(`/api/v1/usage/stats?start_date=${today}&end_date=${today}`), expect.any(Object));
+    const usageCalls = fetchMock.mock.calls.map(([request]) => new URL(request.toString(), "https://example.test"));
+    const todayCalls = usageCalls.filter((url) => url.searchParams.get("start_date") === today);
+    expect(todayCalls).toHaveLength(2);
+    expect(todayCalls.every((url) => url.searchParams.get("end_date") === today)).toBe(true);
+    expect(todayCalls.every((url) => url.searchParams.get("timezone") === "Asia/Tokyo")).toBe(true);
 
     fireEvent.change(screen.getByLabelText("Rows per page"), { target: { value: "100" } });
 
@@ -346,6 +363,61 @@ describe("UsageHistory", () => {
         expect.any(Object),
       );
     });
+  });
+
+  it("preserves rows and stats on refresh failure and recovers without locale-triggered requests", async () => {
+    await i18n.changeLanguage("en");
+    let failUsage = false;
+    const row = {
+      id: 91,
+      api_key_id: 9,
+      request_id: "req_preserved",
+      model: "configured-model",
+      inbound_endpoint: "/v1/responses",
+      input_tokens: 10,
+      output_tokens: 20,
+      cache_read_tokens: 0,
+      cache_creation_tokens: 0,
+      actual_cost: 0.1,
+      total_cost: 0.1,
+      funding_source: "balance",
+      duration_ms: 250,
+      created_at: "2026-06-18T08:00:00Z",
+      api_key: { id: 9, name: "Configured Key" },
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === "/api/v1/settings/public") return Promise.resolve(jsonResponse({}));
+      if (url.includes("/api/v1/keys?")) {
+        return Promise.resolve(jsonResponse({ items: [], total: 0, page: 1, page_size: 100, pages: 1 }));
+      }
+      if (failUsage && url.includes("/api/v1/usage")) return Promise.reject(new TypeError("refresh failed"));
+      if (url.includes("/usage/stats")) {
+        return Promise.resolve(jsonResponse({ total_requests: 7, total_tokens: 30, total_actual_cost: 0.1, average_duration_ms: 250 }));
+      }
+      return Promise.resolve(jsonResponse({ items: [row], total: 1, page: 1, page_size: 20 }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<UsageHistory />);
+    expect(await screen.findByText("configured-model")).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument();
+
+    failUsage = true;
+    fireEvent.click(screen.getByRole("button", { name: "Refresh usage history" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to refresh usage history.");
+    expect(screen.getByText("configured-model")).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument();
+
+    const requestCount = fetchMock.mock.calls.length;
+    await i18n.changeLanguage("ja");
+    expect(screen.getByRole("alert")).toHaveTextContent("利用履歴を更新できませんでした。");
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+
+    failUsage = false;
+    fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getByText("configured-model")).toBeInTheDocument();
   });
 
   it("localizes usage controls and pagination while preserving row data", async () => {
@@ -401,6 +473,7 @@ describe("UsageHistory", () => {
     expect(screen.getAllByText("Prod-CLI").length).toBeGreaterThan(0);
     expect(screen.getByText("1 / 3 ページ")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "次のページ" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "現在のページを CSV にエクスポート" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "列" }));
     expect(screen.getByRole("checkbox", { name: "最初のトークン" })).toBeInTheDocument();
@@ -412,6 +485,7 @@ describe("UsageHistory", () => {
     const requestCount = fetchMock.mock.calls.length;
     await i18n.changeLanguage("zh-TW");
     expect(await screen.findByRole("heading", { name: "使用記錄" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "匯出目前頁面的 CSV" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
   });
 });
