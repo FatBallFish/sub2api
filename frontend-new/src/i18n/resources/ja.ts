@@ -259,6 +259,7 @@ const ja = {
       modelPricing: "モデル料金",
       usageHistory: "利用履歴",
       announcements: "お知らせ",
+      installGuide: "インストールガイド",
     },
     shell: {
       console: "コンソール",
@@ -270,6 +271,9 @@ const ja = {
       roleUser: "ユーザー",
       roleAdmin: "管理者",
       unreadAnnouncements: "未読のお知らせ {{count}} 件",
+      openNavigation: "ナビゲーションを開く",
+      closeNavigation: "ナビゲーションを閉じる",
+      navigationLabel: "コンソールナビゲーション",
     },
     overview: {
       title: "概要",
@@ -382,6 +386,7 @@ const ja = {
       disabledSuccess: "API キー「{{name}}」を無効にしました。",
       deleted: "API キー「{{name}}」を削除しました。",
       copied: "API キー「{{name}}」をコピーしました。",
+      dismissError: "エラーを閉じる",
     },
   },
   errors: {
@@ -419,6 +424,7 @@ const ja = {
     overviewLoadFailed: "概要を読み込めませんでした。しばらくしてからもう一度お試しください。",
     apiKeysLoadFailed: "API キーを読み込めませんでした。しばらくしてからもう一度お試しください。",
     apiKeyRevealFailed: "この API キーを表示できませんでした。",
+    apiKeyCopyFailed: "この API キーをコピーできませんでした。",
     apiKeyImportFailed: "このキーを CCSwitch にインポートできませんでした。",
     apiKeySaveFailed: "API キーを保存できませんでした。",
     apiKeyUpdateFailed: "API キーを更新できませんでした。",
