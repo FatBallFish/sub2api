@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import Pricing from "./Pricing";
 
 describe("Pricing page", () => {
@@ -57,5 +58,33 @@ describe("Pricing page", () => {
     );
     expect(screen.getByText("Do credits roll over?")).toBeInTheDocument();
     expect(screen.getByText("Add-on credits do not reset.")).toBeInTheDocument();
+  });
+
+  it("localizes Japanese controls and loading copy while preserving configured content", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ success: true, data: {
+        plans: [{ id: 1, name: "Backend Builder", price: 29, currency: "USD", billing_period: "month", weekly_credits: 1234.5, monthly_max_credits: 5000, features: ["Backend Feature"] }],
+        topups: [], faq: [{ question: "Backend Question", answer: "Backend Answer" }],
+      } }),
+    });
+
+    render(<MemoryRouter><Pricing /></MemoryRouter>);
+    expect(screen.getByText("料金を読み込んでいます...")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "サブスクリプションとクレジット" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Backend Builder を選択" })).toBeInTheDocument();
+    expect(screen.getByText("Backend Feature")).toBeInTheDocument();
+    expect(screen.getByText("Backend Question")).toBeInTheDocument();
+    expect(screen.getByText("1,234.500000")).toBeInTheDocument();
+    expect(document.title).toBe("料金 | Mikiko CC");
+  });
+
+  it("uses the localized fallback when the pricing request rejects without an error message", async () => {
+    await i18n.changeLanguage("zh-CN");
+    globalThis.fetch = vi.fn().mockRejectedValue(null);
+
+    render(<MemoryRouter><Pricing /></MemoryRouter>);
+
+    expect(await screen.findByText("无法加载价格信息。")).toBeInTheDocument();
   });
 });

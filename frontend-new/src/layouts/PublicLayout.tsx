@@ -7,7 +7,8 @@ import { agreementDocuments, findAgreementDocument, localizedAgreementTitle } fr
 import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function PublicLayout() {
-  const { t } = useTranslation();
+  const { t } = useTranslation("public");
+  const { t: commonT } = useTranslation("common");
   const location = useLocation();
   const user = getStoredUser();
   const signedIn = isAuthenticated();
@@ -42,19 +43,19 @@ export default function PublicLayout() {
               to="/pricing"
               className={`text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
-              Pricing
+              {t("navigation.pricing")}
             </Link>
             <Link
               to="/model-pricing"
               className={`text-sm font-medium transition-colors ${location.pathname === '/model-pricing' ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
-              Model Pricing
+              {t("navigation.modelPricing")}
             </Link>
             <Link
               to="/blog"
               className={`text-sm font-medium transition-colors ${location.pathname.startsWith('/blog') ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
-              Blog
+              {t("navigation.blog")}
             </Link>
           </div>
         </div>
@@ -68,10 +69,10 @@ export default function PublicLayout() {
               <span className="hidden sm:inline">{user.email}</span>
             </Link>
           ) : (
-            <Link to="/login" className="hidden sm:inline text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Sign in</Link>
+            <Link to="/login" className="hidden sm:inline text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.signIn")}</Link>
           )}
           <Link to="/console" className="bg-zinc-900 text-white px-3 sm:px-4 py-2 rounded-full text-sm font-medium hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200">
-            Open Console
+            {t("navigation.openConsole")}
           </Link>
         </div>
       </nav>
@@ -87,31 +88,30 @@ export default function PublicLayout() {
           <div className="col-span-2 space-y-6">
             <Link to="/" className="text-xl font-bold tracking-tighter text-zinc-900">Mikiko CC</Link>
             <p className="text-sm text-zinc-400 max-w-xs leading-relaxed">
-              Professional AI infrastructure for the next generation of developers.
-              Reliable, transparent, and built for scale.
+              {t("footer.description")}
             </p>
             <span className="block text-[10px] text-zinc-300 font-bold uppercase tracking-widest">
-              Owned and operated by Mikiko CC
+              {t("footer.operator")}
             </span>
           </div>
           <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-900">Product</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-900">{t("footer.product")}</h4>
             <nav className="flex flex-col gap-2">
-              <Link to="/pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Pricing</Link>
-              <Link to="/model-pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Model Pricing</Link>
-              <Link to="/console" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Console</Link>
+              <Link to="/pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.pricing")}</Link>
+              <Link to="/model-pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.modelPricing")}</Link>
+              <Link to="/console" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.console")}</Link>
             </nav>
           </div>
           <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-900">Company</h4>
+            <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-900">{t("footer.company")}</h4>
             <nav className="flex flex-col gap-2">
-              <Link to="/team" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Team</Link>
-              <Link to="/blog" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Blog</Link>
+              <Link to="/team" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.team")}</Link>
+              <Link to="/blog" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.blog")}</Link>
               {privacyDocument?.content_md?.trim() ? (
-                <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(privacyDocument, t)}</Link>
+                <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(privacyDocument, commonT)}</Link>
               ) : null}
               {termsDocument?.content_md?.trim() ? (
-                <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(termsDocument, t)}</Link>
+                <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(termsDocument, commonT)}</Link>
               ) : null}
             </nav>
           </div>

@@ -4,6 +4,8 @@ import { Navigate } from "react-router-dom";
 import { getPublicSettings, type LoginAgreementDocument } from "../../api/settings";
 import { MarkdownContent } from "../../utils/markdown";
 import { findAgreementDocument, localizedAgreementTitle } from "../../utils/loginAgreement";
+import { formatDate } from "../../utils/format";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 interface PublicMarkdownPageProps {
   slug: string;
@@ -26,7 +28,8 @@ function findDocument(documents: LoginAgreementDocument[], slug: string) {
 }
 
 export default function PublicMarkdownPage({ slug, fallbackTitle, children, requireAgreementEnabled = false, exactDocumentId = false }: PublicMarkdownPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation("public");
+  const { t: commonT } = useTranslation("common");
   const [document, setDocument] = useState<LoginAgreementDocument | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -58,13 +61,12 @@ export default function PublicMarkdownPage({ slug, fallbackTitle, children, requ
   }, [exactDocumentId, slug]);
 
   const hasMarkdown = Boolean(document?.content_md?.trim());
-  const title = document ? localizedAgreementTitle(document, t) : fallbackTitle;
+  const title = document ? localizedAgreementTitle(document, commonT) : fallbackTitle;
+  usePageTitle(title);
   const formattedUpdatedAt = useMemo(() => {
     if (!updatedAt) return "";
-    const date = new Date(updatedAt);
-    if (Number.isNaN(date.getTime())) return updatedAt;
-    return new Intl.DateTimeFormat("en-US", { month: "long", day: "2-digit", year: "numeric" }).format(date);
-  }, [updatedAt]);
+    return formatDate(updatedAt, i18n.resolvedLanguage, { timeZone: "UTC" });
+  }, [i18n.resolvedLanguage, updatedAt]);
 
   if (!loaded) {
     return null;
@@ -82,7 +84,7 @@ export default function PublicMarkdownPage({ slug, fallbackTitle, children, requ
     <div className="pt-32 pb-24 px-8 max-w-4xl mx-auto space-y-8">
       <h1 className="text-4xl font-bold tracking-tight text-zinc-900">{title}</h1>
       {formattedUpdatedAt ? (
-        <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Last Updated: {formattedUpdatedAt}</p>
+        <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">{t("legal.lastUpdated", { date: formattedUpdatedAt })}</p>
       ) : null}
       <MarkdownContent content={document?.content_md || ""} className="text-zinc-500 leading-relaxed" />
     </div>

@@ -19,7 +19,7 @@ function publicSettingsResponse() {
         login_agreement_documents: [
           { id: "terms", title: "Terms of Service", content_md: "## Terms Markdown\n\n- Acceptable use" },
           { id: "privacy", title: "Privacy Policy", content_md: "## Privacy Markdown\n\n**No training** by default." },
-          { id: "team", title: "Team", content_md: "## Team Markdown\n\nOperator-led support." },
+          { id: "team", title: "Configured Team", content_md: "## Team Markdown\n\nOperator-led support." },
         ],
       },
     }),
@@ -62,6 +62,7 @@ describe("public markdown pages", () => {
       expect(screen.getByRole("heading", { name: "Team Markdown" })).toBeInTheDocument();
     });
     expect(screen.getByText("Operator-led support.")).toBeInTheDocument();
+    expect(document.title).toBe("Configured Team | Mikiko CC");
   });
 
   it("renders every configured agreement document by id", async () => {
@@ -87,6 +88,7 @@ describe("public markdown pages", () => {
         success: true,
         data: {
           login_agreement_enabled: true,
+          login_agreement_updated_at: "2026-06-19",
           login_agreement_documents: [
             { id: "terms", title: "后台服务条款", content_md: "## Backend Markdown\n\nDo not translate this body." },
           ],
@@ -105,6 +107,8 @@ describe("public markdown pages", () => {
     expect(await screen.findByRole("heading", { name: "利用規約", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Backend Markdown" })).toBeInTheDocument();
     expect(screen.getByText("Do not translate this body.")).toBeInTheDocument();
+    expect(screen.getByText("最終更新日: 2026年6月19日")).toBeInTheDocument();
+    expect(document.title).toBe("利用規約 | Mikiko CC");
   });
 
   it("redirects legal routes home when the agreement is disabled", async () => {

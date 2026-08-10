@@ -1,6 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import PublicMarkdownPage from "../PublicMarkdownPage";
 
 export default function Terms() {
-  return <PublicMarkdownPage slug="terms" fallbackTitle="Terms of Service" requireAgreementEnabled />;
+  const { t } = useTranslation("public");
+  return <PublicMarkdownPage slug="terms" fallbackTitle={t("legal.termsFallback")} requireAgreementEnabled />;
 }

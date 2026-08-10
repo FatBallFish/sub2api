@@ -5,21 +5,18 @@ import {
   Tag
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { getPublicPricing } from "../../api/public";
 import type { PublicPricing } from "../../types/public";
-import { formatCredits } from "../../utils/format";
-
-function formatUSD(value: number) {
-  const hasCents = !Number.isInteger(value);
-  return `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: hasCents ? 2 : 0,
-    maximumFractionDigits: 2,
-  })}`;
-}
+import { formatCredits, formatCurrency } from "../../utils/format";
+import { localizedErrorMessage } from "../../utils/localizedError";
+import { usePageTitle } from "../../hooks/usePageTitle";
 
 export default function Pricing() {
+  const { t, i18n } = useTranslation("public");
   const [pricing, setPricing] = React.useState<PublicPricing | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<{ cause: unknown } | null>(null);
+  usePageTitle(t("pageTitles.pricing"));
 
   React.useEffect(() => {
     let active = true;
@@ -33,7 +30,7 @@ export default function Pricing() {
       })
       .catch((err: unknown) => {
         if (active) {
-          setError(err instanceof Error ? err.message : "Unable to load pricing.");
+          setError({ cause: err });
         }
       });
 
@@ -46,22 +43,21 @@ export default function Pricing() {
     <>
       <section className="pt-32 pb-24 px-8 max-w-7xl mx-auto">
         <div className="text-center space-y-4 mb-20">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900">Subscription & Credits</h1>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900">{t("pricing.heading")}</h1>
           <p className="text-lg text-zinc-500 max-w-2xl mx-auto leading-relaxed">
-            Simple, predictable pricing designed for developers and teams.
-            Plan credits reset weekly and never expire if used.
+            {t("pricing.description")}
           </p>
         </div>
 
-        {error && (
+        {error !== null && (
           <div className="mb-10 rounded-2xl border border-red-100 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">
-            {error}
+            {localizedErrorMessage(error.cause, "publicPricingLoadFailed", i18n.t)}
           </div>
         )}
 
         {!pricing ? (
           <div className="py-16 text-center text-sm font-bold uppercase tracking-widest text-zinc-400">
-            Loading pricing...
+            {t("pricing.loading")}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -79,22 +75,22 @@ export default function Pricing() {
             >
               {plan.recommended && (
                 <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-zinc-100 text-zinc-900 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border border-zinc-200">
-                  {plan.badge || "Best Value"}
+                  {plan.badge || t("pricing.bestValue")}
                 </span>
               )}
               <h3 className="text-lg font-bold">{plan.name}</h3>
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-bold">{formatUSD(plan.price)}</span>
+                <span className="text-4xl font-bold">{formatCurrency(plan.price, plan.currency)}</span>
                 <span className={`text-sm ${plan.recommended ? "text-zinc-500" : "text-zinc-400"}`}>/{plan.billing_period}</span>
               </div>
               <div className="mt-8 space-y-4">
                 <div className={`p-4 rounded-2xl border ${plan.recommended ? "bg-white/5 border-white/10" : "bg-zinc-50 border-zinc-100"}`}>
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest mb-1">
-                    <span className={plan.recommended ? "text-zinc-400" : "text-zinc-500"}>Weekly Credits</span>
+                    <span className={plan.recommended ? "text-zinc-400" : "text-zinc-500"}>{t("pricing.weeklyCredits")}</span>
                     <span className={plan.recommended ? "text-white" : "text-zinc-900"}>{formatCredits(plan.weekly_credits)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest">
-                    <span className={plan.recommended ? "text-zinc-400" : "text-zinc-500"}>Monthly Max</span>
+                    <span className={plan.recommended ? "text-zinc-400" : "text-zinc-500"}>{t("pricing.monthlyMax")}</span>
                     <span className={plan.recommended ? "text-white" : "text-zinc-900"}>{formatCredits(plan.monthly_max_credits)}</span>
                   </div>
                 </div>
@@ -115,7 +111,7 @@ export default function Pricing() {
                     : "bg-zinc-900 text-white hover:bg-zinc-800"
                 }`}
               >
-                Choose {plan.name}
+                {t("pricing.choosePlan", { name: plan.name })}
               </Link>
             </motion.div>
             ))}
@@ -126,21 +122,20 @@ export default function Pricing() {
         <div className="mt-32 p-12 bg-zinc-50 rounded-[3rem] border border-zinc-100 relative overflow-hidden group">
           <Tag size={120} weight="thin" className="absolute -right-8 -bottom-8 text-zinc-100 group-hover:text-zinc-200 transition-colors duration-700" />
           <div className="relative z-10 max-w-3xl">
-            <h2 className="text-3xl font-bold tracking-tight text-zinc-900">Add-on Top-ups</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-zinc-900">{t("pricing.addOnTitle")}</h2>
             <p className="mt-4 text-zinc-500 leading-relaxed">
-              Need more credits for a high-intensity week? Purchase add-on credits that never reset.
-              Add-ons are applied automatically after your weekly subscription quota is exhausted.
+              {t("pricing.addOnDescription")}
             </p>
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
               {(pricing?.topups || []).map(item => (
                 <Link
                   key={item.amount}
                   to={`/login?topup=${item.amount}`}
-                  aria-label={`Buy ${formatUSD(item.amount)} top-up, get ${formatCredits(item.credits)} credits`}
+                  aria-label={t("pricing.buyTopupLabel", { amount: formatCurrency(item.amount, item.currency), credits: formatCredits(item.credits) })}
                   className="p-6 bg-white border border-zinc-200 rounded-3xl text-center hover:border-zinc-900 transition-all shadow-sm hover:shadow-md"
                 >
-                  <span className="block text-2xl font-bold text-zinc-900">{formatUSD(item.amount)}</span>
-                  <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1">Get {formatCredits(item.credits)}</span>
+                  <span className="block text-2xl font-bold text-zinc-900">{formatCurrency(item.amount, item.currency)}</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1">{t("pricing.getCredits", { credits: formatCredits(item.credits) })}</span>
                 </Link>
               ))}
             </div>
@@ -151,7 +146,7 @@ export default function Pricing() {
       {/* FAQ */}
       <section className="py-24 px-8 border-t border-zinc-100 bg-zinc-50/30">
         <div className="max-w-3xl mx-auto space-y-12">
-          <h2 className="text-3xl font-bold tracking-tight text-center">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-center">{t("pricing.faqTitle")}</h2>
           <div className="space-y-8">
             {(pricing?.faq || []).map(faq => (
               <div key={faq.question} className="space-y-2">

@@ -128,4 +128,24 @@ describe("PublicLayout", () => {
     expect(await screen.findByRole("link", { name: "服務條款" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Custom Privacy Notice" })).toBeInTheDocument();
   });
+
+  it("localizes Japanese navigation and footer copy", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { login_agreement_enabled: false, login_agreement_documents: [] } }),
+    });
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes><Route element={<PublicLayout />}><Route path="/" element={<div>Home</div>} /></Route></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByRole("link", { name: "料金" })).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "ログイン" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "コンソールを開く" })).toBeInTheDocument();
+    expect(screen.getByText("プロダクト")).toBeInTheDocument();
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+  });
 });
