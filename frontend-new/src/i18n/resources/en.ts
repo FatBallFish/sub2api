@@ -27,8 +27,25 @@ const en = {
     title: "Console",
   },
   errors: {
+    scoped: {
+      auth: {
+        INVALID_USER: "Unable to sign in with this user account.",
+      },
+      affiliate: {
+        INVALID_USER: "Select a valid affiliate user.",
+      },
+      payment: {
+        DAILY_LIMIT_EXCEEDED: "The daily payment limit has been reached.",
+        INVALID_AMOUNT: "Enter a valid payment amount.",
+        INVALID_STATUS: "This action is not available for the current order status.",
+        NOT_FOUND: "The requested payment order was not found.",
+      },
+      subscription: {
+        DAILY_LIMIT_EXCEEDED: "The subscription's daily usage limit has been reached.",
+      },
+      apiKeys: {},
+    },
     unknown: "Something went wrong.",
-    INVALID_USER: "The email or password is incorrect.",
     INVALID_CREDENTIALS: "The email or password is incorrect.",
     USER_NOT_ACTIVE: "This account is inactive.",
     USER_INACTIVE: "This account is inactive.",
@@ -59,19 +76,15 @@ const en = {
     FORBIDDEN: "You do not have permission to perform this action.",
     PAYMENT_DISABLED: "Payments are currently disabled.",
     BALANCE_PAYMENT_DISABLED: "Balance top-ups are currently disabled.",
-    INVALID_AMOUNT: "Enter a valid payment amount.",
     PLAN_NOT_AVAILABLE: "This subscription plan is no longer available.",
     PLAN_NOT_AVAILABLE_FOR_GROUPS: "This plan is not available for your groups.",
     ORDER_TYPE_MISMATCH: "The selected plan does not match this order type.",
     GROUP_NOT_FOUND: "The selected group is no longer available.",
     GROUP_TYPE_MISMATCH: "The selected group does not support subscriptions.",
     TOO_MANY_PENDING: "Too many payment orders are pending. Try again later.",
-    DAILY_LIMIT_EXCEEDED: "The daily payment limit has been reached.",
     PAYMENT_GATEWAY_ERROR: "The payment gateway is temporarily unavailable.",
     NO_AVAILABLE_INSTANCE: "No payment channel is currently available.",
     PAYMENT_PROVIDER_MISCONFIGURED: "The payment provider is not configured correctly.",
-    NOT_FOUND: "The requested payment order was not found.",
-    INVALID_STATUS: "This action is not available for the current order status.",
     CANCEL_RATE_LIMITED: "Too many cancellation attempts. Try again later.",
     GLOBAL_PLAN_USE_UPGRADE_FLOW: "Use the plan upgrade flow to change this subscription.",
     API_KEY_NOT_FOUND: "The API key was not found.",
@@ -115,5 +128,21 @@ type StringResourceShape<T> = {
 };
 
 export type TranslationResource = StringResourceShape<typeof en>;
+
+type ResourceLeafKey<T> = {
+  [Key in keyof T & string]: T[Key] extends string
+    ? Key
+    : T[Key] extends Record<string, unknown>
+      ? `${Key}.${ResourceLeafKey<T[Key]>}`
+      : never;
+}[keyof T & string];
+
+export type ErrorTranslationKey = ResourceLeafKey<typeof en.errors>;
+export type ErrorFallbackKey = {
+  [Key in keyof typeof en.errors]: (typeof en.errors)[Key] extends string ? Key : never;
+}[keyof typeof en.errors];
+export type TranslationKey = {
+  [Namespace in keyof typeof en & string]: `${Namespace}:${ResourceLeafKey<(typeof en)[Namespace]>}`;
+}[keyof typeof en & string];
 
 export default en;
