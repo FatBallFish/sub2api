@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import Auth from "./Auth";
 
 interface TurnstileHarnessProps {
@@ -118,6 +119,71 @@ describe("Auth page", () => {
     tencentHarness.reset.mockReset();
     aliyunHarness.verify.mockReset();
     aliyunHarness.reset.mockReset();
+  });
+
+  it("renders login and registration copy in Japanese and updates the page title", async () => {
+    await i18n.changeLanguage("ja");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { email_verify_enabled: false } }),
+    });
+
+    const view = render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "ゲートウェイにログイン" })).toBeInTheDocument();
+    expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument();
+    expect(document.title).toBe("ログイン | Mikiko CC");
+
+    view.unmount();
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "アカウントを作成" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "アカウントを登録" })).toBeInTheDocument();
+    expect(screen.queryByText("Create your account")).not.toBeInTheDocument();
+  });
+
+  it("localizes a stable auth error code with auth scope", async () => {
+    await i18n.changeLanguage("zh-CN");
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: {} }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          success: false,
+          reason: "INVALID_USER",
+          message: "Backend account rejection",
+        }),
+      });
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    const submit = screen.getAllByRole("button", { name: "登录" })
+      .find((button) => button.getAttribute("type") === "submit")!;
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.change(screen.getByLabelText("邮箱地址"), { target: { value: "dev@example.com" } });
+    fireEvent.change(screen.getByLabelText("密码"), { target: { value: "secret123" } });
+    fireEvent.click(submit);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("无法使用该账号登录。");
+    expect(screen.queryByText("Backend account rejection")).not.toBeInTheDocument();
   });
 
   it("shows the language switcher in the standalone auth layout", () => {

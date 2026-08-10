@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import PublicLayout from "./layouts/PublicLayout";
 import Home from "./pages/public/Home";
 import Pricing from "./pages/public/Pricing";
@@ -26,6 +27,9 @@ import Playground from "./pages/console/Playground";
 import { getConsoleBootstrap } from "./api/console";
 import { getPublicSettings, type PublicSettings } from "./api/settings";
 import type { ConsoleBootstrap } from "./types/console";
+import StandaloneLanguageSwitcher from "./components/StandaloneLanguageSwitcher";
+import { usePageTitle } from "./hooks/usePageTitle";
+import { localizedErrorMessage } from "./utils/localizedError";
 
 const CONSOLE_BOOTSTRAP_REFRESH_INTERVAL_MS = 60_000;
 
@@ -40,6 +44,7 @@ interface AppProps {
 }
 
 function ConsoleGuard() {
+  const { i18n, t } = useTranslation("common");
   const [bootstrap, setBootstrap] = useState<ConsoleBootstrap | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,10 +56,10 @@ function ConsoleGuard() {
       })
       .catch((reason: unknown) => {
         if (initial) {
-          setError(reason instanceof Error ? reason.message : "Unable to load console.");
+          setError(localizedErrorMessage(reason, "consoleLoadFailed", i18n.t));
         }
       });
-  }, []);
+  }, [i18n]);
 
   useEffect(() => {
     let active = true;
@@ -67,13 +72,14 @@ function ConsoleGuard() {
       })
       .catch((reason: unknown) => {
         if (!active) return;
-        setError(reason instanceof Error ? reason.message : "Unable to load console.");
+        setError(localizedErrorMessage(reason, "consoleLoadFailed", i18n.t));
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [i18n]);
+  usePageTitle(error ? t("app.consoleUnavailableTitle") : i18n.t("console:title"));
 
   const bootstrapReady = bootstrap !== null;
   useEffect(() => {
@@ -90,8 +96,9 @@ function ConsoleGuard() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 text-center">
-        <h1 className="text-2xl font-semibold text-zinc-950">Console unavailable</h1>
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 text-center">
+        <StandaloneLanguageSwitcher />
+        <h1 className="text-2xl font-semibold text-zinc-950">{t("app.consoleUnavailable")}</h1>
         <p className="mt-3 max-w-md text-sm text-zinc-500">{error}</p>
       </div>
     );
@@ -99,8 +106,9 @@ function ConsoleGuard() {
 
   if (!bootstrap) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm font-medium text-zinc-500">
-        Loading console...
+      <div className="relative flex min-h-screen items-center justify-center bg-zinc-50 text-sm font-medium text-zinc-500">
+        <StandaloneLanguageSwitcher />
+        {t("app.consoleLoading")}
       </div>
     );
   }
@@ -109,16 +117,30 @@ function ConsoleGuard() {
 }
 
 function RegionBlockPage({ settings }: { settings: PublicSettings }) {
+  const { t } = useTranslation("common");
   const region = settings.region_block_current_region?.trim();
+  usePageTitle(t("app.regionUnavailableTitle"));
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-center text-white">
+    <div className="relative flex min-h-screen items-center justify-center bg-zinc-950 px-6 text-center text-white">
+      <StandaloneLanguageSwitcher />
       <main className="max-w-lg">
-        <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-500">{settings.site_name || "Service"}</p>
-        <h1 className="mt-5 text-3xl font-bold tracking-tight">Service unavailable in your region</h1>
+        <p className="text-xs font-bold uppercase tracking-[0.28em] text-zinc-500">{settings.site_name || t("app.serviceFallback")}</p>
+        <h1 className="mt-5 text-3xl font-bold tracking-tight">{t("app.regionUnavailable")}</h1>
         <p className="mt-4 text-sm leading-6 text-zinc-400">
-          Access from your current region{region ? ` (${region})` : ""} is not supported at this time.
+          {t("app.regionDescription", { region: region ? ` (${region})` : "" })}
         </p>
       </main>
+    </div>
+  );
+}
+
+function AppLoadingPage() {
+  const { t } = useTranslation("common");
+  usePageTitle(t("app.loadingTitle"));
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-zinc-50 text-sm font-medium text-zinc-500">
+      <StandaloneLanguageSwitcher />
+      {t("app.loading")}
     </div>
   );
 }
@@ -208,11 +230,7 @@ function App({ RouterComponent = BrowserRouter, routerProps = {} }: AppProps) {
   }, []);
 
   if (!settingsLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-sm font-medium text-zinc-500">
-        Loading...
-      </div>
-    );
+    return <AppLoadingPage />;
   }
 
   return (

@@ -81,4 +81,29 @@ describe("LoginAgreementPrompt", () => {
     expect(screen.getByRole("link", { name: "利用規約" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Terms of Service" })).not.toBeInTheDocument();
   });
+
+  it("localizes all modal controls while preserving custom document titles", async () => {
+    await i18n.changeLanguage("zh-TW");
+    render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open
+          updatedAt="2026-08-10"
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "檢閱服務條款" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "關閉條款" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "接受並繼續" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "拒絕" })).toBeInTheDocument();
+    expect(screen.getByText(/更新於 2026-08-10/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Customer Contract" })).toBeInTheDocument();
+  });
 });

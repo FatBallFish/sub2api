@@ -1,6 +1,7 @@
 import { createRef } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "./CaptchaChallenge";
 import { resolveCaptchaProvider } from "./captcha";
 
@@ -53,5 +54,20 @@ describe("CaptchaChallenge", () => {
       aliyun_captcha_scene_id: "scene",
       aliyun_captcha_prefix: "",
     })).toThrow("Aliyun captcha configuration is incomplete");
+  });
+
+  it("localizes a frontend-owned configuration error", async () => {
+    await i18n.changeLanguage("zh-CN");
+    render(<CaptchaChallenge
+      settings={{
+        turnstile_enabled: true,
+        turnstile_site_key: "site",
+        tencent_captcha_enabled: true,
+        tencent_captcha_app_id: "app",
+      }}
+      onVerify={vi.fn()}
+    />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("安全验证配置有误");
   });
 });

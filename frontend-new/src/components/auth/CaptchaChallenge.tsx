@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { PublicSettings } from "../../api/settings";
 import AliyunCaptchaWidget, { type AliyunCaptchaWidgetHandle } from "./AliyunCaptchaWidget";
 import TencentCaptchaWidget, { type TencentCaptchaWidgetHandle } from "./TencentCaptchaWidget";
@@ -23,6 +24,7 @@ export interface CaptchaChallengeProps {
 
 const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProps>(
   function CaptchaChallenge({ settings, onVerify, onExpire, onError }, ref) {
+    const { t } = useTranslation("auth");
     let config: CaptchaProviderConfig = null;
     let configurationErrorMessage: string | null = null;
     try {
@@ -80,7 +82,7 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
     }, [configurationErrorMessage]);
 
     if (configurationErrorMessage) {
-      return <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Security verification is misconfigured.</p>;
+      return <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{t("captcha.misconfigured")}</p>;
     }
     if (!config) return null;
     if (config.provider === "turnstile") {
