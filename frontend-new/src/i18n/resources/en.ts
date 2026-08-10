@@ -1,3 +1,5 @@
+import { remainingConsole, remainingErrors } from "./remainingConsole";
+
 const en = {
   common: {
     language: "Language",
@@ -390,6 +392,7 @@ const en = {
       copied: "API key “{{name}}” copied.",
       dismissError: "Dismiss error",
     },
+    ...remainingConsole.en,
   },
   errors: {
     scoped: {
@@ -410,6 +413,7 @@ const en = {
       },
       apiKeys: {},
     },
+    ...remainingErrors.en,
     unknown: "Something went wrong.",
     publicPricingLoadFailed: "Unable to load pricing.",
     modelPricingLoadFailed: "Unable to load model pricing.",

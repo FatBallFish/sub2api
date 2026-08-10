@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "../../i18n";
 import Billing from "./Billing";
 
 function checkoutInfoResponse(methods = ["stripe"]) {
@@ -1118,5 +1119,139 @@ describe("Billing", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
+  });
+
+  it("renders fixed billing copy in Simplified Chinese while preserving configured content", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                wallet: { available_balance: 210.75, add_on_credits: 42.5, currency: "USD" },
+                active_global_plan: {
+                  id: 9,
+                  plan_id: 102,
+                  name: "Enterprise Custom Plan",
+                  status: "active",
+                  quota_limit: 60,
+                  quota_used: 30,
+                  quota_remaining: 30,
+                  period_start: "2026-06-15T00:00:00Z",
+                  period_end: "2026-06-22T00:00:00Z",
+                  expires_at: "2026-07-15T00:00:00Z",
+                },
+                plans: [
+                  {
+                    id: 102,
+                    name: "Enterprise Custom Plan",
+                    price: 49,
+                    currency: "USD",
+                    billing_period: "month",
+                    quota_period: "month",
+                    weekly_credits: 60,
+                    monthly_max_credits: 240,
+                    features: ["Priority routing from backend"],
+                  },
+                ],
+                add_ons: [{ amount: 25, credits: 27.5, currency: "USD", preset: true }],
+                payment_methods: [{ type: "stripe", available: true }],
+                activity: [
+                  {
+                    id: 77,
+                    date: "2026-06-15T00:00:00Z",
+                    reference: "sub2_pending",
+                    type: "balance",
+                    label: "Backend configured order label",
+                    amount: 10,
+                    currency: "USD",
+                    status: "PENDING",
+                    pay_url: "https://checkout.example/pay/77",
+                  },
+                ],
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+
+    expect(screen.getByText("正在加载账单...")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("heading", { name: "订阅与额度" })).toBeInTheDocument());
+
+    expect(screen.getByText("可用余额")).toBeInTheDocument();
+    expect(screen.getByText("订阅套餐")).toBeInTheDocument();
+    expect(screen.getByText("附加额度充值")).toBeInTheDocument();
+    expect(screen.getByText("付款预览")).toBeInTheDocument();
+    expect(screen.getByText("钱包与订单记录")).toBeInTheDocument();
+    expect(screen.getByText("待付款")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "取消订单 sub2_pending" })).toBeInTheDocument();
+    expect(screen.getByText("额度与套餐如何使用")).toBeInTheDocument();
+    expect(screen.getAllByText("Enterprise Custom Plan").length).toBeGreaterThan(0);
+    expect(screen.getByText("Priority routing from backend")).toBeInTheDocument();
+    expect(screen.getByText("Backend configured order label")).toBeInTheDocument();
+    expect(screen.getByText("2026年6月15日")).toBeInTheDocument();
+  });
+
+  it("switches billing copy and Intl formatting to Japanese without replaying billing requests", async () => {
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: {
+                wallet: { available_balance: 100, add_on_credits: 0, currency: "USD" },
+                plans: [],
+                add_ons: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }],
+                payment_methods: [{ type: "stripe", available: true }],
+                activity: [
+                  {
+                    id: 88,
+                    date: "2026-06-15T00:00:00Z",
+                    reference: "completed_order",
+                    type: "balance",
+                    label: "Configured activity",
+                    amount: 1234.5,
+                    currency: "USD",
+                    status: "COMPLETED",
+                  },
+                ],
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
+        );
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Subscription & Credits" })).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByRole("heading", { name: "サブスクリプションとクレジット" })).toBeInTheDocument();
+    expect(screen.getByText("支払いプレビュー")).toBeInTheDocument();
+    expect(screen.getByText("完了")).toBeInTheDocument();
+    expect(screen.getByText("2026年6月15日")).toBeInTheDocument();
+    expect(screen.getByText("$1,234.50")).toBeInTheDocument();
+    expect(screen.getByText("Configured activity")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   Wallet,
   Clock,
@@ -15,9 +17,16 @@ import { cancelPaymentOrder, createPaymentOrder, getGlobalPlanUpgradeQuote, getP
 import type { ConsoleBilling } from "../../types/console";
 import type { CheckoutInfo, CreateOrderResult } from "../../types/payment";
 import { formatCredits } from "../../utils/format";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 
-function formatMoney(value: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
+function formatMoney(value: number, currency = "USD", locale = "en") {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
@@ -25,9 +34,15 @@ function formatMoney(value: number, currency = "USD") {
   }).format(value);
 }
 
-function formatDate(value?: string) {
-  if (!value) return "Not scheduled";
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value));
+function currencySymbol(currency: string, locale: string) {
+  return new Intl.NumberFormat(locale, { style: "currency", currency })
+    .formatToParts(0)
+    .find((part) => part.type === "currency")?.value ?? currency;
+}
+
+function formatDate(value: string | undefined, locale: string, t: TFunction<"console">) {
+  if (!value) return t("billing.notScheduled");
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value));
 }
 
 function quotaPercent(billing: ConsoleBilling) {
@@ -78,15 +93,15 @@ function activePlanForCategory(plan: ConsoleBilling["plans"][number], activePlan
   return activePlans.find((activePlan) => normalizePlanCategory(activePlan.plan_category) === category) ?? null;
 }
 
-function groupPlanRibbon(plan: ConsoleBilling["plans"][number]) {
+function groupPlanRibbon(plan: ConsoleBilling["plans"][number], t: TFunction<"console">) {
   const platform = plan.group_platform?.trim();
   const name = plan.group_name?.trim();
-  return [platform, name].filter(Boolean).join(" · ") || "Group Plan";
+  return [platform, name].filter(Boolean).join(" · ") || t("billing.groupPlan");
 }
 
-function planQuotaLabel(plan: ConsoleBilling["plans"][number]) {
+function planQuotaLabel(plan: ConsoleBilling["plans"][number], t: TFunction<"console">) {
   if (plan.quota_period_label?.trim()) return plan.quota_period_label;
-  return plan.quota_period === "month" ? "Monthly Credits" : "Weekly Credits";
+  return plan.quota_period === "month" ? t("billing.monthlyCredits") : t("billing.weeklyCredits");
 }
 
 function planQuotaCredits(plan: ConsoleBilling["plans"][number]) {
@@ -99,13 +114,13 @@ function planQuotaCredits(plan: ConsoleBilling["plans"][number]) {
   return plan.weekly_credits;
 }
 
-function planScopeDescription(plan: ConsoleBilling["plans"][number]) {
+function planScopeDescription(plan: ConsoleBilling["plans"][number], t: TFunction<"console">) {
   const mode = plan.applicable_group_mode;
   const groups = plan.applicable_groups ?? [];
   if (!mode || mode === "all" || groups.length === 0) return null;
-  const names = groups.map((group) => [group.platform, group.name || `Group ${group.id}`].filter(Boolean).join(" · "));
+  const names = groups.map((group) => [group.platform, group.name || t("billing.groupFallback", { id: group.id })].filter(Boolean).join(" · "));
   return {
-    title: mode === "whitelist" ? "Include Group" : "Exclude Group",
+    title: mode === "whitelist" ? t("billing.includeGroup") : t("billing.excludeGroup"),
     names,
   };
 }
@@ -155,8 +170,10 @@ function statusClass(status: string) {
   switch (normalizeOrderStatus(status)) {
     case "COMPLETED":
     case "PAID":
+    case "REFUNDED":
       return "border-emerald-100 bg-emerald-50 text-emerald-700";
     case "PENDING":
+    case "REFUND_PENDING":
       return "border-amber-100 bg-amber-50 text-amber-700";
     case "CANCELLED":
     case "EXPIRED":
@@ -183,38 +200,79 @@ function isTerminalOrderStatus(status?: string) {
   return normalized === "FAILED" || normalized === "CANCELLED" || normalized === "EXPIRED";
 }
 
-function orderPaymentSummary(item: ConsoleBilling["activity"][number]) {
+function orderPaymentSummary(item: ConsoleBilling["activity"][number], locale: string, t: TFunction<"console">) {
   const paymentCurrency = item.payment_currency || item.currency;
   const payAmount = item.pay_amount ?? item.amount;
   if (!paymentCurrency || paymentCurrency === item.currency || payAmount === item.amount) return null;
-  return `Paid ${formatMoney(payAmount, paymentCurrency)}`;
+  return t("billing.paidAmount", { amount: formatMoney(payAmount, paymentCurrency, locale) });
+}
+
+function billingPeriodLabel(period: string, t: TFunction<"console">) {
+  const labels: Record<string, string> = {
+    day: t("billing.billingPeriod.day"),
+    week: t("billing.billingPeriod.week"),
+    month: t("billing.billingPeriod.month"),
+    year: t("billing.billingPeriod.year"),
+  };
+  return labels[period.toLowerCase()] ?? period;
+}
+
+function paymentMethodLabel(method: string, t: TFunction<"console">) {
+  const labels: Record<string, string> = {
+    stripe: t("billing.paymentMethods.stripe"),
+    creem: t("billing.paymentMethods.creem"),
+    alipay: t("billing.paymentMethods.alipay"),
+    wechat: t("billing.paymentMethods.wechat"),
+    paypal: t("billing.paymentMethods.paypal"),
+  };
+  return labels[method.toLowerCase()] ?? method;
+}
+
+function orderStatusLabel(status: string | undefined, t: TFunction<"console">) {
+  const normalized = normalizeOrderStatus(status);
+  const labels: Record<string, string> = {
+    COMPLETED: t("billing.statuses.completed"),
+    PAID: t("billing.statuses.paid"),
+    PENDING: t("billing.statuses.pending"),
+    CANCELLED: t("billing.statuses.cancelled"),
+    EXPIRED: t("billing.statuses.expired"),
+    FAILED: t("billing.statuses.failed"),
+    REFUNDED: t("billing.statuses.refunded"),
+    REFUND_PENDING: t("billing.statuses.refundPending"),
+    REFUND_FAILED: t("billing.statuses.refundFailed"),
+  };
+  return labels[normalized] ?? (normalized || t("billing.statuses.unknown"));
 }
 
 type PaymentDialogNotice = {
   type: "success" | "info" | "error";
-  title: string;
-  message: string;
+  title: LocalizedMessage;
+  message: LocalizedMessage;
+  status?: string;
   order?: CreateOrderResult;
 };
 
 export default function Billing() {
+  const { t, i18n } = useTranslation("console");
+  const locale = i18n.resolvedLanguage || i18n.language || "en";
   const [billing, setBilling] = useState<ConsoleBilling | null>(null);
   const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
   const [selectedTopUpAmount, setSelectedTopUpAmount] = useState<number | null>(null);
   const [customTopUpAmount, setCustomTopUpAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [selectedCreemOfferId, setSelectedCreemOfferId] = useState<number | null>(null);
   const [topUpLoading, setTopUpLoading] = useState(false);
-  const [topUpError, setTopUpError] = useState<string | null>(null);
+  const [topUpError, setTopUpError] = useState<LocalizedMessage | null>(null);
   const [topUpOrder, setTopUpOrder] = useState<CreateOrderResult | null>(null);
   const [planLoadingId, setPlanLoadingId] = useState<number | null>(null);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<LocalizedMessage | null>(null);
   const [planOrder, setPlanOrder] = useState<CreateOrderResult | null>(null);
   const [orderActionId, setOrderActionId] = useState<number | null>(null);
-  const [orderActionError, setOrderActionError] = useState<string | null>(null);
+  const [orderActionError, setOrderActionError] = useState<LocalizedMessage | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<PaymentDialogNotice | null>(null);
   const paymentPollRef = useRef<number | null>(null);
+  usePageTitle(t("billing.title"));
 
   function stopPaymentPolling() {
     if (paymentPollRef.current !== null) {
@@ -227,7 +285,7 @@ export default function Billing() {
     return Promise.allSettled([getConsoleBilling(), getPaymentCheckoutInfo()])
       .then(([billingResult, checkoutResult]) => {
         if (billingResult.status === "rejected") {
-          setError(billingResult.reason instanceof Error ? billingResult.reason.message : "Unable to load billing.");
+          setError(errorMessage(billingResult.reason, "unknown", "payment"));
           return;
         }
         const data = billingResult.value;
@@ -251,7 +309,7 @@ export default function Billing() {
     loadBilling()
       .catch((reason: unknown) => {
         if (active) {
-          setError(reason instanceof Error ? reason.message : "Unable to load billing.");
+          setError(errorMessage(reason, "unknown", "payment"));
         }
       });
 
@@ -276,8 +334,8 @@ export default function Billing() {
           setPaymentDialog((dialog) => ({
             ...dialog,
             type: "success",
-            title: "Payment confirmed",
-            message: "Your order is paid. Credits and subscriptions are being refreshed.",
+            title: translationMessage("console:billing.dialog.paymentConfirmedTitle"),
+            message: translationMessage("console:billing.dialog.paymentConfirmedMessage"),
           }));
           await loadBilling();
           return;
@@ -287,8 +345,9 @@ export default function Billing() {
           setPaymentDialog((dialog) => ({
             ...dialog,
             type: "error",
-            title: "Payment not completed",
-            message: `Order status changed to ${normalizeOrderStatus(current.status)}.`,
+            title: translationMessage("console:billing.dialog.paymentNotCompletedTitle"),
+            message: translationMessage("console:billing.dialog.paymentNotCompletedMessage"),
+            status: normalizeOrderStatus(current.status),
           }));
           await loadBilling();
           return;
@@ -298,8 +357,8 @@ export default function Billing() {
           setPaymentDialog((dialog) => ({
             ...dialog,
             type: "info",
-            title: "Still waiting for payment",
-            message: "The order is still pending. You can use Pay again from the activity table later.",
+            title: translationMessage("console:billing.dialog.waitingTitle"),
+            message: translationMessage("console:billing.dialog.waitingMessage"),
           }));
         }
       } catch {
@@ -308,8 +367,8 @@ export default function Billing() {
           setPaymentDialog((dialog) => ({
             ...dialog,
             type: "error",
-            title: "Payment status unavailable",
-            message: "We could not refresh this order status. Please check the activity table later.",
+            title: translationMessage("console:billing.dialog.statusUnavailableTitle"),
+            message: translationMessage("console:billing.dialog.statusUnavailableMessage"),
           }));
         }
       }
@@ -344,15 +403,15 @@ export default function Billing() {
       window.open(order.pay_url, "_blank", "noopener,noreferrer");
       setPaymentDialog({
         type: "info",
-        title: "Payment page opened",
-        message: "Complete payment in the new tab. This page will keep watching the order status.",
+        title: translationMessage("console:billing.dialog.pageOpenedTitle"),
+        message: translationMessage("console:billing.dialog.pageOpenedMessage"),
         order,
       });
     } else if (order.qr_code) {
       setPaymentDialog({
         type: "info",
-        title: "Scan to pay",
-        message: "Use your payment app to scan the QR code. This page will keep watching the order status.",
+        title: translationMessage("console:billing.dialog.scanTitle"),
+        message: translationMessage("console:billing.dialog.scanMessage"),
         order,
       });
     }
@@ -369,7 +428,7 @@ export default function Billing() {
       await cancelPaymentOrder(item.id);
       await loadBilling();
     } catch (reason) {
-      setOrderActionError(reason instanceof Error ? reason.message : "Unable to cancel order.");
+      setOrderActionError(errorMessage(reason, "unknown", "payment"));
     } finally {
       setOrderActionId(null);
     }
@@ -378,8 +437,8 @@ export default function Billing() {
   if (error) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-        <h1 className="text-lg font-semibold text-rose-900">Billing unavailable</h1>
-        <p className="mt-2">{error}</p>
+        <h1 className="text-lg font-semibold text-rose-900">{t("billing.unavailable")}</h1>
+        <p className="mt-2">{resolveLocalizedMessage(error)}</p>
       </div>
     );
   }
@@ -387,7 +446,7 @@ export default function Billing() {
   if (!billing) {
     return (
       <div className="flex min-h-[360px] items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm font-medium text-zinc-500">
-        Loading billing...
+        {t("billing.loading")}
       </div>
     );
   }
@@ -439,7 +498,7 @@ export default function Billing() {
       });
       await handleCreatedPaymentOrder(result, "top_up");
     } catch (reason) {
-      setTopUpError(reason instanceof Error ? reason.message : "Unable to create payment order.");
+      setTopUpError(errorMessage(reason, "unknown", "payment"));
     } finally {
       setTopUpLoading(false);
     }
@@ -450,7 +509,7 @@ export default function Billing() {
     const categoryActivePlan = groupScoped ? null : activePlanForCategory(plan, activePlans);
     if (!groupScoped && categoryActivePlan?.plan_id === plan.id) return;
     if (!groupScoped && categoryActivePlan && !isHigherTierPlan(plan, categoryActivePlan)) {
-      setPlanError("This plan is already covered by your current global plan.");
+      setPlanError(translationMessage("console:billing.planCoveredError"));
       return;
     }
     setPlanLoadingId(plan.id);
@@ -459,11 +518,15 @@ export default function Billing() {
 
     try {
 	  const creemPlanOffer = isCreem ? creemOffers.find((offer) => offer.plan_id === plan.id && offer.target_type === (groupScoped ? "group_plan" : "global_plan")) : undefined;
-	  if (isCreem && (!creemPlanOffer || categoryActivePlan)) throw new Error("This plan is not available through Creem.");
+	  if (isCreem && (!creemPlanOffer || categoryActivePlan)) {
+        setPlanError(translationMessage("console:billing.planUnavailableCreemError"));
+        return;
+      }
       const upgradeQuote = !isCreem && !groupScoped && categoryActivePlan ? await getGlobalPlanUpgradeQuote(plan.id) : null;
       const orderAmount = upgradeQuote?.upgrade_price ?? plan.price;
       if (orderAmount <= 0) {
-        throw new Error("This plan is already covered by your current global plan.");
+        setPlanError(translationMessage("console:billing.planCoveredError"));
+        return;
       }
       const result = await createPaymentOrder({
         amount: orderAmount,
@@ -478,7 +541,7 @@ export default function Billing() {
       });
       await handleCreatedPaymentOrder(result, "plan");
     } catch (reason) {
-      setPlanError(reason instanceof Error ? reason.message : "Unable to create subscription order.");
+      setPlanError(errorMessage(reason, "unknown", "payment"));
     } finally {
       setPlanLoadingId(null);
     }
@@ -487,8 +550,8 @@ export default function Billing() {
   return (
     <div className="space-y-12">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Subscription & Credits</h1>
-        <p className="text-zinc-500 text-sm">Manage your billing, subscriptions, and wallet credits.</p>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{t("billing.title")}</h1>
+        <p className="text-zinc-500 text-sm">{t("billing.description")}</p>
       </div>
 
       {paymentDialog && (
@@ -502,49 +565,49 @@ export default function Billing() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 bg-zinc-900 rounded-2xl text-white shadow-xl relative overflow-hidden group">
           <Wallet size={80} className="absolute -right-4 -bottom-4 text-white/5" />
-          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Available Balance</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t("billing.availableBalance")}</span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-bold">{formatCredits(billingData.wallet.available_balance)}</span>
-            <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Credits</span>
+            <span className="text-3xl font-bold">{formatCredits(billingData.wallet.available_balance, locale)}</span>
+            <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">{t("billing.credits")}</span>
           </div>
-          <p className="mt-4 text-[10px] text-zinc-500 uppercase tracking-tighter">Includes {formatCredits(billingData.wallet.add_on_credits)} add-on credits</p>
-          <p className="mt-1 text-[10px] text-zinc-500 uppercase tracking-tighter">Plan expires {formatDate(activePlan?.expires_at)}</p>
+          <p className="mt-4 text-[10px] text-zinc-500 uppercase tracking-tighter">{t("billing.includesAddOnCredits", { credits: formatCredits(billingData.wallet.add_on_credits, locale) })}</p>
+          <p className="mt-1 text-[10px] text-zinc-500 uppercase tracking-tighter">{t("billing.planExpires", { date: formatDate(activePlan?.expires_at, locale, t) })}</p>
         </div>
 
         <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm">
-          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Weekly Plan Quota</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t("billing.weeklyPlanQuota")}</span>
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-2xl font-bold text-zinc-900">{usedPercent}% <span className="text-sm font-normal text-zinc-400">used</span></span>
-            <div className="h-2 w-24 bg-zinc-100 rounded-full overflow-hidden">
+            <span className="text-2xl font-bold text-zinc-900">{usedPercent}% <span className="text-sm font-normal text-zinc-400">{t("billing.used")}</span></span>
+            <div className="h-2 w-24 bg-zinc-100 rounded-full overflow-hidden" role="progressbar" aria-label={t("billing.quotaUsageA11y")} aria-valuenow={usedPercent} aria-valuemin={0} aria-valuemax={100}>
               <div className="h-full bg-rose-500" style={{ width: `${usedPercent}%` }} />
             </div>
           </div>
           <p className="mt-4 text-[10px] text-zinc-400 uppercase tracking-tighter flex items-center gap-1">
             <Clock size={12} />
-            Resets on {formatDate(activePlan?.period_end)}
+            {t("billing.resetsOn", { date: formatDate(activePlan?.period_end, locale, t) })}
           </p>
         </div>
 
         <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm">
-          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Active Plan</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t("billing.activePlan")}</span>
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-2xl font-bold text-zinc-900">{activePlan?.name ?? "No Plan"}</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 uppercase tracking-widest">Active</span>
+            <span className="text-2xl font-bold text-zinc-900">{activePlan?.name ?? t("billing.noPlan")}</span>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 uppercase tracking-widest">{t("billing.active")}</span>
           </div>
-          <p className="mt-4 text-[10px] text-zinc-400 uppercase tracking-tighter italic">Expires on {formatDate(activePlan?.expires_at)}</p>
+          <p className="mt-4 text-[10px] text-zinc-400 uppercase tracking-tighter italic">{t("billing.expiresOn", { date: formatDate(activePlan?.expires_at, locale, t) })}</p>
         </div>
       </div>
 
       {/* Subscription Plans */}
       <div className="space-y-6">
         <div>
-          <h3 className="text-xl font-bold tracking-tight text-zinc-900">Subscription Plans</h3>
-          <p className="text-sm text-zinc-500 mt-1">Upgrade your gateway priority and weekly credit allowances.</p>
+          <h3 className="text-xl font-bold tracking-tight text-zinc-900">{t("billing.plansTitle")}</h3>
+          <p className="text-sm text-zinc-500 mt-1">{t("billing.plansDescription")}</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {billingData.plans.map(plan => {
             const groupScoped = isGroupPlan(plan);
-            const scopeDescription = planScopeDescription(plan);
+            const scopeDescription = planScopeDescription(plan, t);
             const categoryActivePlan = groupScoped ? null : activePlanForCategory(plan, activePlans);
             const isCurrent = !groupScoped && categoryActivePlan?.plan_id === plan.id;
             const isCoveredByCurrentGlobalPlan = !groupScoped && !isCurrent && categoryActivePlan ? !isHigherTierPlan(plan, categoryActivePlan) : false;
@@ -554,25 +617,25 @@ export default function Billing() {
               {groupScoped && (
                 <div
                   className="absolute -right-10 top-5 w-40 rotate-45 border-y border-white/30 bg-zinc-900 px-3 py-1 text-center text-[9px] font-bold uppercase tracking-[0.16em] text-white shadow-sm"
-                  title={groupPlanRibbon(plan)}
-                  aria-label={`Group plan for ${groupPlanRibbon(plan)}`}
+                  title={groupPlanRibbon(plan, t)}
+                  aria-label={t("billing.groupPlanA11y", { name: groupPlanRibbon(plan, t) })}
                 >
-                  <span className="block truncate">{groupPlanRibbon(plan)}</span>
+                  <span className="block truncate">{groupPlanRibbon(plan, t)}</span>
                 </div>
               )}
               {isCurrent && (
-                <span className="console-inverted-label mb-4 inline-flex bg-zinc-100 text-zinc-900 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest border border-zinc-200">Current Plan</span>
+                <span className="console-inverted-label mb-4 inline-flex bg-zinc-100 text-zinc-900 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest border border-zinc-200">{t("billing.currentPlan")}</span>
               )}
               <h4 className="text-lg font-bold">{plan.name}</h4>
               <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-3xl font-bold">{formatMoney(plan.price, plan.currency)}</span>
-                <span className={`text-xs ${isCurrent ? 'text-zinc-400' : 'text-zinc-500'}`}>/{plan.billing_period}</span>
+                <span className="text-3xl font-bold">{formatMoney(plan.price, plan.currency, locale)}</span>
+                <span className={`text-xs ${isCurrent ? 'text-zinc-400' : 'text-zinc-500'}`}>/{billingPeriodLabel(plan.billing_period, t)}</span>
               </div>
               <div className="mt-6 space-y-3">
                 <div className={`p-3 rounded-xl border ${isCurrent ? 'console-inverted-subtle bg-white/5 border-white/10' : 'bg-zinc-50 border-zinc-100'}`}>
                   <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest mb-1">
-                    <span className={isCurrent ? 'text-zinc-400' : 'text-zinc-500'}>{planQuotaLabel(plan)}</span>
-                    <span className={isCurrent ? 'console-inverted-strong text-white' : 'text-zinc-900'}>{formatCredits(planQuotaCredits(plan))}</span>
+                    <span className={isCurrent ? 'text-zinc-400' : 'text-zinc-500'}>{planQuotaLabel(plan, t)}</span>
+                    <span className={isCurrent ? 'console-inverted-strong text-white' : 'text-zinc-900'}>{formatCredits(planQuotaCredits(plan), locale)}</span>
                   </div>
                 </div>
                 {scopeDescription && (
@@ -598,12 +661,12 @@ export default function Billing() {
               </ul>
               {isCurrent && activePlan?.expires_at && (
                 <p className="console-inverted-subtle mt-5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-300">
-                  Expires {formatDate(activePlan.expires_at)}
+                  {t("billing.expires", { date: formatDate(activePlan.expires_at, locale, t) })}
                 </p>
               )}
               {isCoveredByCurrentGlobalPlan ? (
                 <p className="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-center text-sm font-bold text-zinc-500">
-                  Included in current plan
+                  {t("billing.includedInCurrentPlan")}
                 </p>
               ) : (
                 <button
@@ -611,7 +674,7 @@ export default function Billing() {
 				  disabled={planLoadingId === plan.id || isCurrent || !creemPlanAvailable}
                   className={`mt-8 w-full rounded-xl py-2.5 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${isCurrent ? 'bg-white text-zinc-900 hover:bg-zinc-100' : 'bg-zinc-900 text-white hover:bg-zinc-800'}`}
                 >
-				  {planLoadingId === plan.id ? "Creating order..." : isCurrent ? 'Current Plan' : !creemPlanAvailable ? "Unavailable with Creem" : `Upgrade to ${plan.name}`}
+				  {planLoadingId === plan.id ? t("billing.creatingOrder") : isCurrent ? t("billing.currentPlan") : !creemPlanAvailable ? t("billing.unavailableWithCreem") : t("billing.upgradeTo", { name: plan.name })}
                 </button>
               )}
             </div>
@@ -619,11 +682,11 @@ export default function Billing() {
         </div>
         {planError && (
           <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
-            {planError}
+            {resolveLocalizedMessage(planError)}
           </p>
         )}
         {planOrder && (
-          <PaymentOrderNotice order={planOrder} currency={planOrder.currency || billingData.wallet.currency} />
+          <PaymentOrderNotice order={planOrder} currency={planOrder.currency || billingData.wallet.currency} locale={locale} />
         )}
       </div>
 
@@ -632,14 +695,14 @@ export default function Billing() {
         <div className="rounded-[2rem] border border-zinc-200 bg-white p-8 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h3 className="font-bold text-zinc-900">Add-on Top-up</h3>
-              <p className="mt-1 text-xs text-zinc-500">Buy non-expiring credits that act as a fallback.</p>
+              <h3 className="font-bold text-zinc-900">{t("billing.topUpTitle")}</h3>
+              <p className="mt-1 text-xs text-zinc-500">{t("billing.topUpDescription")}</p>
             </div>
             {(checkoutMin > 0 || checkoutMax > 0) && (
               <p className="rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                {checkoutMin > 0 ? `Min ${formatMoney(checkoutMin, billingData.wallet.currency)}` : "No min"}
+                {checkoutMin > 0 ? t("billing.minimum", { amount: formatMoney(checkoutMin, billingData.wallet.currency, locale) }) : t("billing.noMinimum")}
                 {" · "}
-                {checkoutMax > 0 ? `Max ${formatMoney(checkoutMax, billingData.wallet.currency)}` : "No max"}
+                {checkoutMax > 0 ? t("billing.maximum", { amount: formatMoney(checkoutMax, billingData.wallet.currency, locale) }) : t("billing.noMaximum")}
               </p>
             )}
           </div>
@@ -664,16 +727,16 @@ export default function Billing() {
                     : "border-zinc-200 text-zinc-900 hover:border-zinc-900 hover:bg-zinc-50"
                 }`}
               >
-				<span className="block">{isCreem && "pay_amount" in item ? formatMoney(item.pay_amount, item.payment_currency) : formatMoney(amount, "currency" in item ? item.currency : walletCurrency)}</span>
+				<span className="block">{isCreem && "pay_amount" in item ? formatMoney(item.pay_amount, item.payment_currency, locale) : formatMoney(amount, "currency" in item ? item.currency : walletCurrency, locale)}</span>
 				<span className={`mt-1 block text-[10px] uppercase tracking-widest ${selected ? "text-zinc-400" : "text-zinc-500"}`}>
-				  {formatCredits(credits)} credits
+				  {t("billing.creditAmount", { credits: formatCredits(credits, locale) })}
                 </span>
               </button>
 			)})}
 			{!isCreem && <label className="min-w-56 flex-1 rounded-2xl border border-zinc-200 px-5 py-4 transition-all focus-within:border-zinc-900">
-              <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">Custom amount</span>
+              <span className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("billing.customAmount")}</span>
               <div className="mt-2 flex items-center gap-2">
-                <span className="text-lg font-bold text-zinc-400">$</span>
+                <span className="text-lg font-bold text-zinc-400">{currencySymbol(walletCurrency, locale)}</span>
                 <input
                   value={customTopUpAmount}
                   onChange={(event) => {
@@ -682,7 +745,7 @@ export default function Billing() {
                     setTopUpOrder(null);
                   }}
                   inputMode="decimal"
-                  placeholder="Enter amount"
+                  placeholder={t("billing.enterAmount")}
                   className="w-full bg-transparent text-lg font-bold text-zinc-900 outline-none placeholder:text-zinc-300"
                 />
               </div>
@@ -692,24 +755,24 @@ export default function Billing() {
 
         <div className="console-inverted-panel console-payment-preview rounded-[2rem] border border-zinc-200 bg-zinc-950 p-8 text-white shadow-xl">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold">Payment Preview</h3>
+            <h3 className="font-bold">{t("billing.paymentPreview")}</h3>
             <CreditCard size={24} className="text-zinc-500" />
           </div>
           <div className="mt-6 space-y-4 text-sm">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <span className="text-zinc-400">Item</span>
-              <span className="font-bold">Add-on Credits</span>
+              <span className="text-zinc-400">{t("billing.item")}</span>
+              <span className="font-bold">{t("billing.addOnCredits")}</span>
             </div>
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <span className="text-zinc-400">Estimated credits</span>
-              <span className="font-bold">{formatCredits(previewCredits)}</span>
+              <span className="text-zinc-400">{t("billing.estimatedCredits")}</span>
+              <span className="font-bold">{formatCredits(previewCredits, locale)}</span>
             </div>
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <span className="text-zinc-400">Amount due</span>
-			  <span className="text-xl font-bold">{isCreem && selectedCreemOffer ? formatMoney(selectedCreemOffer.pay_amount, selectedCreemOffer.payment_currency) : formatMoney(previewAmount, billingData.wallet.currency)}</span>
+              <span className="text-zinc-400">{t("billing.amountDue")}</span>
+			  <span className="text-xl font-bold">{isCreem && selectedCreemOffer ? formatMoney(selectedCreemOffer.pay_amount, selectedCreemOffer.payment_currency, locale) : formatMoney(previewAmount, billingData.wallet.currency, locale)}</span>
             </div>
             <label className="block">
-              <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">Payment method</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">{t("billing.paymentMethod")}</span>
               <select
                 value={defaultPaymentMethod}
 				onChange={(event) => {
@@ -720,7 +783,7 @@ export default function Billing() {
               >
                 {paymentMethods.map((method) => (
                   <option key={method} value={method} className="text-zinc-900">
-                    {method}
+                    {paymentMethodLabel(method, t)}
                   </option>
                 ))}
               </select>
@@ -731,26 +794,26 @@ export default function Billing() {
             disabled={topUpOutOfRange || !defaultPaymentMethod || topUpLoading}
             className="console-inverted-action mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 font-bold text-zinc-950 transition-all hover:bg-zinc-100 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
           >
-            {topUpLoading ? "Creating order..." : "Create payment order"}
+            {topUpLoading ? t("billing.creatingOrder") : t("billing.createPaymentOrder")}
             <ArrowUpRight size={18} weight="bold" />
           </button>
           {topUpOutOfRange && (
             <p className="mt-3 text-xs font-medium text-amber-300">
-              Enter an amount within the supported payment range.
+              {t("billing.paymentRangeError")}
             </p>
           )}
           {topUpError && (
             <p className="mt-3 rounded-xl border border-rose-400/40 bg-rose-500/10 p-3 text-xs font-medium text-rose-200">
-              {topUpError}
+              {resolveLocalizedMessage(topUpError)}
             </p>
           )}
           {topUpOrder && (
             <div className="mt-4">
-              <PaymentOrderNotice order={topUpOrder} currency={topUpOrder.currency || billingData.wallet.currency} />
+              <PaymentOrderNotice order={topUpOrder} currency={topUpOrder.currency || billingData.wallet.currency} locale={locale} />
             </div>
           )}
           <p className="mt-4 text-center text-[10px] uppercase tracking-widest text-zinc-500">
-            Secure payment via {defaultPaymentMethod || "configured provider"}
+            {t("billing.securePaymentVia", { provider: defaultPaymentMethod ? paymentMethodLabel(defaultPaymentMethod, t) : t("billing.configuredProvider") })}
           </p>
         </div>
       </div>
@@ -761,61 +824,61 @@ export default function Billing() {
           {/* Billing Table */}
           <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="font-bold text-zinc-900">Wallet & Order Activity</h3>
+              <h3 className="font-bold text-zinc-900">{t("billing.activityTitle")}</h3>
               <button className="text-xs font-bold text-zinc-500 hover:text-zinc-900 flex items-center gap-1.5">
                 <DownloadSimple size={14} weight="bold" />
-                Export CSV
+                {t("billing.exportCsv")}
               </button>
             </div>
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-50/50 border-b border-zinc-200">
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Date</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Reference</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Type</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Status</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Amount</th>
-                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] text-right">Actions</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("billing.date")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("billing.reference")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("billing.type")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("billing.status")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("billing.amount")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] text-right">{t("billing.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {billingData.activity.map((item) => (
                   <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm text-zinc-500">{formatDate(item.date)}</td>
+                    <td className="px-6 py-4 text-sm text-zinc-500">{formatDate(item.date, locale, t)}</td>
                     <td className="px-6 py-4 text-sm font-mono text-zinc-400">{item.reference}</td>
                     <td className="px-6 py-4 text-sm font-medium text-zinc-900">{item.label}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${statusClass(item.status)}`}>
-                        {normalizeOrderStatus(item.status) || "UNKNOWN"}
+                        {orderStatusLabel(item.status, t)}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-zinc-900">
-                      <span>{formatMoney(item.amount, item.currency)}</span>
-                      {orderPaymentSummary(item) ? (
-                        <span className="mt-1 block text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{orderPaymentSummary(item)}</span>
+                      <span>{formatMoney(item.amount, item.currency, locale)}</span>
+                      {orderPaymentSummary(item, locale, t) ? (
+                        <span className="mt-1 block text-[10px] font-semibold uppercase tracking-widest text-zinc-400">{orderPaymentSummary(item, locale, t)}</span>
                       ) : null}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2">
                       {isPendingOrder(item.status) && item.pay_url ? (
                         <a href={item.pay_url} className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-600 transition-all hover:border-zinc-900 hover:text-zinc-900">
-                          Pay again
+                          {t("billing.payAgain")}
                           <ArrowUpRight size={14} weight="bold" />
                         </a>
                       ) : null}
                       {isPendingOrder(item.status) ? (
                         <button
                           type="button"
-                          aria-label={`Cancel order ${item.reference}`}
+                          aria-label={t("billing.cancelOrderA11y", { reference: item.reference })}
                           onClick={() => void cancelActivityOrder(item)}
                           disabled={orderActionId === item.id}
                           className="inline-flex items-center gap-1 rounded-lg border border-rose-100 px-3 py-2 text-xs font-bold text-rose-600 transition-all hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           <XCircle size={14} weight="bold" />
-                          Cancel
+                          {t("billing.cancel")}
                         </button>
                       ) : null}
-                      <button className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all">
+                      <button aria-label={t("billing.viewReceiptA11y", { reference: item.reference })} className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all">
                         <Receipt size={18} />
                       </button>
                       </div>
@@ -826,7 +889,7 @@ export default function Billing() {
             </table>
             {orderActionError && (
               <p className="border-t border-rose-100 bg-rose-50 px-6 py-3 text-xs font-medium text-rose-700">
-                {orderActionError}
+                {resolveLocalizedMessage(orderActionError)}
               </p>
             )}
           </div>
@@ -837,11 +900,11 @@ export default function Billing() {
               <Lightning size={24} weight="fill" className="text-amber-500" />
             </div>
             <div className="space-y-2">
-              <h4 className="font-bold text-zinc-900">How Credits & Plans Work</h4>
+              <h4 className="font-bold text-zinc-900">{t("billing.faqTitle")}</h4>
               <p className="text-sm text-zinc-500 leading-relaxed">
-                When you make an API call, we <strong className="text-zinc-900">prioritize your weekly Plan Credits</strong>.
-                When your plan quota hits 100%, we automatically fallback to your <strong className="text-zinc-900">Add-on Wallet Balance</strong> to keep your services running.
-                If both are exhausted, or if you exceed your plan's concurrency limits, your requests may be queued or rate-limited.
+                {t("billing.faqBeforePlan")} <strong className="text-zinc-900">{t("billing.faqPlanCredits")}</strong>.
+                {" "}{t("billing.faqBeforeWallet")} <strong className="text-zinc-900">{t("billing.faqWalletBalance")}</strong> {t("billing.faqAfterWallet")}
+                {" "}{t("billing.faqLimits")}
               </p>
             </div>
           </div>
@@ -851,32 +914,44 @@ export default function Billing() {
   );
 }
 
-function PaymentOrderNotice({ order, currency }: { order: CreateOrderResult; currency: string }) {
+function PaymentOrderNotice({ order, currency, locale }: { order: CreateOrderResult; currency: string; locale: string }) {
+  const { t } = useTranslation("console");
   return (
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-      <p className="font-bold">Order #{order.order_id} created</p>
-      <p className="mt-1 text-xs text-emerald-700">Amount: {formatMoney(order.pay_amount, order.payment_currency || order.currency || currency)}</p>
+      <p className="font-bold">{t("billing.orderNotice.created", { id: order.order_id })}</p>
+      <p className="mt-1 text-xs text-emerald-700">{t("billing.orderNotice.amount", { amount: formatMoney(order.pay_amount, order.payment_currency || order.currency || currency, locale) })}</p>
       {order.pay_url ? (
         <a href={order.pay_url} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-emerald-900 underline">
-          Continue payment
+          {t("billing.continuePayment")}
           <ArrowUpRight size={14} weight="bold" />
         </a>
       ) : order.qr_code ? (
-        <p className="mt-3 break-all text-xs font-mono text-emerald-800">{order.qr_code}</p>
+        <div className="mt-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{t("billing.qrCodePayload")}</p>
+          <p className="mt-1 break-all text-xs font-mono text-emerald-800">{order.qr_code}</p>
+        </div>
       ) : (
-        <p className="mt-3 text-xs text-emerald-700">Open the classic payment page if your provider requires an embedded checkout.</p>
+        <p className="mt-3 text-xs text-emerald-700">{t("billing.orderNotice.classicPayment")}</p>
       )}
     </div>
   );
 }
 
 function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice; onClose: () => void }) {
+  const { t, i18n } = useTranslation("console");
+  const locale = i18n.resolvedLanguage || i18n.language || "en";
   const toneClass = notice.type === "success"
     ? "border-emerald-200 bg-emerald-50 text-emerald-900"
     : notice.type === "error"
       ? "border-rose-200 bg-rose-50 text-rose-900"
       : "border-zinc-200 bg-white text-zinc-900";
   const helperClass = notice.type === "error" ? "text-rose-700" : "text-zinc-600";
+  const message = notice.status && notice.message.kind === "translation"
+    ? resolveLocalizedMessage({
+        ...notice.message,
+        values: { ...notice.message.values, status: orderStatusLabel(notice.status, t) },
+      })
+    : resolveLocalizedMessage(notice.message);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
@@ -888,14 +963,14 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p id="payment-status-title" className="text-lg font-bold">{notice.title}</p>
-            <p className={`mt-2 text-sm leading-6 ${helperClass}`}>{notice.message}</p>
+            <p id="payment-status-title" className="text-lg font-bold">{resolveLocalizedMessage(notice.title)}</p>
+            <p className={`mt-2 text-sm leading-6 ${helperClass}`}>{message}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
-            aria-label="Dismiss payment dialog"
+            aria-label={t("billing.dismissPaymentDialog")}
           >
             <XCircle size={22} weight="bold" />
           </button>
@@ -904,12 +979,12 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
         {notice.order ? (
           <div className="mt-5 rounded-2xl border border-black/5 bg-white/70 p-4 text-sm">
             <div className="flex items-center justify-between gap-4">
-              <span className="text-zinc-500">Order</span>
+              <span className="text-zinc-500">{t("billing.order")}</span>
               <span className="font-mono font-bold text-zinc-900">#{notice.order.order_id}</span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-4">
-              <span className="text-zinc-500">Amount</span>
-              <span className="font-bold text-zinc-900">{formatMoney(notice.order.pay_amount, notice.order.payment_currency || notice.order.currency || "USD")}</span>
+              <span className="text-zinc-500">{t("billing.amount")}</span>
+              <span className="font-bold text-zinc-900">{formatMoney(notice.order.pay_amount, notice.order.payment_currency || notice.order.currency || "USD", locale)}</span>
             </div>
             {notice.order.pay_url ? (
               <a
@@ -918,12 +993,12 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
                 rel="noreferrer"
                 className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-zinc-800"
               >
-                Continue payment
+                {t("billing.continuePayment")}
                 <ArrowUpRight size={16} weight="bold" />
               </a>
             ) : notice.order.qr_code ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">QR code payload</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">{t("billing.qrCodePayload")}</p>
                 <p className="mt-2 break-all font-mono text-xs text-zinc-700">{notice.order.qr_code}</p>
               </div>
             ) : null}
