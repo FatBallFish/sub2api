@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import ConsoleLayout from "./ConsoleLayout";
 import type { ConsoleBootstrap } from "../types/console";
+import i18n from "../i18n";
 
 const bootstrap: ConsoleBootstrap = {
   user: { id: 1, email: "user@example.com", name: "User", role: "user" },
@@ -116,5 +117,44 @@ describe("ConsoleLayout", () => {
 
     expect(screen.getByTestId("console-shell")).toHaveAttribute("data-theme", "dark");
     expect(screen.getByRole("button", { name: /switch to light theme/i })).toBeInTheDocument();
+  });
+
+  it("localizes shell navigation, controls, credits, breadcrumb, and title without changing backend values", async () => {
+    await i18n.changeLanguage("zh-CN");
+
+    render(
+      <MemoryRouter initialEntries={["/console/api-keys"]}>
+        <Routes>
+          <Route path="/console" element={<ConsoleLayout bootstrap={bootstrap} />}>
+            <Route path="api-keys" element={<div>Dynamic child</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "API 密钥" })).toHaveAttribute("href", "/console/api-keys");
+    expect(screen.getByRole("link", { name: "概览" })).toBeInTheDocument();
+    expect(screen.getAllByText("API 密钥").length).toBeGreaterThan(1);
+    expect(screen.getByText("积分")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切换到深色主题" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "打开账户菜单" })).toBeInTheDocument();
+    expect(screen.getByLabelText("2 条未读公告")).toBeInTheDocument();
+    expect(screen.getAllByText("Pro Plan").length).toBeGreaterThan(0);
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(document.title).toBe("API 密钥 | Mikiko CC");
+
+    fireEvent.click(screen.getByRole("button", { name: "打开账户菜单" }));
+    expect(screen.getByText("用户")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "退出登录" })).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByRole("link", { name: "API キー" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ダークテーマに切り替え" })).toBeInTheDocument();
+    expect(screen.getByText("クレジット")).toBeInTheDocument();
+    expect(screen.getByText("ユーザー")).toBeInTheDocument();
+    expect(document.title).toBe("API キー | Mikiko CC");
   });
 });

@@ -22,6 +22,8 @@ import type { ConsoleBootstrap } from "../types/console";
 import { clearAuthStorage } from "../utils/authStorage";
 import { formatCredits } from "../utils/format";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import { useTranslation } from "react-i18next";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -42,15 +44,15 @@ function persistConsoleTheme(theme: ConsoleTheme) {
 }
 
 const navItems = [
-  { name: "Overview", href: "/console", icon: Layout },
-  { name: "API Keys", href: "/console/api-keys", icon: Key },
-  { name: "Playground", href: "/console/playground", icon: Flask },
-  { name: "Subscription & Credits", href: "/console/subscription-wallet", icon: CreditCard },
-  { name: "Referral", href: "/console/referral", icon: Users },
-  { name: "Model Pricing", href: "/console/model-pricing", icon: ChartBar },
-  { name: "Usage History", href: "/console/usage-history", icon: Clock },
-  { name: "Announcements", href: "/console/announcements", icon: Megaphone },
-];
+  { id: "overview", labelKey: "nav.overview", href: "/console", icon: Layout },
+  { id: "apiKeys", labelKey: "nav.apiKeys", href: "/console/api-keys", icon: Key },
+  { id: "playground", labelKey: "nav.playground", href: "/console/playground", icon: Flask },
+  { id: "subscriptionCredits", labelKey: "nav.subscriptionCredits", href: "/console/subscription-wallet", icon: CreditCard },
+  { id: "referral", labelKey: "nav.referral", href: "/console/referral", icon: Users },
+  { id: "modelPricing", labelKey: "nav.modelPricing", href: "/console/model-pricing", icon: ChartBar },
+  { id: "usageHistory", labelKey: "nav.usageHistory", href: "/console/usage-history", icon: Clock },
+  { id: "announcements", labelKey: "nav.announcements", href: "/console/announcements", icon: Megaphone },
+] as const;
 
 const fallbackBootstrap: ConsoleBootstrap = {
   user: { id: 0, email: "user@example.com", name: "User", role: "user" },
@@ -72,15 +74,18 @@ interface ConsoleLayoutProps {
 }
 
 export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: ConsoleLayoutProps) {
+  const { t } = useTranslation("console");
   const location = useLocation();
   const navigate = useNavigate();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [theme, setTheme] = useState<ConsoleTheme>(() => readConsoleTheme());
   const planPercent = Math.min(Math.max(bootstrap.global_plan.used_percent, 0), 100);
   const visibleNavItems = useMemo(
-    () => navItems.filter((item) => item.name !== "Referral" || bootstrap.affiliate_enabled !== false),
+    () => navItems.filter((item) => item.id !== "referral" || bootstrap.affiliate_enabled !== false),
     [bootstrap.affiliate_enabled],
   );
+  const activeNavItem = visibleNavItems.find((item) => item.href === location.pathname) ?? navItems[0];
+  usePageTitle(t(activeNavItem.labelKey));
 
   const logout = () => {
     clearAuthStorage();
@@ -114,7 +119,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             const isActive = location.pathname === item.href;
             return (
               <NavLink
-                key={item.name}
+                key={item.id}
                 to={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
@@ -124,7 +129,15 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
                 )}
               >
                 <item.icon size={20} weight={isActive ? "fill" : "regular"} />
-                {item.name}
+                <span>{t(item.labelKey)}</span>
+                {item.id === "announcements" && bootstrap.unread_announcements > 0 ? (
+                  <span
+                    aria-label={t("shell.unreadAnnouncements", { count: bootstrap.unread_announcements })}
+                    className="ml-auto rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700"
+                  >
+                    {bootstrap.unread_announcements}
+                  </span>
+                ) : null}
               </NavLink>
             );
           })}
@@ -135,7 +148,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
             <Wallet size={24} weight="fill" className="text-zinc-400 shrink-0" />
             <div className="flex flex-col flex-1">
-              <span className="console-credit-balance text-sm font-bold text-white leading-none mb-1">{formatCredits(bootstrap.wallet.available_balance)} <span className="console-credit-unit text-[10px] text-zinc-400 uppercase tracking-widest ml-0.5 font-normal">Credits</span></span>
+              <span className="console-credit-balance text-sm font-bold text-white leading-none mb-1">{formatCredits(bootstrap.wallet.available_balance)} <span className="console-credit-unit text-[10px] text-zinc-400 uppercase tracking-widest ml-0.5 font-normal">{t("shell.credits")}</span></span>
               <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">{bootstrap.global_plan.name}</span>
               <div className="w-full h-1 bg-zinc-800 rounded-full mt-1.5 overflow-hidden">
                 <div className="h-full bg-emerald-500" style={{ width: `${planPercent}%` }} />
@@ -151,10 +164,10 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
         {/* Topbar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between px-8 bg-white/80 backdrop-blur-md border-b border-zinc-200/50">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-zinc-400">Console</span>
+            <span className="text-sm text-zinc-400">{t("shell.console")}</span>
             <span className="text-zinc-300">/</span>
             <span className="text-sm font-medium text-zinc-900">
-              {visibleNavItems.find(i => i.href === location.pathname)?.name || "Overview"}
+              {t(activeNavItem.labelKey)}
             </span>
           </div>
 
@@ -162,7 +175,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             <LanguageSwitcher />
             <button
               type="button"
-              aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+              aria-label={t(isDark ? "shell.switchToLightTheme" : "shell.switchToDarkTheme")}
               onClick={toggleTheme}
               className="h-8 w-8 rounded-full border border-zinc-200 bg-white text-zinc-600 flex items-center justify-center hover:bg-zinc-50 transition-colors"
             >
@@ -174,7 +187,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             </div>
             <button
               type="button"
-              aria-label="Open account menu"
+              aria-label={t("shell.openAccountMenu")}
               onClick={() => setAccountMenuOpen((open) => !open)}
               className="h-8 w-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 hover:bg-zinc-200 transition-colors"
             >
@@ -184,7 +197,13 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
               <div className="absolute right-8 top-14 w-56 rounded-xl border border-zinc-200 bg-white p-2 shadow-xl">
                 <div className="border-b border-zinc-100 px-3 py-2">
                   <div className="text-xs font-bold text-zinc-900">{bootstrap.user.email}</div>
-                  <div className="mt-0.5 text-[10px] uppercase tracking-widest text-zinc-400">{bootstrap.user.role}</div>
+                  <div className="mt-0.5 text-[10px] uppercase tracking-widest text-zinc-400">
+                    {bootstrap.user.role === "admin"
+                      ? t("shell.roleAdmin")
+                      : bootstrap.user.role === "user"
+                        ? t("shell.roleUser")
+                        : bootstrap.user.role}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -192,7 +211,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
                   className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
                 >
                   <SignOut size={16} />
-                  Log out
+                  {t("shell.logout")}
                 </button>
               </div>
             ) : null}

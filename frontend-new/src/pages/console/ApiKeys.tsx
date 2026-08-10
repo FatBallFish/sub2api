@@ -21,13 +21,22 @@ import type { ApiKey } from "../../types/keys";
 import type { APIKeyUsageStats } from "../../types/usage";
 import { buildCcSwitchImportDeeplink, gatewayBaseUrl, type CcSwitchClientType } from "../../utils/clientConfig";
 import { formatCredits } from "../../utils/format";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  translationMessage,
+  type LocalizedMessage,
+} from "../../utils/localizedMessage";
 
 const tabs = [
-  { label: "All Keys", status: "all" },
-  { label: "Active", status: "active" },
-  { label: "Disabled", status: "inactive" },
-  { label: "Exhausted", status: "quota_exhausted" },
-];
+  { labelKey: "apiKeys.allKeys", status: "all" },
+  { labelKey: "apiKeys.active", status: "active" },
+  { labelKey: "apiKeys.disabled", status: "inactive" },
+  { labelKey: "apiKeys.exhausted", status: "quota_exhausted" },
+] as const;
 
 function maskKey(value: string) {
   if (!value) return "sk-....";
@@ -36,15 +45,15 @@ function maskKey(value: string) {
   return `${value.slice(0, 3)}-....${value.slice(-4)}`;
 }
 
-function formatUsage(key: ApiKey, stats?: APIKeyUsageStats) {
+function formatUsage(key: ApiKey, locale: string, t: TFunction<"console">, stats?: APIKeyUsageStats) {
   const used = stats?.total_actual_cost ?? key.quota_used;
-  if (!key.quota) return `${formatCredits(used)} / Unlimited`;
-  return `${formatCredits(used)} / ${formatCredits(key.quota)}`;
+  if (!key.quota) return `${formatCredits(used, locale)} / ${t("apiKeys.unlimited")}`;
+  return `${formatCredits(used, locale)} / ${formatCredits(key.quota, locale)}`;
 }
 
-function formatPlatform(value?: string) {
+function formatPlatform(value: string | undefined, t: TFunction<"console">) {
   const normalized = (value || "").trim().toLowerCase();
-  if (!normalized) return "Auto";
+  if (!normalized) return t("apiKeys.platformAuto");
   const labels: Record<string, string> = {
     openai: "OpenAI",
     anthropic: "Claude",
@@ -84,26 +93,30 @@ function applyEffectiveGroupRate(key: ApiKey, groups: AvailableGroup[], userRate
   return { ...hydrated, group: { ...hydrated.group, rate_multiplier: userRate } };
 }
 
-function relativeTime(value: string | null) {
-  if (!value) return "Never";
+function relativeTime(value: string | null, t: TFunction<"console">) {
+  if (!value) return t("apiKeys.never");
   const timestamp = new Date(value).getTime();
-  if (Number.isNaN(timestamp)) return "Recently";
+  if (Number.isNaN(timestamp)) return t("apiKeys.recently");
   const diffMinutes = Math.max(Math.round((Date.now() - timestamp) / 60000), 0);
-  if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 1) return t("apiKeys.justNow");
+  if (diffMinutes < 60) return t("apiKeys.minutesAgo", { count: diffMinutes });
   const diffHours = Math.round(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${Math.round(diffHours / 24)}d ago`;
+  if (diffHours < 24) return t("apiKeys.hoursAgo", { count: diffHours });
+  return t("apiKeys.daysAgo", { count: Math.round(diffHours / 24) });
 }
 
 export default function ApiKeys() {
+  const { t, i18n } = useTranslation("console");
+  const locale = i18n.resolvedLanguage || i18n.language || "en";
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [feedback, setFeedback] = useState<LocalizedMessage | null>(null);
+  const [formError, setFormError] = useState<LocalizedMessage | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createName, setCreateName] = useState("Local Development");
+  const [createName, setCreateName] = useState("");
   const [createQuota, setCreateQuota] = useState("");
   const [groups, setGroups] = useState<AvailableGroup[]>([]);
   const [userGroupRates, setUserGroupRates] = useState<Record<string, number>>({});
@@ -120,6 +133,7 @@ export default function ApiKeys() {
     () => keys.map((key) => applyEffectiveGroupRate(key, groups, userGroupRates)),
     [groups, keys, userGroupRates],
   );
+  usePageTitle(t("apiKeys.title"));
 
   useEffect(() => {
     let active = true;
@@ -154,7 +168,7 @@ export default function ApiKeys() {
       })
       .catch((reason: unknown) => {
         if (active) {
-          setError(reason instanceof Error ? reason.message : "Unable to load API keys.");
+          setError(errorMessage(reason, "apiKeysLoadFailed", "apiKeys"));
         }
       })
       .finally(() => {
@@ -205,10 +219,16 @@ export default function ApiKeys() {
   }, []);
 
   const copyKey = async (key: ApiKey) => {
-    const revealed = await revealApiKey(key.id);
-    await navigator.clipboard.writeText(revealed.key);
-    setCopiedId(key.id);
-    window.setTimeout(() => setCopiedId(null), 2000);
+    setError(null);
+    try {
+      const revealed = await revealApiKey(key.id);
+      await navigator.clipboard.writeText(revealed.key);
+      setCopiedId(key.id);
+      setFeedback(translationMessage("console:apiKeys.copied", { name: key.name }));
+      window.setTimeout(() => setCopiedId(null), 2000);
+    } catch (reason) {
+      setError(errorMessage(reason, "apiKeyRevealFailed", "apiKeys"));
+    }
   };
 
   const executeCcsImport = async (key: ApiKey, clientType: CcSwitchClientType) => {
@@ -226,7 +246,7 @@ export default function ApiKeys() {
       });
       window.open(deeplink, "_self");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to import this key to CCSwitch.");
+      setError(errorMessage(reason, "apiKeyImportFailed", "apiKeys"));
     } finally {
       setImportingCcsId(null);
       setPendingCcsKey(null);
@@ -249,10 +269,21 @@ export default function ApiKeys() {
   const closeKeyModal = () => {
     setShowCreateModal(false);
     setEditingKey(null);
-    setCreateName("Local Development");
+    setCreateName("");
     setCreateQuota("");
     setCreateGroupId("");
     setGroupPickerOpen(false);
+    setFormError(null);
+  };
+
+  const openCreate = () => {
+    setEditingKey(null);
+    setCreateName(t("apiKeys.defaultName"));
+    setCreateQuota("");
+    setCreateGroupId("");
+    setGroupPickerOpen(false);
+    setFormError(null);
+    setShowCreateModal(true);
   };
 
   const openEdit = (key: ApiKey) => {
@@ -266,28 +297,41 @@ export default function ApiKeys() {
 
   const submitKeyForm = async (event: FormEvent) => {
     event.preventDefault();
+    const normalizedName = createName.trim();
+    if (!normalizedName) {
+      setFormError(translationMessage("console:apiKeys.nameRequired"));
+      return;
+    }
+    const normalizedQuota = createQuota.trim();
+    const parsedQuota = normalizedQuota ? Number(normalizedQuota) : undefined;
+    if (parsedQuota !== undefined && (!Number.isFinite(parsedQuota) || parsedQuota < 0)) {
+      setFormError(translationMessage("console:apiKeys.quotaInvalid"));
+      return;
+    }
     setCreating(true);
     setError(null);
+    setFormError(null);
     try {
-      const quota = createQuota.trim() ? Number(createQuota) : undefined;
       const groupID = createGroupId ? Number(createGroupId) : null;
       const payload = {
-        name: createName.trim(),
-        quota: quota && Number.isFinite(quota) ? quota : undefined,
+        name: normalizedName,
+        quota: parsedQuota,
         ...(!editingKey || groupID !== (editingKey.group_id ?? null) ? { group_id: groupID } : {}),
       };
       if (editingKey) {
         const updated = await updateApiKey(editingKey.id, payload);
         const hydrated = hydrateApiKeyGroup(updated, groups);
         setKeys((current) => current.map((item) => (item.id === hydrated.id ? hydrated : item)));
+        setFeedback(translationMessage("console:apiKeys.updated", { name: hydrated.name }));
       } else {
         const created = await createApiKey(payload);
         const hydrated = hydrateApiKeyGroup(created, groups);
         setKeys((current) => [hydrated, ...current.filter((item) => item.id !== hydrated.id)]);
+        setFeedback(translationMessage("console:apiKeys.created", { name: hydrated.name }));
       }
       closeKeyModal();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to save API key.");
+      setError(errorMessage(reason, "apiKeySaveFailed", "apiKeys"));
     } finally {
       setCreating(false);
     }
@@ -299,8 +343,12 @@ export default function ApiKeys() {
     try {
       const updated = await updateApiKey(key.id, { status });
       setKeys((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setFeedback(translationMessage(
+        status === "active" ? "console:apiKeys.enabledSuccess" : "console:apiKeys.disabledSuccess",
+        { name: key.name },
+      ));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to update API key.");
+      setError(errorMessage(reason, "apiKeyUpdateFailed", "apiKeys"));
     } finally {
       setSavingActionId(null);
     }
@@ -312,8 +360,9 @@ export default function ApiKeys() {
     try {
       await deleteApiKey(key.id);
       setKeys((current) => current.filter((item) => item.id !== key.id));
+      setFeedback(translationMessage("console:apiKeys.deleted", { name: key.name }));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to delete API key.");
+      setError(errorMessage(reason, "apiKeyDeleteFailed", "apiKeys"));
     } finally {
       setSavingActionId(null);
     }
@@ -322,8 +371,8 @@ export default function ApiKeys() {
   if (error) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-        <h1 className="text-lg font-semibold text-rose-900">API keys unavailable</h1>
-        <p className="mt-2">{error}</p>
+        <h1 className="text-lg font-semibold text-rose-900">{t("apiKeys.unavailable")}</h1>
+        <p className="mt-2">{resolveLocalizedMessage(error)}</p>
       </div>
     );
   }
@@ -332,18 +381,24 @@ export default function ApiKeys() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">API Keys</h1>
-          <p className="text-zinc-500 text-sm">Create and manage access credentials for your AI coding clients.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{t("apiKeys.title")}</h1>
+          <p className="text-zinc-500 text-sm">{t("apiKeys.description")}</p>
         </div>
         <button
           type="button"
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreate}
           className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-lg font-medium shadow-sm hover:bg-zinc-800 transition-colors"
         >
           <Plus size={18} weight="bold" />
-          Create New Key
+          {t("apiKeys.createNew")}
         </button>
       </div>
+
+      {feedback ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          {resolveLocalizedMessage(feedback)}
+        </div>
+      ) : null}
 
       {/* Filters */}
       <div className="flex items-center gap-2 border-b border-zinc-200">
@@ -355,7 +410,7 @@ export default function ApiKeys() {
               activeStatus === tab.status ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-900"
             }`}
           >
-            {tab.label}
+            {t(tab.labelKey)}
             {activeStatus === tab.status && (
               <motion.div
                 layoutId="activeTab"
@@ -368,7 +423,7 @@ export default function ApiKeys() {
 
       {loading && (
         <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm font-medium text-zinc-500">
-          Loading API keys...
+          {t("apiKeys.loading")}
         </div>
       )}
 
@@ -378,16 +433,22 @@ export default function ApiKeys() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-zinc-50/50 border-b border-zinc-200">
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Name</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Group</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Key</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Usage</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">Last Used</th>
-              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">Actions</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">{t("apiKeys.name")}</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">{t("apiKeys.group")}</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">{t("apiKeys.key")}</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">{t("apiKeys.usage")}</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest">{t("apiKeys.lastUsed")}</th>
+              <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-widest text-right">{t("apiKeys.actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {displayKeys.map((key) => (
+            {displayKeys.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-sm text-zinc-400">
+                  {t("apiKeys.empty")}
+                </td>
+              </tr>
+            ) : displayKeys.map((key) => (
               <tr key={key.id} className="group hover:bg-zinc-50/50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -405,20 +466,20 @@ export default function ApiKeys() {
                     </code>
                     <button
                       onClick={() => void copyKey(key)}
-                      aria-label={`Copy ${key.name}`}
+                      aria-label={t("apiKeys.copy", { name: key.name })}
                       className="p-1 text-zinc-400 hover:text-zinc-900 transition-colors"
                     >
                       {copiedId === key.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                     </button>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-sm font-medium text-zinc-900">{formatUsage(key, usageStats[key.id])}</td>
-                <td className="px-6 py-4 text-sm text-zinc-500">{relativeTime(key.last_used_at)}</td>
+                <td className="px-6 py-4 text-sm font-medium text-zinc-900">{formatUsage(key, locale, t, usageStats[key.id])}</td>
+                <td className="px-6 py-4 text-sm text-zinc-500">{relativeTime(key.last_used_at, t)}</td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <Link
                       to={`/console/install-guide?key=${key.id}`}
-                      aria-label={`Open install guide for ${key.name}`}
+                      aria-label={t("apiKeys.installGuide", { name: key.name })}
                       className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
                     >
                       <Terminal size={18} />
@@ -428,7 +489,7 @@ export default function ApiKeys() {
                         type="button"
                         disabled={importingCcsId === key.id}
                         onClick={() => importToCcswitch(key)}
-                        aria-label={`Import ${key.name} to CCSwitch`}
+                        aria-label={t("apiKeys.importCcswitch", { name: key.name })}
                         className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <UploadSimple size={18} weight="bold" />
@@ -437,7 +498,7 @@ export default function ApiKeys() {
                     <button
                       type="button"
                       onClick={() => openEdit(key)}
-                      aria-label={`Edit ${key.name}`}
+                      aria-label={t("apiKeys.edit", { name: key.name })}
                       className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
                     >
                       <PencilSimple size={18} weight="bold" />
@@ -446,7 +507,7 @@ export default function ApiKeys() {
                       type="button"
                       disabled={savingActionId === key.id}
                       onClick={() => void setKeyStatus(key, key.status === "active" ? "inactive" : "active")}
-                      aria-label={`${key.status === "active" ? "Disable" : "Enable"} ${key.name}`}
+                      aria-label={t(key.status === "active" ? "apiKeys.disable" : "apiKeys.enable", { name: key.name })}
                       className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <PauseCircle size={18} weight="bold" />
@@ -455,7 +516,7 @@ export default function ApiKeys() {
                       type="button"
                       disabled={savingActionId === key.id}
                       onClick={() => void removeKey(key)}
-                      aria-label={`Delete ${key.name}`}
+                      aria-label={t("apiKeys.delete", { name: key.name })}
                       className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash size={18} weight="bold" />
@@ -473,9 +534,9 @@ export default function ApiKeys() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
             <div>
-              <h2 className="text-lg font-bold text-zinc-950">Import to CCSwitch</h2>
+              <h2 className="text-lg font-bold text-zinc-950">{t("apiKeys.importTitle")}</h2>
               <p className="mt-1 text-sm text-zinc-500">
-                This Antigravity group supports multiple client types. Choose which CCSwitch client profile to create.
+                {t("apiKeys.importDescription")}
               </p>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-3">
@@ -499,7 +560,7 @@ export default function ApiKeys() {
               onClick={() => setPendingCcsKey(null)}
               className="mt-4 w-full rounded-xl border border-zinc-200 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50"
             >
-              Cancel
+              {t("apiKeys.cancel")}
             </button>
           </div>
         </div>
@@ -511,41 +572,43 @@ export default function ApiKeys() {
           <ShieldCheck size={24} className="text-zinc-400" />
         </div>
         <div className="space-y-1">
-          <h4 className="font-semibold text-zinc-900">Security Best Practices</h4>
+          <h4 className="font-semibold text-zinc-900">{t("apiKeys.securityTitle")}</h4>
           <p className="text-sm text-zinc-500 leading-relaxed max-w-2xl">
-            Never share your API keys or check them into source control. Each key is encrypted at rest.
-            We recommend using separate keys for local development and CI/CD environments.
+            {t("apiKeys.securityDescription")}
           </p>
         </div>
       </div>
 
       {showCreateModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
-          <form onSubmit={submitKeyForm} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <form noValidate onSubmit={submitKeyForm} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <div className="space-y-1">
-              <h2 className="text-lg font-bold text-zinc-950">{editingKey ? "Edit API Key" : "Create API Key"}</h2>
+              <h2 className="text-lg font-bold text-zinc-950">{t(editingKey ? "apiKeys.editTitle" : "apiKeys.createTitle")}</h2>
               <p className="text-sm text-zinc-500">
-                {editingKey ? "Update the key label and usage quota." : "Generate a key for one environment or client."}
+                {t(editingKey ? "apiKeys.editDescription" : "apiKeys.createDescription")}
               </p>
             </div>
 
             <div className="mt-6 space-y-4">
               <div className="space-y-2">
                 <label htmlFor="create-key-name" className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  Key Name
+                  {t("apiKeys.keyName")}
                 </label>
                 <input
                   id="create-key-name"
                   required
                   value={createName}
-                  onChange={(event) => setCreateName(event.target.value)}
+                  onChange={(event) => {
+                    setCreateName(event.target.value);
+                    setFormError(null);
+                  }}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none focus:border-zinc-900"
                 />
               </div>
 
               <div className="space-y-2">
                 <span id="create-key-group-label" className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  Group
+                  {t("apiKeys.group")}
                 </span>
                 <GroupPicker
                   groups={groups}
@@ -558,7 +621,7 @@ export default function ApiKeys() {
 
               <div className="space-y-2">
                 <label htmlFor="create-key-quota" className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  Quota
+                  {t("apiKeys.quota")}
                 </label>
                 <input
                   id="create-key-quota"
@@ -566,12 +629,21 @@ export default function ApiKeys() {
                   min="0"
                   step="0.01"
                   value={createQuota}
-                  onChange={(event) => setCreateQuota(event.target.value)}
-                  placeholder="Unlimited"
+                  onChange={(event) => {
+                    setCreateQuota(event.target.value);
+                    setFormError(null);
+                  }}
+                  placeholder={t("apiKeys.unlimited")}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm outline-none focus:border-zinc-900"
                 />
               </div>
             </div>
+
+            {formError ? (
+              <p role="alert" className="mt-4 text-sm font-medium text-rose-600">
+                {resolveLocalizedMessage(formError)}
+              </p>
+            ) : null}
 
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -579,14 +651,14 @@ export default function ApiKeys() {
                 onClick={closeKeyModal}
                 className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-50"
               >
-                Cancel
+                {t("apiKeys.cancel")}
               </button>
               <button
                 type="submit"
                 disabled={creating}
                 className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
               >
-                {creating ? "Saving..." : editingKey ? "Save Changes" : "Create Key"}
+                {creating ? t("apiKeys.saving") : t(editingKey ? "apiKeys.saveChanges" : "apiKeys.createKey")}
               </button>
             </div>
           </form>
@@ -597,22 +669,32 @@ export default function ApiKeys() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation("console");
   const styles: Record<string, string> = {
     active: "bg-emerald-50 text-emerald-700 border-emerald-100",
     exhausted: "bg-amber-50 text-amber-700 border-amber-100",
+    quota_exhausted: "bg-amber-50 text-amber-700 border-amber-100",
     disabled: "bg-zinc-100 text-zinc-600 border-zinc-200",
+    inactive: "bg-zinc-100 text-zinc-600 border-zinc-200",
   };
 
   return (
     <span className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border ${styles[status] || styles.disabled}`}>
-      {status}
+      {status === "active"
+        ? t("apiKeys.statusActive")
+        : status === "quota_exhausted" || status === "exhausted"
+          ? t("apiKeys.statusExhausted")
+          : status === "inactive" || status === "disabled"
+            ? t("apiKeys.statusDisabled")
+            : status}
     </span>
   );
 }
 
 function GroupSummary({ group }: { group?: ApiKey["group"] }) {
+  const { t } = useTranslation("console");
   if (!group) {
-    return <span className="text-zinc-400">Unassigned</span>;
+    return <span className="text-zinc-400">{t("apiKeys.unassigned")}</span>;
   }
 
   return (
@@ -620,7 +702,7 @@ function GroupSummary({ group }: { group?: ApiKey["group"] }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-zinc-900">{group.name}</span>
         <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-          {formatPlatform(group.platform)}
+          {formatPlatform(group.platform, t)}
         </span>
         <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
           {formatMultiplier(group.rate_multiplier)}
@@ -648,6 +730,7 @@ function GroupPicker({
   onOpenChange: (open: boolean) => void;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation("console");
   const selected = groups.find((group) => String(group.id) === value);
 
   const choose = (nextValue: string) => {
@@ -659,7 +742,7 @@ function GroupPicker({
     <div className="relative">
       <button
         type="button"
-        aria-label="Select group"
+        aria-label={t("apiKeys.selectGroup")}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
@@ -670,14 +753,14 @@ function GroupPicker({
             <>
               <span className="block truncate font-semibold text-zinc-900">{selected.name}</span>
               <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                <span>{formatPlatform(selected.platform)}</span>
+                <span>{formatPlatform(selected.platform, t)}</span>
                 <span>{formatMultiplier(selected.rate_multiplier)}</span>
               </span>
             </>
           ) : (
             <>
-              <span className="block font-semibold text-zinc-900">Unassigned</span>
-              <span className="mt-1 block text-xs text-zinc-400">No fixed routing group</span>
+              <span className="block font-semibold text-zinc-900">{t("apiKeys.unassigned")}</span>
+              <span className="mt-1 block text-xs text-zinc-400">{t("apiKeys.noFixedGroup")}</span>
             </>
           )}
         </span>
@@ -697,15 +780,15 @@ function GroupPicker({
             onClick={() => choose("")}
             className={`w-full rounded-xl px-3 py-3 text-left transition-all ${!value ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"}`}
           >
-            <span className="block text-sm font-bold">Unassigned</span>
-            <span className={`mt-1 block text-xs ${!value ? "text-zinc-300" : "text-zinc-500"}`}>No fixed routing group</span>
+            <span className="block text-sm font-bold">{t("apiKeys.unassigned")}</span>
+            <span className={`mt-1 block text-xs ${!value ? "text-zinc-300" : "text-zinc-500"}`}>{t("apiKeys.noFixedGroup")}</span>
           </button>
           {groups.map((group) => {
             const selectedOption = String(group.id) === value;
             const label = [
               group.name,
               group.description,
-              formatPlatform(group.platform),
+              formatPlatform(group.platform, t),
               formatMultiplier(group.rate_multiplier),
             ].filter(Boolean).join(" ");
             return (
@@ -731,7 +814,7 @@ function GroupPicker({
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${selectedOption ? "bg-white/10 text-white" : "bg-zinc-100 text-zinc-600"}`}>
-                      {formatPlatform(group.platform)}
+                      {formatPlatform(group.platform, t)}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${selectedOption ? "bg-emerald-400/20 text-emerald-100" : "bg-emerald-50 text-emerald-700"}`}>
                       {formatMultiplier(group.rate_multiplier)}
