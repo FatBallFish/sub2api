@@ -541,7 +541,7 @@ export default function Billing() {
       });
       await handleCreatedPaymentOrder(result, "plan");
     } catch (reason) {
-      setPlanError(errorMessage(reason, "billingCreatePlanOrderFailed", "subscription"));
+      setPlanError(errorMessage(reason, "billingCreatePlanOrderFailed", "payment"));
     } finally {
       setPlanLoadingId(null);
     }
