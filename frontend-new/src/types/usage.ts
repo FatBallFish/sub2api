@@ -63,6 +63,7 @@ export interface UsageQueryParams {
   api_key_id?: number;
   start_date?: string;
   end_date?: string;
+  timezone?: string;
   sort_by?: string;
   sort_order?: "asc" | "desc";
 }

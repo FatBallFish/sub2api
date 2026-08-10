@@ -27,18 +27,20 @@ export function listUsageLogs(params: UsageQueryParams = {}) {
       api_key_id: params.api_key_id,
       start_date: params.start_date,
       end_date: params.end_date,
+      timezone: params.timezone,
       sort_by: params.sort_by ?? "created_at",
       sort_order: params.sort_order ?? "desc",
     })}`,
   );
 }
 
-export function getUsageStats(params: Pick<UsageQueryParams, "api_key_id" | "start_date" | "end_date"> = {}) {
+export function getUsageStats(params: Pick<UsageQueryParams, "api_key_id" | "start_date" | "end_date" | "timezone"> = {}) {
   return getJSON<UsageStats>(
     `/usage/stats${queryString({
       api_key_id: params.api_key_id,
       start_date: params.start_date,
       end_date: params.end_date,
+      timezone: params.timezone,
     })}`,
   );
 }

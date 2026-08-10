@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
@@ -6,7 +6,8 @@ import {
   DownloadSimple,
   MagnifyingGlass,
   Info,
-  SlidersHorizontal
+  SlidersHorizontal,
+  XCircle,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { listApiKeys } from "../../api/keys";
@@ -147,21 +148,25 @@ function escapeCSV(value: string | number) {
 }
 
 function isoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function rangeDates(range: TimeRange) {
   const now = new Date();
-  const target = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (range === "lastday") {
-    target.setUTCDate(target.getUTCDate() - 1);
+    target.setDate(target.getDate() - 1);
   }
   if (range === "today" || range === "lastday") {
     const day = isoDate(target);
     return { start_date: day, end_date: day };
   }
   const start = new Date(target);
-  start.setUTCDate(start.getUTCDate() - (range === "30d" ? 29 : 6));
+  start.setDate(start.getDate() - (range === "30d" ? 29 : 6));
   return { start_date: isoDate(start), end_date: isoDate(target) };
 }
 
@@ -191,7 +196,13 @@ export default function UsageHistory() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0);
-  const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [fatalError, setFatalError] = useState<LocalizedMessage | null>(null);
+  const [refreshError, setRefreshError] = useState<LocalizedMessage | null>(null);
+  const hasLoadedRef = useRef(false);
+  const timezone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -232,8 +243,8 @@ export default function UsageHistory() {
     const apiKeyId = selectedApiKeyId ? Number(selectedApiKeyId) : undefined;
 
     Promise.all([
-      listUsageLogs({ page, page_size: pageSize, search: search.trim() || undefined, api_key_id: apiKeyId, ...dates }),
-      getUsageStats({ api_key_id: apiKeyId, ...dates }),
+      listUsageLogs({ page, page_size: pageSize, search: search.trim() || undefined, api_key_id: apiKeyId, timezone, ...dates }),
+      getUsageStats({ api_key_id: apiKeyId, timezone, ...dates }),
     ])
       .then(([logsResponse, statsResponse]) => {
         if (active) {
@@ -241,7 +252,9 @@ export default function UsageHistory() {
           setUsageLogs(logsResponse.items);
           setTotal(logsResponse.total);
           setStats(statsResponse);
-          setError(null);
+          hasLoadedRef.current = true;
+          setFatalError(null);
+          setRefreshError(null);
           setRefreshing(false);
         }
       })
@@ -249,14 +262,19 @@ export default function UsageHistory() {
         if (active) {
           setLoading(false);
           setRefreshing(false);
-          setError(errorMessage(reason, "usageHistoryLoadFailed"));
+          const message = errorMessage(
+            reason,
+            hasLoadedRef.current ? "usageHistoryRefreshFailed" : "usageHistoryLoadFailed",
+          );
+          if (hasLoadedRef.current) setRefreshError(message);
+          else setFatalError(message);
         }
       });
 
     return () => {
       active = false;
     };
-  }, [page, pageSize, search, selectedApiKeyId, timeRange, refreshCounter]);
+  }, [page, pageSize, search, selectedApiKeyId, timeRange, refreshCounter, timezone]);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
@@ -347,16 +365,16 @@ export default function UsageHistory() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "usage-history.csv";
+    anchor.download = "usage-history-current-page.csv";
     anchor.click();
     URL.revokeObjectURL(url);
   };
 
-  if (error) {
+  if (fatalError && !stats) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
         <h1 className="text-lg font-semibold text-rose-900">{t("usageHistory.unavailable")}</h1>
-        <p className="mt-2">{resolveLocalizedMessage(error)}</p>
+        <p className="mt-2">{resolveLocalizedMessage(fatalError)}</p>
       </div>
     );
   }
@@ -393,6 +411,29 @@ export default function UsageHistory() {
           </button>
         </div>
       </div>
+
+      {refreshError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+          <span>{resolveLocalizedMessage(refreshError)}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={refreshUsageHistory}
+              className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100"
+            >
+              {t("usageHistory.retry")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRefreshError(null)}
+              aria-label={t("usageHistory.dismissRefreshError")}
+              className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"
+            >
+              <XCircle size={18} weight="bold" />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
