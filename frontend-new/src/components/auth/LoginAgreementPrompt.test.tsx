@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -54,5 +54,31 @@ describe("LoginAgreementPrompt", () => {
     expect(screen.getByRole("link", { name: "服务条款" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "使用政策" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Customer Contract" })).toBeInTheDocument();
+  });
+
+  it("updates a mounted built-in document title when the locale changes", async () => {
+    await i18n.changeLanguage("en");
+    render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="checkbox"
+          open={false}
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Terms of Service" })).toBeInTheDocument();
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByRole("link", { name: "利用規約" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Terms of Service" })).not.toBeInTheDocument();
   });
 });

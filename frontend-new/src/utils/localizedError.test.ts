@@ -24,29 +24,35 @@ describe("localizedErrorMessage", () => {
   it("translates a known stable ApiError code in the active locale", () => {
     const error = new ApiError("invalid email or password", 401, {}, "INVALID_CREDENTIALS");
 
-    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("邮箱或密码错误。");
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("邮箱或密码错误。");
   });
 
   it("preserves the useful backend message for an unknown ApiError code", () => {
     const error = new ApiError("A custom backend explanation", 409, {}, "CUSTOM_DYNAMIC_ERROR");
 
-    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("A custom backend explanation");
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("A custom backend explanation");
+  });
+
+  it("preserves an unknown backend message when a scope is provided", () => {
+    const error = new ApiError("Scoped backend explanation", 409, {}, "CUSTOM_DYNAMIC_ERROR");
+
+    expect(localizedErrorMessage(error, "unknown", { t, scope: "auth" })).toBe("Scoped backend explanation");
   });
 
   it("does not translate an ApiError from HTTP status alone", () => {
     const error = new ApiError("Payment provider maintenance", 503, {});
 
-    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("Payment provider maintenance");
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("Payment provider maintenance");
   });
 
   it("preserves messages from ordinary errors", () => {
-    expect(localizedErrorMessage(new Error("Network disconnected"), "errors.unknown", t)).toBe("Network disconnected");
+    expect(localizedErrorMessage(new Error("Network disconnected"), "unknown", t)).toBe("Network disconnected");
   });
 
   it.each([null, undefined, 503, {}, new Error("")])(
     "uses the localized caller fallback for missing message %#",
     (error) => {
-      expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
+      expect(localizedErrorMessage(error, "unknown", t)).toBe("出现错误，请稍后重试。");
     },
   );
 
@@ -59,7 +65,7 @@ describe("localizedErrorMessage", () => {
     const error = await apiRequest("/unavailable").catch((reason: unknown) => reason);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("出现错误，请稍后重试。");
   });
 
   it("uses the localized caller fallback for a whitespace-only backend message", async () => {
@@ -73,7 +79,7 @@ describe("localizedErrorMessage", () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).payload).toBe(payload);
-    expect(localizedErrorMessage(error, "errors.unknown", t)).toBe("出现错误，请稍后重试。");
+    expect(localizedErrorMessage(error, "unknown", t)).toBe("出现错误，请稍后重试。");
   });
 
   it.each([
@@ -127,7 +133,7 @@ describe("localizedErrorMessage", () => {
 
     expect(codes.map((code) => localizedErrorMessage(
       new ApiError("backend message", 400, {}, code),
-      "errors.unknown",
+      "unknown",
       instance.t,
     ))).toEqual(expected);
   });
@@ -138,5 +144,19 @@ describe("localizedErrorMessage", () => {
     expect(Object.keys(zhCN.errors).sort()).toEqual(expectedKeys);
     expect(Object.keys(zhTW.errors).sort()).toEqual(expectedKeys);
     expect(Object.keys(ja.errors).sort()).toEqual(expectedKeys);
+  });
+
+  it("distinguishes INVALID_USER between auth and affiliate scopes", () => {
+    const error = new ApiError("invalid user", 400, {}, "INVALID_USER");
+
+    expect(localizedErrorMessage(error, "unknown", { t, scope: "auth" })).toBe("无法使用该账号登录。");
+    expect(localizedErrorMessage(error, "unknown", { t, scope: "affiliate" })).toBe("请选择有效的返利用户。");
+  });
+
+  it("distinguishes DAILY_LIMIT_EXCEEDED between payment and subscription scopes", () => {
+    const error = new ApiError("daily limit exceeded", 429, {}, "DAILY_LIMIT_EXCEEDED");
+
+    expect(localizedErrorMessage(error, "unknown", { t, scope: "payment" })).toBe("已达到每日支付限额。");
+    expect(localizedErrorMessage(error, "unknown", { t, scope: "subscription" })).toBe("已达到订阅的每日用量限额。");
   });
 });
