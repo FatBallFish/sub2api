@@ -70,6 +70,27 @@ describe("LanguageSwitcher", () => {
     expect(screen.getByRole("menuitemradio", { name: "日本語" })).toHaveFocus();
   });
 
+  it.each([
+    { label: "Tab", shift: false, destination: "After" },
+    { label: "Shift+Tab", shift: true, destination: "Change language" },
+  ])("closes on $label while preserving native focus movement", async ({ shift, destination }) => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <LanguageSwitcher />
+        <button type="button">After</button>
+      </div>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Change language" }));
+    expect(screen.getByRole("menuitemradio", { name: "English" })).toHaveFocus();
+
+    await user.tab({ shift });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: destination })).toHaveFocus();
+  });
+
   it("closes the menu when Escape is pressed", async () => {
     const user = userEvent.setup();
     render(<LanguageSwitcher />);

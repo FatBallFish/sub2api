@@ -62,6 +62,11 @@ export default function LanguageSwitcher() {
   };
 
   const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Tab") {
+      queueMicrotask(() => setOpen(false));
+      return;
+    }
+
     let nextIndex: number;
     switch (event.key) {
       case "ArrowDown":
