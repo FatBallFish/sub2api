@@ -89,10 +89,24 @@ describe("translation resources", () => {
     }
   });
 
-  it("resolves English singular and plural forms with count", async () => {
-    const instance = await createI18nInstance({ initialLocale: "en", storage: null, documentElement: null });
+  it.each([
+    ["en", en],
+    ["zh-CN", zhCN],
+    ["zh-TW", zhTW],
+    ["ja", ja],
+  ] as const)("resolves %s plural forms according to the locale's runtime rules", async (locale, resource) => {
+    const instance = await createI18nInstance({ initialLocale: locale, storage: null, documentElement: null });
+    const flattened = flattenResources(resource);
+    const outputs = [1, 2].map((count) => {
+      const suffix = new Intl.PluralRules(locale).select(count);
+      const template = flattened.get(`console.referral.users_${suffix}`);
+      expect(template, `${locale} must define the selected _${suffix} plural leaf`).toBeDefined();
+      const expected = template?.replace("{{formattedCount}}", String(count));
+      const actual = instance.t("console:referral.users", { count, formattedCount: String(count) });
+      expect(actual).toBe(expected);
+      return actual;
+    });
 
-    expect(instance.t("console:referral.users", { count: 1, formattedCount: "1" })).toBe("1 User");
-    expect(instance.t("console:referral.users", { count: 2, formattedCount: "2" })).toBe("2 Users");
+    if (locale === "en") expect(outputs[0]).not.toBe(outputs[1]);
   });
 });

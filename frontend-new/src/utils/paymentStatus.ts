@@ -17,6 +17,22 @@ export const PAYMENT_ORDER_STATUSES = [
 export type PaymentOrderStatus = (typeof PAYMENT_ORDER_STATUSES)[number];
 export type PaymentPollingClassification = "continue" | "paid" | "terminal" | "refund";
 
+export const BILLING_STATUS_LABEL_KEYS = {
+  PENDING: "billing.statuses.pending",
+  PAID: "billing.statuses.paid",
+  RECHARGING: "billing.statuses.recharging",
+  COMPLETED: "billing.statuses.completed",
+  EXPIRED: "billing.statuses.expired",
+  CANCELLED: "billing.statuses.cancelled",
+  FAILED: "billing.statuses.failed",
+  REFUND_REQUESTED: "billing.statuses.refundRequested",
+  REFUNDING: "billing.statuses.refunding",
+  REFUND_PENDING: "billing.statuses.refundPending",
+  PARTIALLY_REFUNDED: "billing.statuses.partiallyRefunded",
+  REFUNDED: "billing.statuses.refunded",
+  REFUND_FAILED: "billing.statuses.refundFailed",
+} as const satisfies Record<PaymentOrderStatus, `billing.statuses.${string}`>;
+
 export function normalizeOrderStatus(status?: string) {
   return (status || "").trim().toUpperCase();
 }

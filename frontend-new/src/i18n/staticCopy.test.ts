@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import indexHtml from "../../index.html?raw";
+import { PLAYGROUND_ROLE_LABEL_KEYS } from "../api/playground";
 import { ANNOUNCEMENT_CATEGORIES } from "../types/announcements";
+import { CLIENT_CONFIG_HINT_KEYS } from "../utils/clientConfig";
+import { BUILT_IN_AGREEMENT_TITLE_KEYS } from "../utils/loginAgreement";
 import { GLOBAL_ERROR_CODES, SCOPED_ERROR_KEYS } from "../utils/localizedError";
+import { BILLING_STATUS_LABEL_KEYS } from "../utils/paymentStatus";
 import en from "./resources/en";
 import {
   auditTranslationUsage,
@@ -65,11 +69,35 @@ const HARDCODED_COPY_ALLOWLIST: readonly AllowlistEntry[] = [
   { file: "src/components/auth/TurnstileWidget.tsx", category: "ui-state", value: "Turnstile API was unavailable after the script loaded.", reason: "Internal SDK loader diagnostic; callers render localized captcha feedback." },
   { file: "src/components/auth/TurnstileWidget.tsx", category: "ui-state", value: "Failed to load the Turnstile script.", reason: "Internal SDK loader diagnostic; callers render localized captcha feedback." },
   { file: "src/components/auth/TurnstileWidget.tsx", category: "ui-state", value: "Failed to initialize Turnstile.", reason: "Internal SDK loader diagnostic; callers render localized captcha feedback." },
+  { file: "src/api/client.ts", category: "ui-descriptor", value: "Request failed with status ${...}", reason: "Synthetic transport diagnostic; callers select a localized fallback by error code." },
+  { file: "src/api/playground.ts", category: "ui-state", value: "Request failed with status ${...}", reason: "Internal gateway diagnostic; the playground renders its localized request failure fallback." },
+  { file: "src/components/auth/captcha.ts", category: "ui-state", value: "Multiple captcha providers are enabled", reason: "Internal settings diagnostic; auth surfaces render localized captcha configuration feedback." },
+  { file: "src/components/auth/captcha.ts", category: "ui-state", value: "Turnstile configuration is incomplete", reason: "Internal settings diagnostic; auth surfaces render localized captcha configuration feedback." },
+  { file: "src/components/auth/captcha.ts", category: "ui-state", value: "Tencent captcha configuration is incomplete", reason: "Internal settings diagnostic; auth surfaces render localized captcha configuration feedback." },
+  { file: "src/components/auth/captcha.ts", category: "ui-state", value: "Aliyun captcha configuration is incomplete", reason: "Internal settings diagnostic; auth surfaces render localized captcha configuration feedback." },
+  { file: "src/pages/console/Billing.tsx", category: "jsx-expression", value: "USD", reason: "ISO 4217 fallback currency code." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Codex CLI", reason: "Official client name." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Codex CLI (WebSocket)", reason: "Official client and transport name." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "OpenCode", reason: "Official client name." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "macOS / Linux", reason: "Operating system names used as a technical platform selector." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Windows", reason: "Operating system name used as a technical platform selector." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Windows CMD", reason: "Operating system and shell names used as a technical platform selector." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "PowerShell", reason: "Official shell name." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "set ANTHROPIC_BASE_URL=${...} set ANTHROPIC_AUTH_TOKEN=${...} set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable command prompt configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "$env:ANTHROPIC_BASE_URL=\"${...}\" $env:ANTHROPIC_AUTH_TOKEN=\"${...}\" $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable PowerShell configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "export ANTHROPIC_BASE_URL=\"${...}\" export ANTHROPIC_AUTH_TOKEN=\"${...}\" export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable shell configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "set GOOGLE_GEMINI_BASE_URL=${...} set GEMINI_API_KEY=${...} set GEMINI_MODEL=${...}", reason: "Copyable command prompt configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "$env:GOOGLE_GEMINI_BASE_URL=\"${...}\" $env:GEMINI_API_KEY=\"${...}\" $env:GEMINI_MODEL=\"${...}\"", reason: "Copyable PowerShell configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "export GOOGLE_GEMINI_BASE_URL=\"${...}\" export GEMINI_API_KEY=\"${...}\" export GEMINI_MODEL=\"${...}\"", reason: "Copyable shell configuration must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "model_provider = \"OpenAI\" model = \"gpt-5.5\" review_model = \"gpt-5.5\" model_reasoning_effort = \"xhigh\" disable_response_storage = true network_access = \"enabled\" windows_wsl_setup_acknowledged = true [model_providers.OpenAI] name = \"OpenAI\" base_url = \"${...}\" wire_api = \"responses\"${...} requires_openai_auth = true [features]${...} goals = true", reason: "Copyable TOML configuration must remain verbatim." },
 ];
 
 function productionFiles(extensions: ReadonlySet<string>): SourceDocument[] {
   return Object.entries(RAW_SOURCE_MODULES).flatMap(([modulePath, text]) => {
-    const sourcePath = modulePath.replace(/^\.\.\//, "");
+    const sourcePath = modulePath
+      .replace(/^\.\.\/\.\//, "i18n/")
+      .replace(/^\.\.\//, "")
+      .replace(/^\.\//, "i18n/");
     if (/\.test\.|\.generated\./.test(sourcePath) || sourcePath === "test/setup.ts") return [];
     if (sourcePath.startsWith("assets/") || sourcePath.startsWith("i18n/resources/")) return [];
     const extension = sourcePath.endsWith(".tsx") ? ".tsx" : sourcePath.endsWith(".ts") ? ".ts" : "";
@@ -99,33 +127,26 @@ function flattenResources(resource: ResourceTree, prefix = ""): Map<string, stri
   return flattened;
 }
 
-function dynamicTranslationKeys(): Set<string> {
+interface DynamicTranslationContracts {
+  agreementTitleKeys: readonly string[];
+  billingStatusLabelKeys: readonly string[];
+  clientConfigHintKeys: readonly string[];
+  playgroundRoleLabelKeys: readonly string[];
+}
+
+function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> = {}): Set<string> {
+  const contracts: DynamicTranslationContracts = {
+    agreementTitleKeys: Object.values(BUILT_IN_AGREEMENT_TITLE_KEYS),
+    billingStatusLabelKeys: Object.values(BILLING_STATUS_LABEL_KEYS),
+    clientConfigHintKeys: Object.values(CLIENT_CONFIG_HINT_KEYS),
+    playgroundRoleLabelKeys: Object.values(PLAYGROUND_ROLE_LABEL_KEYS),
+    ...overrides,
+  };
   return new Set([
-    // Agreement IDs map to this finite title family in utils/loginAgreement.ts.
-    "common.legalDocuments.terms",
-    "common.legalDocuments.usagePolicy",
-    "common.legalDocuments.supportedRegions",
-    "common.legalDocuments.serviceSpecificTerms",
-    // These keys are selected by finite status/hint/role maps in their page modules.
-    "console.billing.statuses.completed",
-    "console.billing.statuses.paid",
-    "console.billing.statuses.pending",
-    "console.billing.statuses.recharging",
-    "console.billing.statuses.cancelled",
-    "console.billing.statuses.expired",
-    "console.billing.statuses.failed",
-    "console.billing.statuses.refundRequested",
-    "console.billing.statuses.refunding",
-    "console.billing.statuses.refundPending",
-    "console.billing.statuses.partiallyRefunded",
-    "console.billing.statuses.refunded",
-    "console.billing.statuses.refundFailed",
-    "console.installGuide.hintClaudeSettings",
-    "console.installGuide.hintCodexAuth",
-    "console.installGuide.hintOpenCode",
-    "console.playground.role.user",
-    "console.playground.role.assistant",
-    "console.playground.role.system",
+    ...contracts.agreementTitleKeys.map((key) => `common.${key}`),
+    ...contracts.billingStatusLabelKeys.map((key) => `console.${key}`),
+    ...contracts.clientConfigHintKeys.map((key) => `console.${key}`),
+    ...contracts.playgroundRoleLabelKeys.map((key) => `console.${key}`),
     // Runtime contracts below are finite typed values exported by production code.
     ...ANNOUNCEMENT_CATEGORIES.map((category) => `console.announcements.categories.${category}`),
     ...GLOBAL_ERROR_CODES.map((code) => `errors.${code}`),
@@ -134,13 +155,12 @@ function dynamicTranslationKeys(): Set<string> {
 }
 
 describe("fixed frontend copy", () => {
-  const tsxFiles = productionFiles(new Set([".tsx"]));
   const sourceFiles = productionFiles(new Set([".ts", ".tsx"]));
   const resources = flattenResources(en);
   const dynamicKeys = dynamicTranslationKeys();
 
-  it("keeps production TSX user-facing copy behind i18n", () => {
-    const findings = tsxFiles.flatMap(scanHardcodedCopy).filter((finding) => !isAllowlisted(finding));
+  it("keeps production TS and TSX user-facing copy behind i18n", () => {
+    const findings = sourceFiles.flatMap(scanHardcodedCopy).filter((finding) => !isAllowlisted(finding));
     expect(formatFindings(findings), "Hardcoded user-facing copy found").toBe("");
   });
 
@@ -172,5 +192,17 @@ describe("fixed frontend copy", () => {
       "console.announcements.categories.security",
       "errors.NEW_UNUSED_CODE",
     ]);
+  });
+
+  it("exposes a resource as dead when a finite production contract drops its key", () => {
+    const billingStatusLabelKeys = Object.values(BILLING_STATUS_LABEL_KEYS)
+      .filter((key) => key !== "billing.statuses.completed");
+    const audit = auditTranslationUsage(
+      sourceFiles,
+      new Set(resources.keys()),
+      dynamicTranslationKeys({ billingStatusLabelKeys }),
+    );
+
+    expect(audit.unused).toEqual(["console.billing.statuses.completed"]);
   });
 });

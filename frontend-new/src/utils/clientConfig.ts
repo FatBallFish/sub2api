@@ -4,6 +4,12 @@ export type InstallClientId = "codex" | "codex-ws" | "claude" | "gemini" | "open
 export type InstallShellId = "unix" | "cmd" | "powershell" | "windows";
 export type ClientConfigHintId = "claudeSettings" | "codexAuth" | "openCodeMerge";
 
+export const CLIENT_CONFIG_HINT_KEYS = {
+  claudeSettings: "installGuide.hintClaudeSettings",
+  codexAuth: "installGuide.hintCodexAuth",
+  openCodeMerge: "installGuide.hintOpenCode",
+} as const satisfies Record<ClientConfigHintId, string>;
+
 export interface InstallClientOption {
   id: InstallClientId;
   label: string;

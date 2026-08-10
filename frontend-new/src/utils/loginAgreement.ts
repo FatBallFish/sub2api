@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import type { LoginAgreementDocument, PublicSettings } from "../api/settings";
 
-const BUILT_IN_AGREEMENT_TITLE_KEYS = {
+export const BUILT_IN_AGREEMENT_TITLE_KEYS = {
   terms: "legalDocuments.terms",
   "usage-policy": "legalDocuments.usagePolicy",
   "supported-regions": "legalDocuments.supportedRegions",

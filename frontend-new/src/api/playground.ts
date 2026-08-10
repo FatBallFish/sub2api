@@ -22,6 +22,12 @@ export interface PlaygroundMessage {
   createdAt: string;
 }
 
+export const PLAYGROUND_ROLE_LABEL_KEYS = {
+  user: "playground.role.user",
+  assistant: "playground.role.assistant",
+  system: "playground.role.system",
+} as const satisfies Record<PlaygroundMessage["role"], `playground.role.${PlaygroundMessage["role"]}`>;
+
 export interface PlaygroundDraft {
   config: PlaygroundConfig;
   messages: PlaygroundMessage[];

@@ -114,10 +114,177 @@ function expressionSkeleton(node: ts.Expression): ExpressionSkeleton {
   return { hasLiteral: false, value: "${...}" };
 }
 
-function stringExpressionValues(node: ts.Expression | undefined): string[] {
+interface LexicalBinding {
+  initializer?: ts.Expression;
+  translationNamespace?: string;
+}
+
+interface LexicalScope {
+  parent?: LexicalScope;
+  bindings: Map<string, LexicalBinding>;
+}
+
+interface LexicalBindings {
+  resolve(name: string, node: ts.Node): LexicalBinding | undefined;
+  visibleTranslationNamespaces(node: ts.Node): string[];
+}
+
+const LOCALIZED_MESSAGE_CALLS = new Set([
+  "errorMessage",
+  "localizedErrorMessage",
+  "rawMessage",
+  "translationMessage",
+]);
+
+function bindingNames(name: ts.BindingName): string[] {
+  if (ts.isIdentifier(name)) return [name.text];
+  return name.elements.flatMap((element) => ts.isOmittedExpression(element) ? [] : bindingNames(element.name));
+}
+
+function createLexicalBindings(sourceFile: ts.SourceFile): LexicalBindings {
+  const nodeScopes = new Map<ts.Node, LexicalScope>();
+
+  const visit = (node: ts.Node, parentScope?: LexicalScope) => {
+    let scope = parentScope;
+
+    if (ts.isFunctionDeclaration(node) && node.name && parentScope) {
+      parentScope.bindings.set(node.name.text, {});
+    }
+    if (ts.isClassDeclaration(node) && node.name && parentScope) {
+      parentScope.bindings.set(node.name.text, {});
+    }
+
+    if (ts.isSourceFile(node) || ts.isBlock(node) || ts.isModuleBlock(node) || ts.isFunctionLike(node) || ts.isCatchClause(node)) {
+      scope = { parent: parentScope, bindings: new Map() };
+    }
+    if (!scope) return;
+    nodeScopes.set(node, scope);
+
+    if (ts.isVariableDeclaration(node)) {
+      const isConst = ts.isVariableDeclarationList(node.parent)
+        && (node.parent.flags & ts.NodeFlags.Const) !== 0;
+      const translationNamespace = node.initializer
+        && ts.isCallExpression(node.initializer)
+        && ts.isIdentifier(node.initializer.expression)
+        && node.initializer.expression.text === "useTranslation"
+        ? literalValue(node.initializer.arguments[0]) ?? "common"
+        : undefined;
+
+      if (ts.isObjectBindingPattern(node.name) && translationNamespace) {
+        for (const element of node.name.elements) {
+          if (!ts.isIdentifier(element.name)) continue;
+          const binding = (propertyName(element.propertyName) ?? element.name.text) === "t"
+            ? { translationNamespace }
+            : {};
+          scope.bindings.set(element.name.text, binding);
+        }
+      } else {
+        for (const name of bindingNames(node.name)) {
+          scope.bindings.set(name, isConst && ts.isIdentifier(node.name) ? { initializer: node.initializer } : {});
+        }
+      }
+    } else if (ts.isParameter(node)) {
+      let translationNamespace: string | undefined;
+      if (node.type && ts.isTypeReferenceNode(node.type)) {
+        const typeName = node.type.typeName.getText(sourceFile);
+        if (typeName === "TFunction" || typeName.endsWith(".TFunction")) {
+          const namespaceType = node.type.typeArguments?.[0];
+          translationNamespace = namespaceType && ts.isLiteralTypeNode(namespaceType)
+            && ts.isStringLiteral(namespaceType.literal)
+            ? namespaceType.literal.text
+            : "common";
+        }
+      }
+      for (const name of bindingNames(node.name)) scope.bindings.set(name, { translationNamespace });
+    } else if (ts.isImportClause(node)) {
+      if (node.name) scope.bindings.set(node.name.text, {});
+    } else if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node)) {
+      scope.bindings.set(node.name.text, {});
+    }
+
+    ts.forEachChild(node, (child) => visit(child, scope));
+  };
+
+  visit(sourceFile);
+
+  const scopeAt = (node: ts.Node) => {
+    let current: ts.Node | undefined = node;
+    while (current) {
+      const scope = nodeScopes.get(current);
+      if (scope) return scope;
+      current = current.parent;
+    }
+    return undefined;
+  };
+
+  return {
+    resolve(name, node) {
+      let scope = scopeAt(node);
+      while (scope) {
+        const binding = scope.bindings.get(name);
+        if (binding) return binding;
+        scope = scope.parent;
+      }
+      return undefined;
+    },
+    visibleTranslationNamespaces(node) {
+      const namespaces = new Set<string>();
+      const shadowedNames = new Set<string>();
+      let scope = scopeAt(node);
+      while (scope) {
+        for (const [name, binding] of scope.bindings) {
+          if (shadowedNames.has(name)) continue;
+          shadowedNames.add(name);
+          if (binding.translationNamespace) namespaces.add(binding.translationNamespace);
+        }
+        scope = scope.parent;
+      }
+      return [...namespaces];
+    },
+  };
+}
+
+const LOGICAL_OPERATORS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.AmpersandAmpersandToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.QuestionQuestionToken,
+]);
+
+function stringExpressionValues(
+  node: ts.Expression | undefined,
+  bindings?: LexicalBindings,
+  resolving = new Set<ts.Expression>(),
+  resolveIdentifiers = true,
+): string[] {
   if (!node) return [];
   if (ts.isConditionalExpression(node)) {
-    return [...stringExpressionValues(node.whenTrue), ...stringExpressionValues(node.whenFalse)];
+    return [
+      ...stringExpressionValues(node.whenTrue, bindings, resolving, resolveIdentifiers),
+      ...stringExpressionValues(node.whenFalse, bindings, resolving, resolveIdentifiers),
+    ];
+  }
+  if (ts.isBinaryExpression(node) && LOGICAL_OPERATORS.has(node.operatorToken.kind)) {
+    if (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers);
+    }
+    return [
+      ...stringExpressionValues(node.left, bindings, resolving, resolveIdentifiers),
+      ...stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers),
+    ];
+  }
+  if (ts.isCallExpression(node)) {
+    const name = callName(node.expression);
+    if (name === "t" || (name && LOCALIZED_MESSAGE_CALLS.has(name))) return [];
+    return node.arguments.flatMap((argument) => stringExpressionValues(argument, bindings, resolving, false));
+  }
+  if (ts.isIdentifier(node) && bindings && resolveIdentifiers) {
+    const initializer = bindings.resolve(node.text, node)?.initializer;
+    if (!initializer || resolving.has(initializer)) return [];
+    const nextResolving = new Set(resolving).add(initializer);
+    return stringExpressionValues(initializer, bindings, nextResolving, resolveIdentifiers);
+  }
+  if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node)) {
+    return stringExpressionValues(node.expression, bindings, resolving, resolveIdentifiers);
   }
   const skeleton = expressionSkeleton(node);
   return skeleton.hasLiteral ? [normalizedCopy(skeleton.value)] : [];
@@ -142,7 +309,14 @@ function isUiStateSetter(name: string): boolean {
 }
 
 export function scanHardcodedCopy(source: SourceDocument): Finding[] {
-  const sourceFile = ts.createSourceFile(source.file, source.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const sourceFile = ts.createSourceFile(
+    source.file,
+    source.text,
+    ts.ScriptTarget.Latest,
+    true,
+    source.file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  );
+  const bindings = createLexicalBindings(sourceFile);
   const findings: Finding[] = [];
 
   const report = (node: ts.Node, category: FindingCategory, rawValue: string) => {
@@ -156,19 +330,19 @@ export function scanHardcodedCopy(source: SourceDocument): Finding[] {
     if (ts.isJsxText(node)) {
       report(node, "jsx-text", node.text);
     } else if (ts.isJsxExpression(node) && !ts.isJsxAttribute(node.parent)) {
-      for (const value of stringExpressionValues(node.expression)) report(node, "jsx-expression", value);
+      for (const value of stringExpressionValues(node.expression, bindings)) report(node, "jsx-expression", value);
     } else if (ts.isJsxAttribute(node) && USER_FACING_ATTRIBUTES.has(node.name.getText(sourceFile))) {
       const initializer = node.initializer;
       if (initializer && ts.isStringLiteral(initializer)) report(node, "jsx-attribute", initializer.text);
       if (initializer && ts.isJsxExpression(initializer)) {
-        for (const value of stringExpressionValues(initializer.expression)) report(node, "jsx-attribute", value);
+        for (const value of stringExpressionValues(initializer.expression, bindings)) report(node, "jsx-attribute", value);
       }
     } else if (ts.isCallExpression(node) && isUiStateSetter(callName(node.expression) ?? "")) {
-      for (const value of stringExpressionValues(node.arguments[0])) report(node, "ui-state", value);
+      for (const value of stringExpressionValues(node.arguments[0], bindings)) report(node, "ui-state", value);
     } else if (ts.isNewExpression(node) && callName(node.expression) === "Error") {
-      for (const value of stringExpressionValues(node.arguments?.[0])) report(node, "ui-state", value);
+      for (const value of stringExpressionValues(node.arguments?.[0], bindings)) report(node, "ui-state", value);
     } else if (ts.isPropertyAssignment(node) && UI_DESCRIPTOR_FIELDS.has(propertyName(node.name) ?? "")) {
-      for (const value of stringExpressionValues(node.initializer)) report(node, "ui-descriptor", value);
+      for (const value of stringExpressionValues(node.initializer, bindings)) report(node, "ui-descriptor", value);
     }
 
     ts.forEachChild(node, visit);
@@ -176,29 +350,6 @@ export function scanHardcodedCopy(source: SourceDocument): Finding[] {
 
   visit(sourceFile);
   return findings;
-}
-
-function translationFunctions(sourceFile: ts.SourceFile): Map<string, string> {
-  const functions = new Map<string, string>();
-  const visit = (node: ts.Node) => {
-    if (ts.isVariableDeclaration(node)
-      && ts.isObjectBindingPattern(node.name)
-      && node.initializer
-      && ts.isCallExpression(node.initializer)
-      && ts.isIdentifier(node.initializer.expression)
-      && node.initializer.expression.text === "useTranslation") {
-      const namespace = literalValue(node.initializer.arguments[0]) ?? "common";
-      for (const element of node.name.elements) {
-        if (!ts.isIdentifier(element.name)) continue;
-        if ((propertyName(element.propertyName) ?? element.name.text) === "t") {
-          functions.set(element.name.text, namespace);
-        }
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return functions;
 }
 
 function objectHasProperty(node: ts.Expression | undefined, key: string): boolean {
@@ -236,6 +387,14 @@ export function auditTranslationUsage(
     file: string,
   ) => {
     const fullKey = key.includes(":") ? key.replace(":", ".") : `${namespace ?? "common"}.${key}`;
+    for (const suffix of PLURAL_SUFFIXES) {
+      const marker = `_${suffix}`;
+      if (!fullKey.endsWith(marker) || !resourceKeys.has(fullKey)) continue;
+      const baseKey = fullKey.slice(0, -marker.length);
+      const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      pluralMisuses.add(`${file}:${line + 1} plural key ${fullKey} must be called as ${baseKey} with count`);
+      return;
+    }
     if (resourceKeys.has(fullKey)) used.add(fullKey);
     const pluralKeys = PLURAL_SUFFIXES
       .map((suffix) => `${fullKey}_${suffix}`)
@@ -257,7 +416,7 @@ export function auditTranslationUsage(
       true,
       file.file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
     );
-    const functions = translationFunctions(sourceFile);
+    const bindings = createLexicalBindings(sourceFile);
 
     const visit = (node: ts.Node) => {
       if (ts.isCallExpression(node)) {
@@ -272,8 +431,9 @@ export function auditTranslationUsage(
             addKey(fallback, "errors", false, node, sourceFile, file.file);
           }
         }
-        if (name && functions.has(name)) {
-          const namespace = namespaceOption(node.arguments[1]) ?? functions.get(name);
+        const translationNamespace = name ? bindings.resolve(name, node)?.translationNamespace : undefined;
+        if (translationNamespace) {
+          const namespace = namespaceOption(node.arguments[1]) ?? translationNamespace;
           for (const key of keys) addKey(key, namespace, hasCount, node, sourceFile, file.file);
         }
         if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "t") {
@@ -285,8 +445,16 @@ export function auditTranslationUsage(
         const name = propertyName(node.name);
         const value = literalValue(node.initializer);
         if (value && (name === "labelKey" || name === "translationKey")) {
-          const namespaces = [...functions.values()];
-          addKey(value, namespaces.length === 1 ? namespaces[0] : "common", false, node, sourceFile, file.file);
+          const namespaces = bindings.visibleTranslationNamespaces(node);
+          const resourceNamespaces = [...resourceKeys].flatMap((resourceKey) => (
+            resourceKey.endsWith(`.${value}`) ? [resourceKey.slice(0, resourceKey.indexOf("."))] : []
+          ));
+          const namespace = namespaces.length === 1
+            ? namespaces[0]
+            : [...new Set(resourceNamespaces)].length === 1
+              ? resourceNamespaces[0]
+              : undefined;
+          if (namespace) addKey(value, namespace, false, node, sourceFile, file.file);
         }
       }
       ts.forEachChild(node, visit);

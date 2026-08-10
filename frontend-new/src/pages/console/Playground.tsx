@@ -17,6 +17,7 @@ import {
   isImageGenerationModel,
   listGatewayModels,
   loadPlaygroundDraft,
+  PLAYGROUND_ROLE_LABEL_KEYS,
   savePlaygroundDraft,
   sendPlaygroundRequest,
   type PlaygroundConfig,
@@ -593,7 +594,7 @@ function MessageBubble({ message }: { message: PlaygroundMessage }) {
     <article className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[82%] rounded-2xl border px-4 py-3 shadow-sm ${isUser ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-800"}`}>
         <div className={`mb-2 flex items-center justify-between gap-6 text-[10px] font-bold uppercase tracking-widest ${isUser ? "text-zinc-400" : "text-zinc-400"}`}>
-          <span>{t(`playground.role.${message.role}`)}</span>
+          <span>{t(PLAYGROUND_ROLE_LABEL_KEYS[message.role])}</span>
           <span>{formatTime(message.createdAt, i18n.resolvedLanguage || i18n.language)}</span>
         </div>
         <p className="whitespace-pre-wrap text-sm leading-6">{message.content || t("playground.imageGenerated")}</p>
