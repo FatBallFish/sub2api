@@ -1536,7 +1536,7 @@ describe("Auth page", () => {
 
     render(<MemoryRouter initialEntries={["/login"]}><Auth /></MemoryRouter>);
 
-    const consent = await screen.findByRole("checkbox", { name: /service terms.*privacy policy/i });
+    const consent = await screen.findByRole("checkbox", { name: /terms of service.*privacy policy/i });
     const submit = screen.getByRole("button", { name: /sign in/i });
     expect(consent).not.toBeChecked();
     expect(submit).toBeDisabled();
