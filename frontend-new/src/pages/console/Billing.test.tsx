@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import Billing from "./Billing";
@@ -40,6 +40,21 @@ function billingResponse({
     }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );
+}
+
+function orderResponse(order: Record<string, unknown>) {
+  return new Response(JSON.stringify({ success: true, data: order }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
 }
 
 describe("Billing", () => {
@@ -413,6 +428,150 @@ describe("Billing", () => {
       }),
     );
     expect(screen.getByText(/payment confirmed/i)).toBeInTheDocument();
+  });
+
+  it("does not overlap payment verification and ignores a late response from an older order", async () => {
+    const firstVerification = deferred<Response>();
+    let createdOrders = 0;
+    const verificationBodies: string[] = [];
+    const fetchMock = vi.fn((url: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        createdOrders += 1;
+        const id = createdOrders === 1 ? 901 : 902;
+        return Promise.resolve(orderResponse({
+          order_id: id,
+          out_trade_no: `order-${id}`,
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          pay_url: `https://checkout.example/pay/${id}`,
+          status: "PENDING",
+        }));
+      }
+      if (path === "/api/v1/payment/orders/verify") {
+        verificationBodies.push(String(init?.body));
+        if (String(init?.body).includes("order-901")) return firstVerification.promise;
+        return Promise.resolve(orderResponse({
+          id: 902,
+          out_trade_no: "order-902",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          status: "PENDING",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    const createButton = await screen.findByRole("button", { name: "Create payment order" });
+    vi.useFakeTimers();
+
+    fireEvent.click(createButton);
+    await act(async () => void await vi.advanceTimersByTimeAsync(0));
+    await act(async () => void await vi.advanceTimersByTimeAsync(9000));
+    expect(verificationBodies.filter((body) => body.includes("order-901"))).toHaveLength(1);
+
+    fireEvent.click(createButton);
+    await act(async () => void await vi.advanceTimersByTimeAsync(0));
+    await act(async () => void await vi.advanceTimersByTimeAsync(3000));
+    expect(verificationBodies.some((body) => body.includes("order-902"))).toBe(true);
+
+    firstVerification.resolve(orderResponse({
+      id: 901,
+      out_trade_no: "order-901",
+      amount: 10,
+      pay_amount: 10,
+      currency: "USD",
+      payment_type: "stripe",
+      status: "COMPLETED",
+    }));
+    await act(async () => void await Promise.resolve());
+
+    expect(screen.getByText("#902")).toBeInTheDocument();
+    expect(screen.queryByText("Payment confirmed")).not.toBeInTheDocument();
+  });
+
+  it("hides checkout actions for terminal created orders", async () => {
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(orderResponse({
+          order_id: 903,
+          out_trade_no: "order-903",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          pay_url: "https://checkout.example/pay/903",
+          status: "PAID",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    fireEvent.click(await screen.findByRole("button", { name: "Create payment order" }));
+    await screen.findByText("Order #903 created");
+
+    expect(screen.queryAllByRole("link", { name: "Continue payment" })).toHaveLength(0);
+    expect(openMock).not.toHaveBeenCalled();
+  });
+
+  it("traps focus in the payment dialog, closes on Escape, and restores the trigger", async () => {
+    const fetchMock = vi.fn((url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
+      if (path === "/api/v1/console/billing") {
+        return Promise.resolve(billingResponse({ addOns: [{ amount: 10, credits: 10.5, currency: "USD", preset: true }] }));
+      }
+      if (path === "/api/v1/payment/orders") {
+        return Promise.resolve(orderResponse({
+          order_id: 904,
+          out_trade_no: "order-904",
+          amount: 10,
+          pay_amount: 10,
+          currency: "USD",
+          payment_type: "stripe",
+          pay_url: "https://checkout.example/pay/904",
+          status: "PENDING",
+        }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${path}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Billing />);
+    const trigger = await screen.findByRole("button", { name: "Create payment order" });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const closeButton = await screen.findByRole("button", { name: "Dismiss payment dialog" });
+    const continueLink = within(screen.getByRole("dialog")).getByRole("link", { name: "Continue payment" });
+    await waitFor(() => expect(closeButton).toHaveFocus());
+    await waitFor(() => expect(trigger).toBeEnabled());
+
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(continueLink).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("creates a custom top-up order with the selected checkout payment method", async () => {
@@ -1303,7 +1462,7 @@ describe("Billing", () => {
     expect(fetchMock).toHaveBeenCalledTimes(requestCount);
   });
 
-  it("uses the billing load fallback when an action refresh fails", async () => {
+  it("preserves billing data when an action refresh fails and recovers on retry", async () => {
     await i18n.changeLanguage("en");
     let billingLoads = 0;
     const pendingOrder = {
@@ -1321,9 +1480,9 @@ describe("Billing", () => {
       if (path === "/api/v1/payment/checkout-info") return Promise.resolve(checkoutInfoResponse());
       if (path === "/api/v1/console/billing") {
         billingLoads += 1;
-        return billingLoads === 1
-          ? Promise.resolve(billingResponse({ activity: [pendingOrder] }))
-          : Promise.reject(new TypeError("refresh failed"));
+        return billingLoads === 2
+          ? Promise.reject(new TypeError("refresh failed"))
+          : Promise.resolve(billingResponse({ activity: [pendingOrder] }));
       }
       if (path === "/api/v1/payment/orders/77/cancel") {
         return Promise.resolve(new Response(JSON.stringify({ success: true, data: { message: "cancelled" } }), {
@@ -1338,7 +1497,18 @@ describe("Billing", () => {
     render(<Billing />);
     fireEvent.click(await screen.findByRole("button", { name: "Cancel order refresh_pending" }));
 
-    expect(await screen.findByText("Unable to load billing information.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to refresh billing information.");
+    expect(screen.getByText("refresh_pending")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Subscription & Credits" })).toBeInTheDocument();
+
+    const requestCount = fetchMock.mock.calls.length;
+    await act(async () => void await i18n.changeLanguage("ja"));
+    expect(screen.getByRole("alert")).toHaveTextContent("請求情報を更新できませんでした。");
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+
+    fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getByText("refresh_pending")).toBeInTheDocument();
   });
 
   it("uses a specific fallback when cancelling a payment order fails", async () => {

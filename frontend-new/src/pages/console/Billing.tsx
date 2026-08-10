@@ -18,6 +18,7 @@ import type { ConsoleBilling } from "../../types/console";
 import type { CheckoutInfo, CreateOrderResult } from "../../types/payment";
 import { formatCredits } from "../../utils/format";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 import {
   errorMessage,
   resolveLocalizedMessage,
@@ -200,6 +201,10 @@ function isTerminalOrderStatus(status?: string) {
   return normalized === "FAILED" || normalized === "CANCELLED" || normalized === "EXPIRED";
 }
 
+function hasCheckoutActions(status?: string) {
+  return !isPaidOrderStatus(status) && !isTerminalOrderStatus(status);
+}
+
 function orderPaymentSummary(item: ConsoleBilling["activity"][number], locale: string, t: TFunction<"console">) {
   const paymentCurrency = item.payment_currency || item.currency;
   const payAmount = item.pay_amount ?? item.amount;
@@ -257,7 +262,8 @@ export default function Billing() {
   const locale = i18n.resolvedLanguage || i18n.language || "en";
   const [billing, setBilling] = useState<ConsoleBilling | null>(null);
   const [checkoutInfo, setCheckoutInfo] = useState<CheckoutInfo | null>(null);
-  const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [fatalError, setFatalError] = useState<LocalizedMessage | null>(null);
+  const [refreshError, setRefreshError] = useState<LocalizedMessage | null>(null);
   const [selectedTopUpAmount, setSelectedTopUpAmount] = useState<number | null>(null);
   const [customTopUpAmount, setCustomTopUpAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
@@ -272,11 +278,14 @@ export default function Billing() {
   const [orderActionError, setOrderActionError] = useState<LocalizedMessage | null>(null);
   const [paymentDialog, setPaymentDialog] = useState<PaymentDialogNotice | null>(null);
   const paymentPollRef = useRef<number | null>(null);
+  const paymentPollGenerationRef = useRef(0);
+  const hasBillingRef = useRef(false);
   usePageTitle(t("billing.title"));
 
   function stopPaymentPolling() {
+    paymentPollGenerationRef.current += 1;
     if (paymentPollRef.current !== null) {
-      window.clearInterval(paymentPollRef.current);
+      window.clearTimeout(paymentPollRef.current);
       paymentPollRef.current = null;
     }
   }
@@ -285,11 +294,18 @@ export default function Billing() {
     return Promise.allSettled([getConsoleBilling(), getPaymentCheckoutInfo()])
       .then(([billingResult, checkoutResult]) => {
         if (billingResult.status === "rejected") {
-          setError(errorMessage(billingResult.reason, "billingLoadFailed", "payment"));
+          const message = errorMessage(
+            billingResult.reason,
+            hasBillingRef.current ? "billingRefreshFailed" : "billingLoadFailed",
+            "payment",
+          );
+          if (hasBillingRef.current) setRefreshError(message);
+          else setFatalError(message);
           return;
         }
         const data = billingResult.value;
         setBilling(data);
+        hasBillingRef.current = true;
         setSelectedTopUpAmount((current) => current || data.add_ons[0]?.amount || 0);
         if (checkoutResult.status === "fulfilled") {
           setCheckoutInfo(checkoutResult.value);
@@ -299,7 +315,8 @@ export default function Billing() {
           const methods = checkoutPaymentMethods(null, data);
           setSelectedPaymentMethod((current) => current || methods[0] || "");
         }
-        setError(null);
+        setFatalError(null);
+        setRefreshError(null);
       });
   }, []);
 
@@ -309,7 +326,7 @@ export default function Billing() {
     loadBilling()
       .catch((reason: unknown) => {
         if (active) {
-          setError(errorMessage(reason, "billingLoadFailed", "payment"));
+          setFatalError(errorMessage(reason, "billingLoadFailed", "payment"));
         }
       });
 
@@ -323,12 +340,15 @@ export default function Billing() {
     const outTradeNo = order.out_trade_no?.trim();
     if (!outTradeNo) return;
     stopPaymentPolling();
+    const generation = paymentPollGenerationRef.current;
 
     let attempts = 0;
     const checkOrder = async () => {
+      if (generation !== paymentPollGenerationRef.current) return;
       attempts += 1;
       try {
         const current = await verifyPaymentOrder(outTradeNo);
+        if (generation !== paymentPollGenerationRef.current) return;
         if (isPaidOrderStatus(current.status)) {
           stopPaymentPolling();
           setPaymentDialog((dialog) => ({
@@ -360,8 +380,10 @@ export default function Billing() {
             title: translationMessage("console:billing.dialog.waitingTitle"),
             message: translationMessage("console:billing.dialog.waitingMessage"),
           }));
+          return;
         }
       } catch {
+        if (generation !== paymentPollGenerationRef.current) return;
         if (attempts >= 3) {
           stopPaymentPolling();
           setPaymentDialog((dialog) => ({
@@ -370,13 +392,21 @@ export default function Billing() {
             title: translationMessage("console:billing.dialog.statusUnavailableTitle"),
             message: translationMessage("console:billing.dialog.statusUnavailableMessage"),
           }));
+          return;
         }
       }
+      scheduleNextCheck();
     };
 
-    paymentPollRef.current = window.setInterval(() => {
-      void checkOrder();
-    }, 3000);
+    function scheduleNextCheck() {
+      if (generation !== paymentPollGenerationRef.current) return;
+      paymentPollRef.current = window.setTimeout(() => {
+        paymentPollRef.current = null;
+        void checkOrder();
+      }, 3000);
+    }
+
+    scheduleNextCheck();
   }
 
   async function handleCreatedPaymentOrder(order: CreateOrderResult, kind: "top_up" | "plan") {
@@ -386,20 +416,21 @@ export default function Billing() {
       setPlanOrder(order);
     }
 
-	if (order.client_secret) {
-		sessionStorage.setItem(`stripe-payment:${order.order_id}`, JSON.stringify({
-			clientSecret: order.client_secret,
-			resumeToken: order.resume_token,
-			outTradeNo: order.out_trade_no,
-		}));
-		window.location.assign(`/payment/stripe?order_id=${encodeURIComponent(String(order.order_id))}`);
-		return;
-	}
+    const checkoutAvailable = hasCheckoutActions(order.status);
+    if (checkoutAvailable && order.client_secret) {
+      sessionStorage.setItem(`stripe-payment:${order.order_id}`, JSON.stringify({
+        clientSecret: order.client_secret,
+        resumeToken: order.resume_token,
+        outTradeNo: order.out_trade_no,
+      }));
+      window.location.assign(`/payment/stripe?order_id=${encodeURIComponent(String(order.order_id))}`);
+      return;
+    }
 
-    if (order.pay_url && order.payment_type === "creem") {
-	  window.location.assign(order.pay_url);
-	  return;
-	} else if (order.pay_url) {
+    if (checkoutAvailable && order.pay_url && order.payment_type === "creem") {
+      window.location.assign(order.pay_url);
+      return;
+    } else if (checkoutAvailable && order.pay_url) {
       window.open(order.pay_url, "_blank", "noopener,noreferrer");
       setPaymentDialog({
         type: "info",
@@ -407,7 +438,7 @@ export default function Billing() {
         message: translationMessage("console:billing.dialog.pageOpenedMessage"),
         order,
       });
-    } else if (order.qr_code) {
+    } else if (checkoutAvailable && order.qr_code) {
       setPaymentDialog({
         type: "info",
         title: translationMessage("console:billing.dialog.scanTitle"),
@@ -417,7 +448,7 @@ export default function Billing() {
     }
 
     await loadBilling();
-    beginOrderStatusPolling(order);
+    if (checkoutAvailable) beginOrderStatusPolling(order);
   }
 
   async function cancelActivityOrder(item: ConsoleBilling["activity"][number]) {
@@ -434,11 +465,11 @@ export default function Billing() {
     }
   }
 
-  if (error) {
+  if (fatalError && !billing) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
         <h1 className="text-lg font-semibold text-rose-900">{t("billing.unavailable")}</h1>
-        <p className="mt-2">{resolveLocalizedMessage(error)}</p>
+        <p className="mt-2">{resolveLocalizedMessage(fatalError)}</p>
       </div>
     );
   }
@@ -553,6 +584,29 @@ export default function Billing() {
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{t("billing.title")}</h1>
         <p className="text-zinc-500 text-sm">{t("billing.description")}</p>
       </div>
+
+      {refreshError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+          <span>{resolveLocalizedMessage(refreshError)}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadBilling()}
+              className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100"
+            >
+              {t("billing.retry")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRefreshError(null)}
+              aria-label={t("billing.dismissRefreshError")}
+              className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"
+            >
+              <XCircle size={18} weight="bold" />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {paymentDialog && (
         <PaymentStatusDialog
@@ -920,19 +974,19 @@ function PaymentOrderNotice({ order, currency, locale }: { order: CreateOrderRes
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
       <p className="font-bold">{t("billing.orderNotice.created", { id: order.order_id })}</p>
       <p className="mt-1 text-xs text-emerald-700">{t("billing.orderNotice.amount", { amount: formatMoney(order.pay_amount, order.payment_currency || order.currency || currency, locale) })}</p>
-      {order.pay_url ? (
+      {hasCheckoutActions(order.status) && order.pay_url ? (
         <a href={order.pay_url} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-emerald-900 underline">
           {t("billing.continuePayment")}
           <ArrowUpRight size={14} weight="bold" />
         </a>
-      ) : order.qr_code ? (
+      ) : hasCheckoutActions(order.status) && order.qr_code ? (
         <div className="mt-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{t("billing.qrCodePayload")}</p>
           <p className="mt-1 break-all text-xs font-mono text-emerald-800">{order.qr_code}</p>
         </div>
-      ) : (
+      ) : hasCheckoutActions(order.status) ? (
         <p className="mt-3 text-xs text-emerald-700">{t("billing.orderNotice.classicPayment")}</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -952,13 +1006,23 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
         values: { ...notice.message.values, status: orderStatusLabel(notice.status, t) },
       })
     : resolveLocalizedMessage(notice.message);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap({
+    active: true,
+    containerRef: dialogRef,
+    initialFocusRef: closeButtonRef,
+    onEscape: onClose,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="payment-status-title"
+        tabIndex={-1}
         className={`w-full max-w-md rounded-[2rem] border p-6 shadow-2xl ${toneClass}`}
       >
         <div className="flex items-start justify-between gap-4">
@@ -967,6 +1031,7 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
             <p className={`mt-2 text-sm leading-6 ${helperClass}`}>{message}</p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             className="rounded-xl p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
@@ -986,7 +1051,7 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
               <span className="text-zinc-500">{t("billing.amount")}</span>
               <span className="font-bold text-zinc-900">{formatMoney(notice.order.pay_amount, notice.order.payment_currency || notice.order.currency || "USD", locale)}</span>
             </div>
-            {notice.order.pay_url ? (
+            {notice.type === "info" && hasCheckoutActions(notice.order.status) && notice.order.pay_url ? (
               <a
                 href={notice.order.pay_url}
                 target="_blank"
@@ -996,7 +1061,7 @@ function PaymentStatusDialog({ notice, onClose }: { notice: PaymentDialogNotice;
                 {t("billing.continuePayment")}
                 <ArrowUpRight size={16} weight="bold" />
               </a>
-            ) : notice.order.qr_code ? (
+            ) : notice.type === "info" && hasCheckoutActions(notice.order.status) && notice.order.qr_code ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">{t("billing.qrCodePayload")}</p>
                 <p className="mt-2 break-all font-mono text-xs text-zinc-700">{notice.order.qr_code}</p>
