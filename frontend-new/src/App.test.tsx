@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import i18n from "./i18n";
@@ -342,5 +342,31 @@ describe("App console routes", () => {
     expect(await screen.findByRole("heading", { name: "控制台暂时不可用" })).toBeInTheDocument();
     expect(screen.getByText("Backend diagnostic")).toBeInTheDocument();
     expect(document.title).toBe("控制台不可用 | Mikiko CC");
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+    expect(screen.getByText("Backend diagnostic")).toBeInTheDocument();
+  });
+
+  it("updates a synthetic console error without replaying the bootstrap request", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (input.toString() === "/api/v1/settings/public") return Promise.resolve(jsonResponse({}));
+      return Promise.resolve(new Response(null, { status: 503 }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<App RouterComponent={MemoryRouter} routerProps={{ initialEntries: ["/console"] }} />);
+
+    expect(await screen.findByText("无法加载控制台。")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([input]) => input.toString() === "/api/v1/console/bootstrap")).toHaveLength(1);
+
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    expect(screen.getByText("コンソールを読み込めませんでした。")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([input]) => input.toString() === "/api/v1/console/bootstrap")).toHaveLength(1);
   });
 });
