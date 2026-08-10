@@ -29,7 +29,11 @@ import { getPublicSettings, type PublicSettings } from "./api/settings";
 import type { ConsoleBootstrap } from "./types/console";
 import StandaloneLanguageSwitcher from "./components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "./hooks/usePageTitle";
-import { localizedErrorMessage } from "./utils/localizedError";
+import {
+  errorMessage,
+  resolveLocalizedMessage,
+  type LocalizedMessage,
+} from "./utils/localizedMessage";
 
 const CONSOLE_BOOTSTRAP_REFRESH_INTERVAL_MS = 60_000;
 
@@ -46,7 +50,7 @@ interface AppProps {
 function ConsoleGuard() {
   const { i18n, t } = useTranslation("common");
   const [bootstrap, setBootstrap] = useState<ConsoleBootstrap | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LocalizedMessage | null>(null);
 
   const refreshBootstrap = useCallback((initial = false) => {
     return getConsoleBootstrap()
@@ -56,10 +60,10 @@ function ConsoleGuard() {
       })
       .catch((reason: unknown) => {
         if (initial) {
-          setError(localizedErrorMessage(reason, "consoleLoadFailed", i18n.t));
+          setError(errorMessage(reason, "consoleLoadFailed"));
         }
       });
-  }, [i18n]);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -72,13 +76,13 @@ function ConsoleGuard() {
       })
       .catch((reason: unknown) => {
         if (!active) return;
-        setError(localizedErrorMessage(reason, "consoleLoadFailed", i18n.t));
+        setError(errorMessage(reason, "consoleLoadFailed"));
       });
 
     return () => {
       active = false;
     };
-  }, [i18n]);
+  }, []);
   usePageTitle(error ? t("app.consoleUnavailableTitle") : i18n.t("console:title"));
 
   const bootstrapReady = bootstrap !== null;
@@ -99,7 +103,7 @@ function ConsoleGuard() {
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 text-center">
         <StandaloneLanguageSwitcher />
         <h1 className="text-2xl font-semibold text-zinc-950">{t("app.consoleUnavailable")}</h1>
-        <p className="mt-3 max-w-md text-sm text-zinc-500">{error}</p>
+        <p className="mt-3 max-w-md text-sm text-zinc-500">{resolveLocalizedMessage(error)}</p>
       </div>
     );
   }
