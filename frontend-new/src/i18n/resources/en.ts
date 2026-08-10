@@ -261,6 +261,7 @@ const en = {
       modelPricing: "Model Pricing",
       usageHistory: "Usage History",
       announcements: "Announcements",
+      installGuide: "Install Guide",
     },
     shell: {
       console: "Console",
@@ -272,6 +273,9 @@ const en = {
       roleUser: "User",
       roleAdmin: "Administrator",
       unreadAnnouncements: "{{count}} unread announcements",
+      openNavigation: "Open navigation",
+      closeNavigation: "Close navigation",
+      navigationLabel: "Console navigation",
     },
     overview: {
       title: "Overview",
@@ -384,6 +388,7 @@ const en = {
       disabledSuccess: "API key “{{name}}” disabled.",
       deleted: "API key “{{name}}” deleted.",
       copied: "API key “{{name}}” copied.",
+      dismissError: "Dismiss error",
     },
   },
   errors: {
@@ -421,6 +426,7 @@ const en = {
     overviewLoadFailed: "Unable to load overview. Try again later.",
     apiKeysLoadFailed: "Unable to load API keys. Try again later.",
     apiKeyRevealFailed: "Unable to reveal this API key.",
+    apiKeyCopyFailed: "Unable to copy this API key.",
     apiKeyImportFailed: "Unable to import this key to CCSwitch.",
     apiKeySaveFailed: "Unable to save the API key.",
     apiKeyUpdateFailed: "Unable to update the API key.",
