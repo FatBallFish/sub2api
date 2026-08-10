@@ -17,9 +17,16 @@ export class ApiError extends Error {
 interface APIEnvelope<T> {
   success?: boolean;
   data?: T;
-  error?: string;
+  error?: string | {
+    code?: unknown;
+    type?: unknown;
+    message?: unknown;
+  };
   message?: string;
   detail?: string;
+  reason?: unknown;
+  code?: unknown;
+  error_code?: unknown;
 }
 
 const API_PREFIX = "/api/v1";
@@ -43,6 +50,34 @@ function getStoredAccessToken() {
   } catch {
     return null;
   }
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized || undefined;
+}
+
+function semanticErrorCode(payload?: APIEnvelope<unknown>): string | undefined {
+  if (!payload) return undefined;
+
+  return nonEmptyString(payload.reason)
+    ?? nonEmptyString(payload.code)
+    ?? nonEmptyString(payload.error_code)
+    ?? (typeof payload.error === "object" && payload.error !== null
+      ? nonEmptyString(payload.error.code) ?? nonEmptyString(payload.error.type)
+      : undefined)
+    ?? nonEmptyString(payload.error);
+}
+
+function apiErrorMessage(payload: APIEnvelope<unknown> | undefined, status: number): string {
+  return nonEmptyString(payload?.message)
+    ?? nonEmptyString(payload?.detail)
+    ?? nonEmptyString(payload?.error)
+    ?? (typeof payload?.error === "object" && payload.error !== null
+      ? nonEmptyString(payload.error.message)
+      : undefined)
+    ?? `Request failed with status ${status}`;
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -86,10 +121,10 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   if (!response.ok || payload?.success === false) {
     throw new ApiError(
-      payload?.message || payload?.detail || payload?.error || `Request failed with status ${response.status}`,
+      apiErrorMessage(payload, response.status),
       response.status,
       payload,
-      payload?.error,
+      semanticErrorCode(payload),
     );
   }
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import { getPublicSettings, type LoginAgreementDocument } from "../../api/settings";
 import { MarkdownContent } from "../../utils/markdown";
-import { findAgreementDocument } from "../../utils/loginAgreement";
+import { findAgreementDocument, localizedAgreementTitle } from "../../utils/loginAgreement";
 
 interface PublicMarkdownPageProps {
   slug: string;
@@ -25,6 +26,7 @@ function findDocument(documents: LoginAgreementDocument[], slug: string) {
 }
 
 export default function PublicMarkdownPage({ slug, fallbackTitle, children, requireAgreementEnabled = false, exactDocumentId = false }: PublicMarkdownPageProps) {
+  const { t } = useTranslation();
   const [document, setDocument] = useState<LoginAgreementDocument | null>(null);
   const [updatedAt, setUpdatedAt] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -56,7 +58,7 @@ export default function PublicMarkdownPage({ slug, fallbackTitle, children, requ
   }, [exactDocumentId, slug]);
 
   const hasMarkdown = Boolean(document?.content_md?.trim());
-  const title = document?.title || fallbackTitle;
+  const title = document ? localizedAgreementTitle(document, t) : fallbackTitle;
   const formattedUpdatedAt = useMemo(() => {
     if (!updatedAt) return "";
     const date = new Date(updatedAt);

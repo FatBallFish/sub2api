@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import i18n from "../i18n";
 import PublicLayout from "./PublicLayout";
 
 describe("PublicLayout", () => {
@@ -93,7 +94,38 @@ describe("PublicLayout", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Service Terms" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("link", { name: "Terms of Service" })).toBeInTheDocument());
     expect(screen.queryByRole("link", { name: /privacy/i })).not.toBeInTheDocument();
+  });
+
+  it("localizes built-in footer document titles while preserving custom titles", async () => {
+    await i18n.changeLanguage("zh-TW");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          login_agreement_enabled: true,
+          login_agreement_documents: [
+            { id: "terms", title: "后台默认标题", content_md: "Terms" },
+            { id: "privacy", title: "Custom Privacy Notice", content_md: "Privacy" },
+          ],
+        },
+      }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<div>Home</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("link", { name: "服務條款" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Custom Privacy Notice" })).toBeInTheDocument();
   });
 });

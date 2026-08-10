@@ -1,11 +1,13 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getPublicSettings, type LoginAgreementDocument } from "../api/settings";
 import { getStoredUser, isAuthenticated } from "../utils/authStorage";
-import { agreementDocuments, findAgreementDocument } from "../utils/loginAgreement";
+import { agreementDocuments, findAgreementDocument, localizedAgreementTitle } from "../utils/loginAgreement";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function PublicLayout() {
+  const { t } = useTranslation();
   const location = useLocation();
   const user = getStoredUser();
   const signedIn = isAuthenticated();
@@ -106,10 +108,10 @@ export default function PublicLayout() {
               <Link to="/team" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Team</Link>
               <Link to="/blog" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">Blog</Link>
               {privacyDocument?.content_md?.trim() ? (
-                <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{privacyDocument.title}</Link>
+                <Link to="/privacy" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(privacyDocument, t)}</Link>
               ) : null}
               {termsDocument?.content_md?.trim() ? (
-                <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{termsDocument.title}</Link>
+                <Link to="/terms" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{localizedAgreementTitle(termsDocument, t)}</Link>
               ) : null}
             </nav>
           </div>
