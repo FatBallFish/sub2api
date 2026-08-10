@@ -3,7 +3,6 @@ import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const ja = {
   common: {
-    language: "言語",
     legalDocuments: {
       terms: "利用規約",
       usagePolicy: "利用ポリシー",
@@ -162,7 +161,6 @@ const ja = {
     },
   },
   auth: {
-    title: "ログイン",
     pageTitles: { login: "ログイン", register: "アカウント作成", oauth: "OAuth ログイン" },
     redirecting: "コンソールに移動しています...",
     loginTitle: "ゲートウェイにログイン",
@@ -411,7 +409,6 @@ const ja = {
       apiKeys: {},
     },
     ...remainingErrors.ja,
-    unknown: "エラーが発生しました。しばらくしてからもう一度お試しください。",
     publicPricingLoadFailed: "料金情報を読み込めませんでした。",
     modelPricingLoadFailed: "モデル料金を読み込めませんでした。",
     authSignInFailed: "ログインできませんでした。",

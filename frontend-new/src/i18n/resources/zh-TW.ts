@@ -3,7 +3,6 @@ import { remainingConsole, remainingErrors } from "./remainingConsole";
 
 const zhTW = {
   common: {
-    language: "語言",
     legalDocuments: {
       terms: "服務條款",
       usagePolicy: "使用政策",
@@ -162,7 +161,6 @@ const zhTW = {
     },
   },
   auth: {
-    title: "登入",
     pageTitles: { login: "登入", register: "建立帳號", oauth: "OAuth 登入" },
     redirecting: "正在前往控制台...",
     loginTitle: "登入閘道",
@@ -411,7 +409,6 @@ const zhTW = {
       apiKeys: {},
     },
     ...remainingErrors["zh-TW"],
-    unknown: "發生錯誤，請稍後再試。",
     publicPricingLoadFailed: "無法載入價格資訊。",
     modelPricingLoadFailed: "無法載入模型價格。",
     authSignInFailed: "無法登入。",
