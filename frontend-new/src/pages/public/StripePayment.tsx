@@ -14,11 +14,18 @@ import {
   translationMessage,
   type LocalizedMessage,
 } from "../../utils/localizedMessage";
+import { stripeLocale } from "../../utils/sdkLocale";
 
 type StripePaymentContext = {
   clientSecret: string;
   resumeToken?: string;
   outTradeNo?: string;
+};
+
+type CheckoutState = {
+  requestKey: string;
+  publishableKey: string;
+  error: LocalizedMessage | null;
 };
 
 function StripePaymentForm({ orderId, context }: { orderId: string; context: StripePaymentContext }) {
@@ -54,7 +61,7 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
         <h1 className="mt-2 text-2xl font-semibold text-zinc-950">{t("payment.completeOrder")}</h1>
       </div>
       <PaymentElement />
-      {error && <p className="mt-4 text-sm text-rose-700">{resolveLocalizedMessage(error)}</p>}
+      {error && <p role="alert" className="mt-4 text-sm text-rose-700">{resolveLocalizedMessage(error)}</p>}
       <button type="submit" disabled={!stripe || submitting} className="mt-6 h-11 w-full bg-zinc-950 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-400">
         {submitting ? t("payment.confirming") : t("payment.payNow")}
       </button>
@@ -63,11 +70,11 @@ function StripePaymentForm({ orderId, context }: { orderId: string; context: Str
 }
 
 export default function StripePayment() {
-  const { t } = useTranslation("public");
+  const { i18n, t } = useTranslation("public");
+  const sdkLocale = stripeLocale(i18n.resolvedLanguage);
   const [params] = useSearchParams();
   const orderId = params.get("order_id")?.trim() || "";
-  const [publishableKey, setPublishableKey] = useState("");
-  const [error, setError] = useState<LocalizedMessage | null>(null);
+  const [checkout, setCheckout] = useState<CheckoutState | null>(null);
   const context = useMemo(() => {
     if (!orderId) return null;
     try {
@@ -76,14 +83,38 @@ export default function StripePayment() {
       return null;
     }
   }, [orderId]);
+  const requestKey = context?.clientSecret && orderId ? `${orderId}:${context.clientSecret}` : "";
+  const currentCheckout = checkout?.requestKey === requestKey ? checkout : null;
+  const publishableKey = currentCheckout?.publishableKey || "";
+  const error = currentCheckout?.error || null;
   usePageTitle(t("payment.pageTitle"));
 
   useEffect(() => {
-    if (!context?.clientSecret || !orderId) return;
+    if (!requestKey) return undefined;
+    let active = true;
     getPaymentCheckoutInfo()
-      .then((info) => setPublishableKey(info.stripe_publishable_key || ""))
-      .catch((reason: unknown) => setError(errorMessage(reason, "paymentLoadStripeFailed", "payment")));
-  }, [context?.clientSecret, orderId]);
+      .then((info) => {
+        if (active) {
+          setCheckout({
+            requestKey,
+            publishableKey: info.stripe_publishable_key || "",
+            error: null,
+          });
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) {
+          setCheckout({
+            requestKey,
+            publishableKey: "",
+            error: errorMessage(reason, "paymentLoadStripeFailed", "payment"),
+          });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [requestKey]);
 
   const stripePromise = useMemo(() => publishableKey ? loadStripe(publishableKey) : null, [publishableKey]);
   if (!context?.clientSecret || !orderId) {
@@ -95,7 +126,11 @@ export default function StripePayment() {
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-zinc-100 px-4 py-10">
       <StandaloneLanguageSwitcher />
-      <Elements stripe={stripePromise} options={{ clientSecret: context.clientSecret, appearance: { theme: "stripe" } }}>
+      <Elements
+        key={`${orderId}:${context.clientSecret}`}
+        stripe={stripePromise}
+        options={{ clientSecret: context.clientSecret, locale: sdkLocale, appearance: { theme: "stripe" } }}
+      >
         <StripePaymentForm orderId={orderId} context={context} />
       </Elements>
     </main>
@@ -109,7 +144,7 @@ function StripeRecovery({ message }: { message: string }) {
       <StandaloneLanguageSwitcher />
       <section className="max-w-md bg-white p-8 text-center">
         <h1 className="text-xl font-semibold text-zinc-950">{t("payment.unavailable")}</h1>
-        <p className="mt-3 text-sm leading-6 text-zinc-600">{message}</p>
+        <p role="alert" className="mt-3 text-sm leading-6 text-zinc-600">{message}</p>
         <Link to="/console/subscription-wallet" className="mt-6 inline-flex h-10 items-center bg-zinc-950 px-5 text-sm font-semibold text-white">{t("payment.returnToBilling")}</Link>
       </section>
     </main>

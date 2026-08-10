@@ -9,6 +9,7 @@ interface CapturedOptions {
   prefix: string;
   mode: string;
   button: string;
+  language: "cn" | "en";
   captchaVerifyCallback: (param: string) => { captchaResult: boolean };
 }
 
@@ -99,5 +100,35 @@ describe("AliyunCaptchaWidget", () => {
     fireEvent.click(screen.getByRole("button", { name: "セキュリティ検証を開始" }));
 
     expect(screen.getByRole("button", { name: "セキュリティ検証中" })).toBeEnabled();
+  });
+
+  it("recreates the SDK with a mapped language and clears an old proof", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const captured: CapturedOptions[] = [];
+    vi.mocked(window.initAliyunCaptcha!).mockImplementation((next) => {
+      captured.push(next as CapturedOptions);
+      options = next as CapturedOptions;
+    });
+    const ref = createRef<AliyunCaptchaWidgetHandle>();
+    render(<AliyunCaptchaWidget ref={ref} sceneId="scene-1" prefix="prefix-1" />);
+    await waitFor(() => expect(captured).toHaveLength(1));
+    expect(captured[0].language).toBe("cn");
+
+    const pending = ref.current!.verify();
+    act(() => captured[0].captchaVerifyCallback("old-proof"));
+    await pending;
+    expect(screen.getByRole("button", { name: "安全验证已完成" })).toBeDisabled();
+
+    const popup = document.createElement("div");
+    popup.id = "aliyunCaptcha-window-popup";
+    document.body.appendChild(popup);
+    await act(async () => {
+      await i18n.changeLanguage("ja");
+    });
+
+    await waitFor(() => expect(captured).toHaveLength(2));
+    expect(captured[1].language).toBe("en");
+    expect(document.getElementById("aliyunCaptcha-window-popup")).toBeNull();
+    expect(screen.getByRole("button", { name: "セキュリティ検証を開始" })).toBeEnabled();
   });
 });

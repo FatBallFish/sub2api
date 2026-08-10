@@ -1,18 +1,22 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import StripePayment from "./StripePayment";
 
 const stripeHarness = vi.hoisted(() => ({
   confirmPayment: vi.fn(),
+  elementsOptions: null as { clientSecret: string; locale?: string } | null,
   loadStripe: vi.fn(),
 }));
 
 vi.mock("@stripe/react-stripe-js", async () => {
   const React = await import("react");
   return {
-    Elements: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+    Elements: ({ children, options }: { children: React.ReactNode; options: { clientSecret: string; locale?: string } }) => {
+      stripeHarness.elementsOptions = options;
+      return React.createElement(React.Fragment, null, children);
+    },
     PaymentElement: () => React.createElement("div", { "data-testid": "stripe-payment-element" }),
     useElements: () => ({}),
     useStripe: () => ({ confirmPayment: stripeHarness.confirmPayment }),
@@ -28,8 +32,29 @@ const originalFetch = globalThis.fetch;
 beforeEach(() => {
   sessionStorage.clear();
   stripeHarness.confirmPayment.mockReset();
+  stripeHarness.elementsOptions = null;
   stripeHarness.loadStripe.mockReset().mockReturnValue(Promise.resolve({}));
 });
+
+function NavigateButton({ to }: { to: string }) {
+  const navigate = useNavigate();
+  return <button type="button" onClick={() => navigate(to)}>Navigate</button>;
+}
+
+function checkoutResponse(publishableKey: string) {
+  return new Response(JSON.stringify({
+    success: true,
+    data: { stripe_publishable_key: publishableKey },
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
+function deferredResponse() {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 afterEach(() => {
   sessionStorage.clear();
@@ -86,19 +111,21 @@ it("localizes Stripe loading, ready, and submitting states while preserving a pr
 
   expect(await screen.findByRole("heading", { name: "注文を完了" })).toBeInTheDocument();
   expect(screen.getByTestId("stripe-payment-element")).toBeInTheDocument();
+  expect(stripeHarness.elementsOptions).toMatchObject({ locale: "ja" });
   fireEvent.click(screen.getByRole("button", { name: "今すぐ支払う" }));
   expect(screen.getByRole("button", { name: "確認中..." })).toBeDisabled();
 
   await act(async () => {
     resolveConfirm({ error: { message: "Raw Stripe provider decline" } });
   });
-  expect(await screen.findByText("Raw Stripe provider decline")).toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent("Raw Stripe provider decline");
 
   await act(async () => {
     await i18n.changeLanguage("zh-CN");
   });
   expect(screen.getByRole("heading", { name: "完成订单" })).toBeInTheDocument();
   expect(screen.getByText("Raw Stripe provider decline")).toBeInTheDocument();
+  expect(stripeHarness.elementsOptions).toMatchObject({ locale: "zh" });
   expect(globalThis.fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -124,4 +151,83 @@ it("updates a frontend-owned Stripe confirmation fallback when the locale change
   });
   expect(screen.getByText("无法确认付款。")).toBeInTheDocument();
   await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+});
+
+it("ignores a stale checkout failure after a new order succeeds", async () => {
+  await i18n.changeLanguage("en");
+  const orderA = deferredResponse();
+  globalThis.fetch = vi.fn()
+    .mockReturnValueOnce(orderA.promise)
+    .mockResolvedValueOnce(checkoutResponse("pk_order_b"));
+  sessionStorage.setItem("stripe-payment:A", JSON.stringify({ clientSecret: "secret-a" }));
+  sessionStorage.setItem("stripe-payment:B", JSON.stringify({ clientSecret: "secret-b" }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/stripe?order_id=A"]}>
+      <NavigateButton to="/payment/stripe?order_id=B" />
+      <StripePayment />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Navigate" }));
+
+  expect(await screen.findByRole("heading", { name: "Complete your order" })).toBeInTheDocument();
+  expect(stripeHarness.elementsOptions).toMatchObject({ clientSecret: "secret-b" });
+  await act(async () => {
+    orderA.resolve(new Response(null, { status: 503 }));
+    await orderA.promise;
+  });
+
+  expect(screen.getByRole("heading", { name: "Complete your order" })).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Payment unavailable" })).not.toBeInTheDocument();
+});
+
+it("recovers from an earlier checkout failure when the order changes", async () => {
+  await i18n.changeLanguage("en");
+  globalThis.fetch = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 503 }))
+    .mockResolvedValueOnce(checkoutResponse("pk_order_b"));
+  sessionStorage.setItem("stripe-payment:A", JSON.stringify({ clientSecret: "secret-a" }));
+  sessionStorage.setItem("stripe-payment:B", JSON.stringify({ clientSecret: "secret-b" }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/stripe?order_id=A"]}>
+      <NavigateButton to="/payment/stripe?order_id=B" />
+      <StripePayment />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole("heading", { name: "Payment unavailable" })).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent("Unable to load Stripe.");
+
+  fireEvent.click(screen.getByRole("button", { name: "Navigate" }));
+
+  expect(await screen.findByRole("heading", { name: "Complete your order" })).toBeInTheDocument();
+  expect(stripeHarness.elementsOptions).toMatchObject({ clientSecret: "secret-b" });
+  expect(screen.queryByRole("heading", { name: "Payment unavailable" })).not.toBeInTheDocument();
+});
+
+it("clears the prior checkout while the next order loads", async () => {
+  await i18n.changeLanguage("en");
+  const orderB = deferredResponse();
+  globalThis.fetch = vi.fn()
+    .mockResolvedValueOnce(checkoutResponse("pk_order_a"))
+    .mockReturnValueOnce(orderB.promise);
+  sessionStorage.setItem("stripe-payment:A", JSON.stringify({ clientSecret: "secret-a" }));
+  sessionStorage.setItem("stripe-payment:B", JSON.stringify({ clientSecret: "secret-b" }));
+
+  render(
+    <MemoryRouter initialEntries={["/payment/stripe?order_id=A"]}>
+      <NavigateButton to="/payment/stripe?order_id=B" />
+      <StripePayment />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByRole("heading", { name: "Complete your order" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Navigate" }));
+
+  expect(await screen.findByText("Loading secure payment...")).toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: "Complete your order" })).not.toBeInTheDocument();
+  await act(async () => {
+    orderB.resolve(checkoutResponse("pk_order_b"));
+    await orderB.promise;
+  });
+  expect(await screen.findByRole("heading", { name: "Complete your order" })).toBeInTheDocument();
 });

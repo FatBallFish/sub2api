@@ -103,7 +103,7 @@ describe("LoginAgreementPrompt", () => {
     expect(screen.getByRole("button", { name: "關閉條款" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "接受並繼續" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "拒絕" })).toBeInTheDocument();
-    expect(screen.getByText(/更新於 2026-08-10/)).toBeInTheDocument();
+    expect(screen.getByText(/更新於 2026年8月10日/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Customer Contract" })).toBeInTheDocument();
   });
 
@@ -126,5 +126,24 @@ describe("LoginAgreementPrompt", () => {
     const label = screen.getByRole("checkbox").closest("label");
     expect(label).toHaveTextContent("利用規約、利用ポリシー、Customer Contract");
     expect(label).not.toHaveTextContent("利用規約, 利用ポリシー");
+  });
+
+  it("keeps an invalid custom update value unchanged", () => {
+    render(
+      <MemoryRouter>
+        <LoginAgreementPrompt
+          accepted={false}
+          documents={documents}
+          mode="modal"
+          open
+          updatedAt="release-42"
+          onAccept={vi.fn()}
+          onReject={vi.fn()}
+          onOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/更新于 release-42/)).toBeInTheDocument();
   });
 });

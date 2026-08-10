@@ -461,6 +461,7 @@ export default function Auth() {
                       setCaptchaProof(null);
                       setError(translationMessage("auth:captchaExpired"));
                     }}
+                    onInvalidate={() => setCaptchaProof(null)}
                     onError={() => {
                       setCaptchaProof(null);
                       setError(translationMessage("auth:captchaFailed"));
@@ -527,6 +528,7 @@ export default function Auth() {
                       setCaptchaProof(null);
                       setError(translationMessage("auth:captchaExpired"));
                     }}
+                    onInvalidate={() => setCaptchaProof(null)}
                     onError={() => {
                       setCaptchaProof(null);
                       setError(translationMessage("auth:captchaFailed"));

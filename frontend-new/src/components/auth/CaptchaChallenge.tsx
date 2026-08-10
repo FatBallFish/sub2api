@@ -19,12 +19,14 @@ export interface CaptchaChallengeProps {
   settings: PublicSettings | null;
   onVerify: (proof: CaptchaProof) => void;
   onExpire?: () => void;
+  onInvalidate?: () => void;
   onError?: (error: Error) => void;
 }
 
 const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProps>(
-  function CaptchaChallenge({ settings, onVerify, onExpire, onError }, ref) {
-    const { t } = useTranslation("auth");
+  function CaptchaChallenge({ settings, onVerify, onExpire, onInvalidate, onError }, ref) {
+    const { i18n, t } = useTranslation("auth");
+    const locale = i18n.resolvedLanguage || i18n.language;
     let config: CaptchaProviderConfig = null;
     let configurationErrorMessage: string | null = null;
     try {
@@ -39,9 +41,12 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
     const proofRef = useRef<CaptchaProof | null>(null);
     const onVerifyRef = useRef(onVerify);
     const onExpireRef = useRef(onExpire);
+    const onInvalidateRef = useRef(onInvalidate);
     const onErrorRef = useRef(onError);
+    const localeRef = useRef(locale);
     onVerifyRef.current = onVerify;
     onExpireRef.current = onExpire;
+    onInvalidateRef.current = onInvalidate;
     onErrorRef.current = onError;
 
     function acceptProof(proof: CaptchaProof) {
@@ -76,6 +81,13 @@ const CaptchaChallenge = forwardRef<CaptchaChallengeHandle, CaptchaChallengeProp
     useEffect(() => {
       proofRef.current = null;
     }, [config?.provider]);
+
+    useEffect(() => {
+      if (localeRef.current === locale) return;
+      localeRef.current = locale;
+      proofRef.current = null;
+      onInvalidateRef.current?.();
+    }, [locale]);
 
     useEffect(() => {
       if (configurationErrorMessage) onErrorRef.current?.(new Error(configurationErrorMessage));

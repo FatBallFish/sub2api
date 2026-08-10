@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { turnstileLocale, type TurnstileSdkLocale } from "../../utils/sdkLocale";
 
 const TURNSTILE_SCRIPT_ID = "cloudflare-turnstile-script";
 const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -11,6 +12,7 @@ type TurnstileError = string | Error | undefined;
 
 interface TurnstileRenderOptions {
   sitekey: string;
+  language: TurnstileSdkLocale;
   theme: TurnstileTheme;
   size: TurnstileSize;
   callback: (token: string) => void;
@@ -130,7 +132,8 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
     },
     ref,
   ) {
-    const { t } = useTranslation("auth");
+    const { i18n, t } = useTranslation("auth");
+    const language = turnstileLocale(i18n.resolvedLanguage);
     const containerRef = useRef<HTMLDivElement>(null);
     const apiRef = useRef<TurnstileApi>(null);
     const widgetIdRef = useRef<string>(null);
@@ -164,6 +167,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           try {
             const widgetId = turnstile.render(container, {
               sitekey: siteKey,
+              language,
               theme,
               size,
               callback: (token) => onVerifyRef.current(token),
@@ -192,7 +196,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetHandle, TurnstileWidgetProps>(
           apiRef.current = null;
         }
       };
-    }, [siteKey, size, theme]);
+    }, [language, siteKey, size, theme]);
 
     return (
       <div
