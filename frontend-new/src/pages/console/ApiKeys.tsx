@@ -31,6 +31,7 @@ import {
   translationMessage,
   type LocalizedMessage,
 } from "../../utils/localizedMessage";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 const tabs = [
   { labelKey: "apiKeys.allKeys", status: "all" },
@@ -131,6 +132,7 @@ export default function ApiKeys() {
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [importingCcsId, setImportingCcsId] = useState<number | null>(null);
   const [pendingCcsKey, setPendingCcsKey] = useState<ApiKey | null>(null);
+  const [ccsImportError, setCcsImportError] = useState<LocalizedMessage | null>(null);
   const createNameInputRef = useRef<HTMLInputElement>(null);
   const ccsInitialFocusRef = useRef<HTMLButtonElement>(null);
   const createDialogTitleId = useId();
@@ -245,8 +247,10 @@ export default function ApiKeys() {
   };
 
   const executeCcsImport = async (key: ApiKey, clientType: CcSwitchClientType) => {
+    const fromChooser = pendingCcsKey?.id === key.id;
     setImportingCcsId(key.id);
-    setActionError(null);
+    if (fromChooser) setCcsImportError(null);
+    else setActionError(null);
     setFeedback(null);
     try {
       const revealed = await revealApiKey(key.id);
@@ -260,8 +264,11 @@ export default function ApiKeys() {
       });
       window.open(deeplink, "_self");
       setPendingCcsKey(null);
+      setCcsImportError(null);
     } catch (reason) {
-      setActionError(errorMessage(reason, "apiKeyImportFailed", "apiKeys"));
+      const message = errorMessage(reason, "apiKeyImportFailed", "apiKeys");
+      if (fromChooser) setCcsImportError(message);
+      else setActionError(message);
     } finally {
       setImportingCcsId(null);
     }
@@ -269,6 +276,7 @@ export default function ApiKeys() {
 
   const importToCcswitch = (key: ApiKey) => {
     if (key.group?.platform === "antigravity") {
+      setCcsImportError(null);
       setPendingCcsKey(key);
       return;
     }
@@ -279,6 +287,11 @@ export default function ApiKeys() {
     if (status === activeStatus) return;
     setActiveStatus(status);
     setLoading(true);
+  };
+
+  const closeCcsImport = () => {
+    setPendingCcsKey(null);
+    setCcsImportError(null);
   };
 
   const closeKeyModal = () => {
@@ -556,7 +569,7 @@ export default function ApiKeys() {
         <AccessibleModal
           labelledBy={ccsDialogTitleId}
           initialFocusRef={ccsInitialFocusRef}
-          onClose={() => setPendingCcsKey(null)}
+          onClose={closeCcsImport}
           className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
         >
             <div>
@@ -582,9 +595,14 @@ export default function ApiKeys() {
                 Gemini CLI
               </button>
             </div>
+            {ccsImportError ? (
+              <div className="mt-4">
+                <DismissibleAlert message={ccsImportError} onDismiss={() => setCcsImportError(null)} compact />
+              </div>
+            ) : null}
             <button
               type="button"
-              onClick={() => setPendingCcsKey(null)}
+              onClick={closeCcsImport}
               className="mt-4 w-full rounded-xl border border-zinc-200 py-3 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50"
             >
               {t("apiKeys.cancel")}
@@ -744,65 +762,12 @@ function AccessibleModal({
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
-    const dialog = dialogRef.current;
-    const focusableSelector = [
-      "button:not([disabled])",
-      "input:not([disabled])",
-      "select:not([disabled])",
-      "textarea:not([disabled])",
-      "a[href]",
-      "[tabindex]:not([tabindex='-1'])",
-    ].join(",");
-
-    const focusableElements = () => Array.from(
-      dialog?.querySelectorAll<HTMLElement>(focusableSelector) ?? [],
-    );
-
-    (initialFocusRef.current ?? focusableElements()[0] ?? dialog)?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusable = focusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog?.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      queueMicrotask(() => {
-        if (previouslyFocused?.isConnected) previouslyFocused.focus();
-      });
-    };
-  }, [initialFocusRef]);
+  useFocusTrap({
+    active: true,
+    containerRef: dialogRef,
+    initialFocusRef,
+    onEscape: onClose,
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-4">
