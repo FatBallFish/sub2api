@@ -1,3 +1,5 @@
+import type { TranslationResource } from "./en";
+
 const ja = {
   common: {
     language: "言語",
@@ -14,6 +16,6 @@ const ja = {
   errors: {
     unknown: "エラーが発生しました。しばらくしてからもう一度お試しください。",
   },
-} as const;
+} as const satisfies TranslationResource;
 
 export default ja;

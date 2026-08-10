@@ -1,4 +1,4 @@
-import { createInstance } from "i18next";
+import { createInstance, type i18n as I18nInstance } from "i18next";
 import { initReactI18next } from "react-i18next";
 import {
   LOCALE_STORAGE_KEY,
@@ -14,6 +14,15 @@ import zhTW from "./resources/zh-TW";
 
 type ReadableStorage = Pick<Storage, "getItem">;
 type WritableStorage = Pick<Storage, "setItem">;
+type LocaleStorage = ReadableStorage & WritableStorage;
+type DocumentLanguage = { lang: string };
+
+export interface I18nEnvironment {
+  storage?: LocaleStorage | null;
+  browser?: readonly string[];
+  documentElement?: DocumentLanguage | null;
+  initialLocale?: SupportedLocale;
+}
 
 function browserStorage(): Storage | null {
   if (typeof window === "undefined") return null;
@@ -50,53 +59,94 @@ function browserLocales(): readonly string[] {
   return navigator.language ? [navigator.language] : [];
 }
 
-export function detectInitialLocale(): SupportedLocale {
+function browserDocumentElement(): DocumentLanguage | null {
+  return typeof document === "undefined" ? null : document.documentElement;
+}
+
+export function detectInitialLocale(environment: I18nEnvironment = {}): SupportedLocale {
+  const storage = environment.storage === undefined ? browserStorage() : environment.storage;
   return resolveInitialLocale({
-    stored: readStoredLocale(),
-    browser: browserLocales(),
+    stored: readStoredLocale(storage),
+    browser: environment.browser ?? browserLocales(),
   });
 }
 
 const i18n = createInstance();
-let initialization: Promise<typeof i18n> | null = null;
+let initialization: Promise<I18nInstance> | null = null;
 
-i18n.on("languageChanged", (language) => {
-  const locale = normalizeLocale(language) ?? "en";
-  writeStoredLocale(locale);
+async function initializeInstance(
+  instance: I18nInstance,
+  environment: I18nEnvironment = {},
+): Promise<I18nInstance> {
+  const storage = environment.storage === undefined ? browserStorage() : environment.storage;
+  const documentElement = environment.documentElement === undefined
+    ? browserDocumentElement()
+    : environment.documentElement;
+  const languageChanged = (language: string) => {
+    const locale = normalizeLocale(language) ?? "en";
+    writeStoredLocale(locale, storage);
+    if (documentElement) documentElement.lang = locale;
+  };
 
-  if (typeof document !== "undefined") {
-    document.documentElement.lang = locale;
+  instance.on("languageChanged", languageChanged);
+
+  try {
+    await instance
+      .use(initReactI18next)
+      .init({
+        resources: {
+          en,
+          "zh-CN": zhCN,
+          "zh-TW": zhTW,
+          ja,
+        },
+        lng: environment.initialLocale ?? detectInitialLocale(environment),
+        fallbackLng: "en",
+        supportedLngs: [...SUPPORTED_LOCALES],
+        defaultNS: "common",
+        ns: ["common", "public", "auth", "console", "errors"],
+        returnNull: false,
+        interpolation: {
+          escapeValue: false,
+        },
+        react: {
+          useSuspense: false,
+        },
+      });
+  } catch (error) {
+    instance.off("languageChanged", languageChanged);
+    throw error;
   }
-});
 
-export function initializeI18n(): Promise<typeof i18n> {
+  return instance;
+}
+
+export function createI18nInstance(environment: I18nEnvironment = {}): Promise<I18nInstance> {
+  return initializeInstance(createInstance(), environment);
+}
+
+export function initializeI18n(environment: I18nEnvironment = {}): Promise<I18nInstance> {
   if (i18n.isInitialized) return Promise.resolve(i18n);
 
-  initialization ??= i18n
-    .use(initReactI18next)
-    .init({
-      resources: {
-        en,
-        "zh-CN": zhCN,
-        "zh-TW": zhTW,
-        ja,
-      },
-      lng: detectInitialLocale(),
-      fallbackLng: "en",
-      supportedLngs: [...SUPPORTED_LOCALES],
-      defaultNS: "common",
-      ns: ["common", "public", "auth", "console", "errors"],
-      returnNull: false,
-      interpolation: {
-        escapeValue: false,
-      },
-      react: {
-        useSuspense: false,
-      },
-    })
-    .then(() => i18n);
+  initialization ??= initializeInstance(i18n, environment).catch((error: unknown) => {
+    initialization = null;
+    throw error;
+  });
 
   return initialization;
+}
+
+export async function activateEnglishFallback(): Promise<void> {
+  try {
+    if (i18n.isInitialized) {
+      await i18n.changeLanguage("en");
+    } else {
+      await initializeI18n({ initialLocale: "en" });
+    }
+  } finally {
+    const documentElement = browserDocumentElement();
+    if (documentElement) documentElement.lang = "en";
+  }
 }
 
 export {
