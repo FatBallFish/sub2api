@@ -568,6 +568,8 @@ describe("ApiKeys", () => {
 
   it("keeps the table available after clipboard failure and provides accessible CCSwitch dialog recovery", async () => {
     await i18n.changeLanguage("zh-CN");
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    let revealAttempts = 0;
     const writeText = vi.fn()
       .mockRejectedValueOnce(new DOMException("Clipboard blocked", "NotAllowedError"))
       .mockResolvedValueOnce(undefined);
@@ -576,6 +578,14 @@ describe("ApiKeys", () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = input.toString();
       if (url.includes("/reveal")) {
+        revealAttempts += 1;
+        if (revealAttempts === 3) {
+          return Promise.resolve(new Response(JSON.stringify({
+            success: false,
+            reason: "CUSTOM_IMPORT_CODE",
+            message: "Configured import detail",
+          }), { status: 400, headers: { "Content-Type": "application/json" } }));
+        }
         return Promise.resolve(new Response(JSON.stringify({ success: true, data: { key: "sk-live-full-value" } }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
@@ -644,9 +654,19 @@ describe("ApiKeys", () => {
     expect(within(dialog).getByRole("button", { name: "Claude Code" })).toHaveFocus();
     await userEvent.tab({ shift: true });
     expect(within(dialog).getByRole("button", { name: "キャンセル" })).toHaveFocus();
-    await userEvent.keyboard("{Escape}");
+    await userEvent.tab();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Claude Code" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Configured import detail");
+    expect(screen.getByRole("dialog", { name: "CCSwitch にインポート" })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "エラーを閉じる" }));
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: "Claude Code" }));
+
     expect(screen.queryByRole("dialog", { name: "CCSwitch にインポート" })).not.toBeInTheDocument();
-    expect(importButton).toHaveFocus();
+    await waitFor(() => expect(importButton).toHaveFocus());
+    expect(openSpy).toHaveBeenCalledWith(expect.stringMatching(/^ccswitch:\/\/v1\/import\?/), "_self");
+    expect(screen.queryByText("Configured import detail")).not.toBeInTheDocument();
   });
 
   it("localizes stable API errors and preserves unknown backend messages", async () => {
