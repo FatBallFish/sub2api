@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { getPublicSettings, type LoginAgreementDocument } from "../api/settings";
 import { getStoredUser, isAuthenticated } from "../utils/authStorage";
 import { agreementDocuments, findAgreementDocument } from "../utils/loginAgreement";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function PublicLayout() {
   const location = useLocation();
@@ -56,6 +57,7 @@ export default function PublicLayout() {
           </div>
         </div>
         <div className="flex items-center gap-4">
+          <LanguageSwitcher />
           {signedIn && user ? (
             <Link to="/console" className="flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
