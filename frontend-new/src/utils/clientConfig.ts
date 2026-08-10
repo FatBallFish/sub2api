@@ -3,12 +3,19 @@ export type CcSwitchClientType = "claude" | "gemini";
 export type InstallClientId = "codex" | "codex-ws" | "claude" | "gemini" | "opencode";
 export type InstallShellId = "unix" | "cmd" | "powershell" | "windows";
 export type ClientConfigHintId = "claudeSettings" | "codexAuth" | "openCodeMerge";
+export type ClientConfigDisplayTargetId = "commandPrompt" | "powershell" | "terminal";
 
 export const CLIENT_CONFIG_HINT_KEYS = {
   claudeSettings: "installGuide.hintClaudeSettings",
   codexAuth: "installGuide.hintCodexAuth",
   openCodeMerge: "installGuide.hintOpenCode",
 } as const satisfies Record<ClientConfigHintId, string>;
+
+export const CLIENT_CONFIG_DISPLAY_TARGET_KEYS = {
+  commandPrompt: "installGuide.targets.commandPrompt",
+  powershell: "installGuide.targets.powershell",
+  terminal: "installGuide.targets.terminal",
+} as const satisfies Record<ClientConfigDisplayTargetId, `installGuide.targets.${ClientConfigDisplayTargetId}`>;
 
 export interface InstallClientOption {
   id: InstallClientId;
@@ -20,11 +27,15 @@ export interface InstallShellOption {
   label: string;
 }
 
-export interface ClientConfigFile {
-  path: string;
+interface ClientConfigFileBase {
   content: string;
   hintId?: ClientConfigHintId;
 }
+
+export type ClientConfigFile = ClientConfigFileBase & (
+  | { path: string; displayTargetId?: never }
+  | { path?: never; displayTargetId: ClientConfigDisplayTargetId }
+);
 
 export interface BuildClientConfigInput {
   platform?: GroupPlatform | null;
@@ -159,7 +170,7 @@ function generateClaudeFiles(baseUrl: string, apiKey: string, shellId: InstallSh
   if (shellId === "cmd") {
     return [
       {
-        path: "Command Prompt",
+        displayTargetId: "commandPrompt",
         content: `set ANTHROPIC_BASE_URL=${baseUrl}
 set ANTHROPIC_AUTH_TOKEN=${apiKey}
 set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
@@ -175,7 +186,7 @@ set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
   if (shellId === "powershell") {
     return [
       {
-        path: "PowerShell",
+        displayTargetId: "powershell",
         content: `$env:ANTHROPIC_BASE_URL="${baseUrl}"
 $env:ANTHROPIC_AUTH_TOKEN="${apiKey}"
 $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
@@ -190,7 +201,7 @@ $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
 
   return [
     {
-      path: "Terminal",
+      displayTargetId: "terminal",
       content: `export ANTHROPIC_BASE_URL="${baseUrl}"
 export ANTHROPIC_AUTH_TOKEN="${apiKey}"
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
@@ -222,7 +233,7 @@ function generateGeminiCliFile(baseUrl: string, apiKey: string, shellId: Install
   const model = "gemini-2.0-flash";
   if (shellId === "cmd") {
     return {
-      path: "Command Prompt",
+      displayTargetId: "commandPrompt",
       content: `set GOOGLE_GEMINI_BASE_URL=${baseUrl}
 set GEMINI_API_KEY=${apiKey}
 set GEMINI_MODEL=${model}`,
@@ -230,14 +241,14 @@ set GEMINI_MODEL=${model}`,
   }
   if (shellId === "powershell") {
     return {
-      path: "PowerShell",
+      displayTargetId: "powershell",
       content: `$env:GOOGLE_GEMINI_BASE_URL="${baseUrl}"
 $env:GEMINI_API_KEY="${apiKey}"
 $env:GEMINI_MODEL="${model}"`,
     };
   }
   return {
-    path: "Terminal",
+    displayTargetId: "terminal",
     content: `export GOOGLE_GEMINI_BASE_URL="${baseUrl}"
 export GEMINI_API_KEY="${apiKey}"
 export GEMINI_MODEL="${model}"`,

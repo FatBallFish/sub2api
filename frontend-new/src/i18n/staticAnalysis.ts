@@ -56,6 +56,7 @@ const UI_DESCRIPTOR_FIELDS = new Set([
   "content",
   "text",
   "subtitle",
+  "path",
 ]);
 const NON_UI_STATE_SETTERS = new Set([
   // These update API-key filter/status data, never rendered feedback copy.
@@ -132,7 +133,6 @@ interface LexicalBindings {
 const LOCALIZED_MESSAGE_CALLS = new Set([
   "errorMessage",
   "localizedErrorMessage",
-  "rawMessage",
   "translationMessage",
 ]);
 
@@ -255,36 +255,41 @@ function stringExpressionValues(
   bindings?: LexicalBindings,
   resolving = new Set<ts.Expression>(),
   resolveIdentifiers = true,
+  recurseCallArguments = true,
 ): string[] {
   if (!node) return [];
   if (ts.isConditionalExpression(node)) {
     return [
-      ...stringExpressionValues(node.whenTrue, bindings, resolving, resolveIdentifiers),
-      ...stringExpressionValues(node.whenFalse, bindings, resolving, resolveIdentifiers),
+      ...stringExpressionValues(node.whenTrue, bindings, resolving, resolveIdentifiers, recurseCallArguments),
+      ...stringExpressionValues(node.whenFalse, bindings, resolving, resolveIdentifiers, recurseCallArguments),
     ];
   }
   if (ts.isBinaryExpression(node) && LOGICAL_OPERATORS.has(node.operatorToken.kind)) {
     if (node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
-      return stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers);
+      return stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers, recurseCallArguments);
     }
     return [
-      ...stringExpressionValues(node.left, bindings, resolving, resolveIdentifiers),
-      ...stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers),
+      ...stringExpressionValues(node.left, bindings, resolving, resolveIdentifiers, recurseCallArguments),
+      ...stringExpressionValues(node.right, bindings, resolving, resolveIdentifiers, recurseCallArguments),
     ];
   }
   if (ts.isCallExpression(node)) {
     const name = callName(node.expression);
+    if (name === "rawMessage") {
+      return stringExpressionValues(node.arguments[0], bindings, resolving, true, false);
+    }
     if (name === "t" || (name && LOCALIZED_MESSAGE_CALLS.has(name))) return [];
-    return node.arguments.flatMap((argument) => stringExpressionValues(argument, bindings, resolving, false));
+    if (!recurseCallArguments) return [];
+    return node.arguments.flatMap((argument) => stringExpressionValues(argument, bindings, resolving, false, true));
   }
   if (ts.isIdentifier(node) && bindings && resolveIdentifiers) {
     const initializer = bindings.resolve(node.text, node)?.initializer;
     if (!initializer || resolving.has(initializer)) return [];
     const nextResolving = new Set(resolving).add(initializer);
-    return stringExpressionValues(initializer, bindings, nextResolving, resolveIdentifiers);
+    return stringExpressionValues(initializer, bindings, nextResolving, resolveIdentifiers, recurseCallArguments);
   }
   if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node) || ts.isNonNullExpression(node) || ts.isSatisfiesExpression(node)) {
-    return stringExpressionValues(node.expression, bindings, resolving, resolveIdentifiers);
+    return stringExpressionValues(node.expression, bindings, resolving, resolveIdentifiers, recurseCallArguments);
   }
   const skeleton = expressionSkeleton(node);
   return skeleton.hasLiteral ? [normalizedCopy(skeleton.value)] : [];

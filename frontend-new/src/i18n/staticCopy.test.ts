@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import indexHtml from "../../index.html?raw";
 import { PLAYGROUND_ROLE_LABEL_KEYS } from "../api/playground";
 import { ANNOUNCEMENT_CATEGORIES } from "../types/announcements";
-import { CLIENT_CONFIG_HINT_KEYS } from "../utils/clientConfig";
+import { CLIENT_CONFIG_DISPLAY_TARGET_KEYS, CLIENT_CONFIG_HINT_KEYS } from "../utils/clientConfig";
 import { BUILT_IN_AGREEMENT_TITLE_KEYS } from "../utils/loginAgreement";
 import { GLOBAL_ERROR_CODES, SCOPED_ERROR_KEYS } from "../utils/localizedError";
 import { BILLING_STATUS_LABEL_KEYS } from "../utils/paymentStatus";
@@ -83,6 +83,10 @@ const HARDCODED_COPY_ALLOWLIST: readonly AllowlistEntry[] = [
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Windows", reason: "Operating system name used as a technical platform selector." },
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "Windows CMD", reason: "Operating system and shell names used as a technical platform selector." },
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "PowerShell", reason: "Official shell name." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "%userprofile%\\.claude\\settings.json", reason: "Technical Windows configuration path must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "~/.claude/settings.json", reason: "Technical Unix configuration path must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "${...}/config.toml", reason: "Technical Codex configuration path template must remain verbatim." },
+  { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "${...}/auth.json", reason: "Technical Codex authentication path template must remain verbatim." },
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "set ANTHROPIC_BASE_URL=${...} set ANTHROPIC_AUTH_TOKEN=${...} set CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable command prompt configuration must remain verbatim." },
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "$env:ANTHROPIC_BASE_URL=\"${...}\" $env:ANTHROPIC_AUTH_TOKEN=\"${...}\" $env:CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable PowerShell configuration must remain verbatim." },
   { file: "src/utils/clientConfig.ts", category: "ui-descriptor", value: "export ANTHROPIC_BASE_URL=\"${...}\" export ANTHROPIC_AUTH_TOKEN=\"${...}\" export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1", reason: "Copyable shell configuration must remain verbatim." },
@@ -131,6 +135,7 @@ interface DynamicTranslationContracts {
   agreementTitleKeys: readonly string[];
   billingStatusLabelKeys: readonly string[];
   clientConfigHintKeys: readonly string[];
+  clientConfigDisplayTargetKeys: readonly string[];
   playgroundRoleLabelKeys: readonly string[];
 }
 
@@ -139,6 +144,7 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     agreementTitleKeys: Object.values(BUILT_IN_AGREEMENT_TITLE_KEYS),
     billingStatusLabelKeys: Object.values(BILLING_STATUS_LABEL_KEYS),
     clientConfigHintKeys: Object.values(CLIENT_CONFIG_HINT_KEYS),
+    clientConfigDisplayTargetKeys: Object.values(CLIENT_CONFIG_DISPLAY_TARGET_KEYS),
     playgroundRoleLabelKeys: Object.values(PLAYGROUND_ROLE_LABEL_KEYS),
     ...overrides,
   };
@@ -146,6 +152,7 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     ...contracts.agreementTitleKeys.map((key) => `common.${key}`),
     ...contracts.billingStatusLabelKeys.map((key) => `console.${key}`),
     ...contracts.clientConfigHintKeys.map((key) => `console.${key}`),
+    ...contracts.clientConfigDisplayTargetKeys.map((key) => `console.${key}`),
     ...contracts.playgroundRoleLabelKeys.map((key) => `console.${key}`),
     // Runtime contracts below are finite typed values exported by production code.
     ...ANNOUNCEMENT_CATEGORIES.map((category) => `console.announcements.categories.${category}`),

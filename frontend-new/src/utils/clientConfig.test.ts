@@ -37,12 +37,28 @@ describe("clientConfig", () => {
       apiKey: "sk-claude",
     });
 
-    expect(files.map((file) => file.path)).toEqual(["Terminal", "~/.claude/settings.json"]);
+    expect(files[0]).toMatchObject({ displayTargetId: "terminal" });
+    expect(files[0]).not.toHaveProperty("path");
+    expect(files[1].path).toBe("~/.claude/settings.json");
     expect(files[0].content).toContain('export ANTHROPIC_BASE_URL="https://api.example.com/v1"');
     expect(files[0].content).toContain('export ANTHROPIC_AUTH_TOKEN="sk-claude"');
     expect(files[1].content).toContain('"CLAUDE_CODE_ATTRIBUTION_HEADER": "0"');
     expect(files[1].hintId).toBe("claudeSettings");
     expect(files[1]).not.toHaveProperty("hint");
+  });
+
+  it("separates command prompt display targets from technical config paths", () => {
+    const files = buildClientConfigFiles({
+      platform: "anthropic",
+      clientId: "claude",
+      shellId: "cmd",
+      baseUrl: "https://api.example.com",
+      apiKey: "sk-claude",
+    });
+
+    expect(files[0]).toMatchObject({ displayTargetId: "commandPrompt" });
+    expect(files[0]).not.toHaveProperty("path");
+    expect(files[1].path).toBe("%userprofile%\\.claude\\settings.json");
   });
 
   it("builds Gemini CLI config against v1beta", () => {

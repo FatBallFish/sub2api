@@ -66,6 +66,17 @@ describe("hardcoded copy AST analysis", () => {
     ]);
   });
 
+  it("detects rendered path descriptors in TypeScript data", () => {
+    const findings = scanHardcodedCopy({
+      file: "src/Fixture.ts",
+      text: `const config = { path: "Friendly target" };`,
+    });
+
+    expect(findings.map(({ category, value }) => [category, value])).toEqual([
+      ["ui-descriptor", "Friendly target"],
+    ]);
+  });
+
   it("detects fixed copy in logical UI branches", () => {
     const findings = scanHardcodedCopy(fixture(`
       function Example({ ready, error, message }) {
@@ -119,6 +130,22 @@ describe("hardcoded copy AST analysis", () => {
 
     expect(findings.map(({ category, value }) => [category, value])).toEqual([
       ["jsx-expression", "Retry"],
+    ]);
+  });
+
+  it("reports static raw messages but preserves dynamic backend messages", () => {
+    const findings = scanHardcodedCopy(fixture(`
+      const toast = "Hardcoded from const";
+      setError(rawMessage("Hardcoded toast"));
+      setActionError(rawMessage(\`Failed for \${name}\`));
+      setNotice(rawMessage(toast));
+      setError(rawMessage(params.get("error_description")));
+    `));
+
+    expect(findings.map(({ category, value }) => [category, value])).toEqual([
+      ["ui-state", "Hardcoded toast"],
+      ["ui-state", "Failed for ${...}"],
+      ["ui-state", "Hardcoded from const"],
     ]);
   });
 });
