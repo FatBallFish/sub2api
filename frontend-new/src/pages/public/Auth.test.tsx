@@ -120,6 +120,22 @@ describe("Auth page", () => {
     aliyunHarness.reset.mockReset();
   });
 
+  it("shows the language switcher in the standalone auth layout", () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: {} }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "Change language" })).toBeInTheDocument();
+  });
+
   it("keeps Turnstile-disabled login request bodies unchanged", async () => {
     const fetchMock = vi
       .fn()

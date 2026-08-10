@@ -21,6 +21,7 @@ describe("PublicLayout", () => {
     );
 
     expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("button", { name: "Change language" })).toBeInTheDocument();
   });
 
   it("shows the current account and routes console CTAs for authenticated visitors", () => {

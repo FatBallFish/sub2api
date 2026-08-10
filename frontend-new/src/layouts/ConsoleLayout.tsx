@@ -21,6 +21,7 @@ import { twMerge } from "tailwind-merge";
 import type { ConsoleBootstrap } from "../types/console";
 import { clearAuthStorage } from "../utils/authStorage";
 import { formatCredits } from "../utils/format";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -158,6 +159,7 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <button
               type="button"
               aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}

@@ -1,6 +1,15 @@
 const en = {
   common: {
     language: "Language",
+    languageSwitcher: {
+      triggerLabel: "Change language",
+      options: {
+        en: "English",
+        zhCN: "简体中文",
+        zhTW: "繁體中文",
+        ja: "日本語",
+      },
+    },
   },
   public: {
     title: "Home",
