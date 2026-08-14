@@ -386,41 +386,6 @@ func sanitizeModelPricingDisplayConfig(cfg ModelPricingDisplayConfig) ModelPrici
 	return out
 }
 
-func lowestPublicRateGroup(groups []Group) *Group {
-	var selected *Group
-	for i := range groups {
-		g := groups[i]
-		if !g.IsActive() || g.IsExclusive {
-			continue
-		}
-		if selected == nil || g.RateMultiplier < selected.RateMultiplier {
-			selected = &groups[i]
-		}
-	}
-	return selected
-}
-
-func lowestPublicRateGroupForCategory(groups []Group, cat ModelPricingDisplayCategoryConfig) *Group {
-	required := normalizeStringList(cat.ModelScopes)
-	if len(required) == 0 {
-		return lowestPublicRateGroup(groups)
-	}
-	var selected *Group
-	for i := range groups {
-		g := groups[i]
-		if !g.IsActive() || g.IsExclusive {
-			continue
-		}
-		if !categorySupportedByGroup(cat, &g) {
-			continue
-		}
-		if selected == nil || g.RateMultiplier < selected.RateMultiplier {
-			selected = &groups[i]
-		}
-	}
-	return selected
-}
-
 func (s *ModelPricingDisplayService) lowestPublicRateGroupForModel(ctx context.Context, groups []Group, cat ModelPricingDisplayCategoryConfig, model string) *Group {
 	var selected *Group
 	for i := range groups {
