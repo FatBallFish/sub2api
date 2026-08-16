@@ -93,7 +93,9 @@ it("renders the exact minimal public order response without absent financial det
   expect(screen.queryByText("入金額")).not.toBeInTheDocument();
   expect(document.body).not.toHaveTextContent(/NaN|undefined/);
   expect(screen.getByRole("button", { name: "言語を切り替える" })).toBeInTheDocument();
-  expect(document.title).toBe("支払い完了 | Mikiko CC");
+  await waitFor(() => {
+    expect(document.title).toBe("支払い完了 | Mikiko CC");
+  });
 });
 
 it("keeps financial details for the signed resume-token response", async () => {
