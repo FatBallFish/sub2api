@@ -1,0 +1,27 @@
+[Unit]
+Description=Stable IPv6 SOCKS proxy listeners
+Requires=ipv6-proxy-prepare.service
+After=network-online.target
+After=ipv6-proxy-prepare.service
+
+[Service]
+Type=simple
+User=ipv6-proxy
+Group=ipv6-proxy
+ExecStartPre=/usr/local/bin/sing-box check -c /etc/ipv6-proxy-manager/sing-box.json
+ExecStart=/usr/local/bin/sing-box run -c /etc/ipv6-proxy-manager/sing-box.json
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
