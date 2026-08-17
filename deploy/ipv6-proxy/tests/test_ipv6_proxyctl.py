@@ -295,6 +295,7 @@ class DeploymentAssetTests(unittest.TestCase):
         self.assertIn("ef88a9e577d474210867bd708933d042e9b70106529df2656182c9db90106aa1", installer)
         self.assertIn("sha256sum -c", installer)
         self.assertIn("ipv6-proxyctl init --count", installer)
+        self.assertIn("/usr/local/share/doc/ipv6-proxy-manager/README.md", installer)
 
     def test_units_order_address_preparation_before_proxy(self):
         prepare = (ROOT / "systemd" / "ipv6-proxy-prepare.service").read_text()

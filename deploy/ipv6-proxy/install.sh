@@ -38,7 +38,11 @@ id -u ipv6-proxy >/dev/null 2>&1 || \
   useradd --system --gid ipv6-proxy --home-dir /nonexistent --shell /usr/sbin/nologin ipv6-proxy
 
 install -d -o root -g ipv6-proxy -m 2750 /etc/ipv6-proxy-manager
+install -d -o root -g root -m 0755 /usr/local/share/doc/ipv6-proxy-manager
 install -o root -g root -m 0755 "${SOURCE_DIR}/ipv6_proxyctl.py" /usr/local/sbin/ipv6-proxyctl
+install -o root -g root -m 0644 \
+  "${SOURCE_DIR}/README.md" \
+  /usr/local/share/doc/ipv6-proxy-manager/README.md
 install -o root -g root -m 0644 \
   "${SOURCE_DIR}/systemd/ipv6-proxy-prepare.service" \
   /etc/systemd/system/ipv6-proxy-prepare.service
