@@ -249,10 +249,23 @@ def sync_addresses(state):
     network = ipaddress.IPv6Network(state["prefix"], strict=True)
     prefix_length = network.prefixlen
     for address in add:
-        run_command(["ip", "-6", "addr", "add", f"{address}/{prefix_length}", "dev", state["interface"]])
+        run_command(
+            [
+                "ip", "-6", "addr", "add", f"{address}/{prefix_length}",
+                "dev", state["interface"], "preferred_lft", "0",
+            ]
+        )
     for address in remove:
         run_command(["ip", "-6", "addr", "del", f"{address}/{prefix_length}", "dev", state["interface"]])
     wait_for_dad(state)
+    for entry in state["entries"]:
+        if entry["enabled"]:
+            run_command(
+                [
+                    "ip", "-6", "addr", "change", f'{entry["ipv6"]}/{prefix_length}',
+                    "dev", state["interface"], "preferred_lft", "0",
+                ]
+            )
     return add, remove
 
 
