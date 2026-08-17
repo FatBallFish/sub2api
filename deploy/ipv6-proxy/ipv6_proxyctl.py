@@ -175,7 +175,7 @@ def render_sing_box(state, username, password):
                 "type": "direct",
                 "tag": outbound_tag,
                 "inet6_bind_address": entry["ipv6"],
-                "domain_strategy": "ipv6_only",
+                "domain_resolver": {"server": "local", "strategy": "ipv6_only"},
             }
         )
         rules.extend(
@@ -187,6 +187,7 @@ def render_sing_box(state, username, password):
 
     return {
         "log": {"level": "warn", "timestamp": True},
+        "dns": {"servers": [{"type": "local", "tag": "local"}]},
         "inbounds": inbounds,
         "outbounds": outbounds,
         "route": {"rules": rules},
@@ -312,6 +313,14 @@ def prepare_runtime(state_path, credential_path, config_path):
     return state
 
 
+def parse_cloudflare_trace(payload):
+    for line in payload.splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key == "ip" and value:
+            return str(ipaddress.ip_address(value))
+    raise ValueError("Cloudflare trace response is missing ip field")
+
+
 def observe_local_egress(state, repeat=1):
     observations = {}
     for entry in state["entries"]:
@@ -321,12 +330,13 @@ def observe_local_egress(state, repeat=1):
         for _ in range(repeat):
             result = run_command(
                 [
-                    "curl", "-6", "-fsS", "--connect-timeout", "8", "--max-time", "20",
+                    "curl", "-fsS", "--connect-timeout", "8", "--max-time", "20",
+                    "--retry", "2", "--retry-all-errors", "--retry-delay", "1",
                     "--socks5-hostname", f'127.0.0.1:{entry["private_port"]}',
-                    "https://api64.ipify.org",
+                    "https://www.cloudflare.com/cdn-cgi/trace",
                 ]
             )
-            observed_for_entry.append(result.stdout.strip())
+            observed_for_entry.append(parse_cloudflare_trace(result.stdout))
         if len(set(observed_for_entry)) != 1:
             raise ValueError(f'entry {entry["id"]} egress changed between requests')
         observations[int(entry["id"])] = observed_for_entry[0]

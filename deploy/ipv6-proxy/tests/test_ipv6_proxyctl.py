@@ -5,7 +5,9 @@ import os
 import pathlib
 import stat
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -99,8 +101,13 @@ class RenderTests(unittest.TestCase):
             self.assertEqual(private["listen_port"], entry["private_port"])
             self.assertEqual(private["users"], [])
             self.assertEqual(outbound["inet6_bind_address"], entry["ipv6"])
-            self.assertEqual(outbound["domain_strategy"], "ipv6_only")
+            self.assertNotIn("domain_strategy", outbound)
+            self.assertEqual(
+                outbound["domain_resolver"],
+                {"server": "local", "strategy": "ipv6_only"},
+            )
             self.assertEqual({rule["outbound"] for rule in rules}, {outbound["tag"]})
+        self.assertEqual(config["dns"]["servers"], [{"type": "local", "tag": "local"}])
 
     def test_render_ignores_disabled_entries(self):
         state = proxyctl.new_state("2a0a:4cc0:101:319::/64", "eth0", 21001, 12001)
@@ -210,6 +217,33 @@ class RuntimePlanningTests(unittest.TestCase):
         observations[2] = observations[1]
         with self.assertRaisesRegex(ValueError, "entry 2 expected"):
             proxyctl.verify_observations(state, observations)
+
+    def test_local_observer_does_not_force_ipv6_for_ipv4_loopback_proxy(self):
+        state = proxyctl.new_state("2a0a:4cc0:101:319::/64", "eth0", 21001, 12001)
+        proxyctl.add_entries(state, 1, candidate_hosts=iter([0x101]))
+        commands = []
+
+        def fake_run(command, **_kwargs):
+            commands.append(command)
+            return types.SimpleNamespace(
+                stdout="fl=123\nip=2a0a:4cc0:101:319::101\ncolo=IAD\n"
+            )
+
+        with mock.patch.object(proxyctl, "run_command", side_effect=fake_run):
+            observations = proxyctl.observe_local_egress(state)
+
+        self.assertEqual(observations, {1: "2a0a:4cc0:101:319::101"})
+        self.assertNotIn("-6", commands[0])
+        self.assertIn("--socks5-hostname", commands[0])
+        self.assertIn("https://www.cloudflare.com/cdn-cgi/trace", commands[0])
+
+    def test_parse_cloudflare_trace_requires_ip_field(self):
+        self.assertEqual(
+            proxyctl.parse_cloudflare_trace("colo=IAD\nip=2a0a:4cc0:101:319::101\n"),
+            "2a0a:4cc0:101:319::101",
+        )
+        with self.assertRaisesRegex(ValueError, "missing ip"):
+            proxyctl.parse_cloudflare_trace("colo=IAD\n")
 
 
 class DeploymentAssetTests(unittest.TestCase):
