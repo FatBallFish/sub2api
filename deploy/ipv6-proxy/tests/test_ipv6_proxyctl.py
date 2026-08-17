@@ -104,7 +104,7 @@ class RenderTests(unittest.TestCase):
             self.assertNotIn("domain_strategy", outbound)
             self.assertEqual(
                 outbound["domain_resolver"],
-                {"server": "local", "strategy": "prefer_ipv6"},
+                {"server": "local", "strategy": "ipv6_only"},
             )
             self.assertEqual({rule["outbound"] for rule in rules}, {outbound["tag"]})
         self.assertEqual(config["dns"]["servers"], [{"type": "local", "tag": "local"}])

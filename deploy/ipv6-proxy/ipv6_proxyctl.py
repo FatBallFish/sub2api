@@ -175,7 +175,7 @@ def render_sing_box(state, username, password):
                 "type": "direct",
                 "tag": outbound_tag,
                 "inet6_bind_address": entry["ipv6"],
-                "domain_resolver": {"server": "local", "strategy": "prefer_ipv6"},
+                "domain_resolver": {"server": "local", "strategy": "ipv6_only"},
             }
         )
         rules.extend(
