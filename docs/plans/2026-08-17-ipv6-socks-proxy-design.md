@@ -53,6 +53,13 @@ Private listeners bind only to `127.0.0.1` and have an empty user list, so the
 host-installed sub2api service can use them without credentials. Docker IPv6
 is not enabled or required.
 
+Sub2API proxy records should use `socks5h://127.0.0.1:120xx` and
+`fallback_mode=none`. The account keeps its existing `proxy_id`; the manager
+never rotates an enabled entry's IPv6 or ports. Consequently, repeated requests
+and service restarts preserve the account's egress IPv6. Removing an entry is a
+deliberate breaking operation and must be refused while it is assigned in
+Sub2API operational practice.
+
 The host firewall allows only enabled public SOCKS ports. No management web UI
 is exposed. A CLI is preferred because adding a web control plane would add a
 second authentication surface without improving the current single-host use
@@ -77,8 +84,9 @@ Deployment is accepted only when all of the following pass:
 6. Every public listener rejects missing and incorrect credentials.
 7. Every public listener returns exactly its assigned IPv6 with valid credentials.
 8. The 100 observed egress addresses are unique.
-9. The mapping survives a service restart.
-10. The temporary proof addresses and any failed deployment artifacts are removed.
+9. Repeated requests through the same listener keep the same egress address.
+10. The mapping survives a service restart.
+11. The temporary proof addresses and any failed deployment artifacts are removed.
 
 ## Security Notes
 
