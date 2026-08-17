@@ -46,7 +46,7 @@ Writes are ordered as assign, key migration, then revoke. If assignment or any k
 
 - `GET /api/v1/admin/users` with `status=active`, `role=user`, and pagination.
 - `GET /api/v1/admin/user-attributes` to find the `dingtalk_department` definition.
-- `POST /api/v1/admin/user-attributes/batch` in bounded batches.
+- `POST /api/v1/admin/user-attributes/batch` in bounded batches. Because the batch endpoint omits users without stored attributes, confirm omitted users through `GET /api/v1/admin/users/:id/attributes`; any failed confirmation aborts preflight.
 - `GET /api/v1/admin/groups/all` for the active group catalog.
 - `GET /api/v1/admin/subscriptions?status=active` with pagination.
 - `GET /api/v1/admin/users/:id/api-keys` with pagination.
