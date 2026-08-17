@@ -207,6 +207,48 @@ class RuntimePlanningTests(unittest.TestCase):
         self.assertNotIn(21002, flattened)
         self.assertEqual(flattened, [21001] + list(range(21003, 21018)))
 
+    def test_sync_marks_managed_addresses_deprecated_for_default_source_selection(self):
+        state = proxyctl.new_state(
+            "2a0a:4cc0:101:319::/64",
+            "eth0",
+            21001,
+            12001,
+            reserved_ipv6=["2a0a:4cc0:101:319::1"],
+        )
+        proxyctl.add_entries(state, 2, candidate_hosts=iter([0x101, 0x102]))
+        commands = []
+
+        def fake_run(command, **_kwargs):
+            commands.append(command)
+            return types.SimpleNamespace(returncode=0, stdout="")
+
+        with mock.patch.object(
+            proxyctl,
+            "current_global_ipv6",
+            return_value={"2a0a:4cc0:101:319::1", "2a0a:4cc0:101:319::101"},
+        ), mock.patch.object(proxyctl, "run_command", side_effect=fake_run), mock.patch.object(
+            proxyctl, "wait_for_dad"
+        ):
+            added, removed = proxyctl.sync_addresses(state)
+
+        self.assertEqual(added, ["2a0a:4cc0:101:319::102"])
+        self.assertEqual(removed, [])
+        self.assertIn(
+            [
+                "ip", "-6", "addr", "add", "2a0a:4cc0:101:319::102/64",
+                "dev", "eth0", "preferred_lft", "0",
+            ],
+            commands,
+        )
+        for address in ["2a0a:4cc0:101:319::101", "2a0a:4cc0:101:319::102"]:
+            self.assertIn(
+                [
+                    "ip", "-6", "addr", "change", f"{address}/64",
+                    "dev", "eth0", "preferred_lft", "0",
+                ],
+                commands,
+            )
+
     def test_verify_observations_requires_exact_unique_mapping(self):
         state = proxyctl.new_state("2a0a:4cc0:101:319::/64", "eth0", 21001, 12001)
         proxyctl.add_entries(state, 2, candidate_hosts=iter([0x101, 0x102]))
