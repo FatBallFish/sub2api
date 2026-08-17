@@ -57,3 +57,7 @@ Writes are ordered as assign, key migration, then revoke. If assignment or any k
 ## Testing
 
 Keep planning and execution logic separate from HTTP calls. Unit tests cover classification, strict group parsing, catalog validation, highest-quota selection, wrong-type conversion, default assignment, whitelist handling, active-key filtering, operation order, dry-run behavior, and revoke suppression after a write failure. Syntax compilation and the complete unit suite provide final verification without contacting the configured production host.
+
+## Progress Reporting
+
+Use append-only text logs so terminal output remains useful when redirected to a file. Report every user/subscription pagination page, every department batch, the managed-group count, each user's API-key load, and each user's plan generation. During `--apply`, print before and after assignment, each API-key update, and each subscription revocation; include current and total counts so a slow request has an identifiable last action. Dry-run prints load and planning progress but performs no write progress.

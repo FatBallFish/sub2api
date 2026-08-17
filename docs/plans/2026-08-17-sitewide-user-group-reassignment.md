@@ -109,3 +109,29 @@ Expected: all tests PASS without network access.
 **Step 3: Inspect the final diff and configuration**
 
 Confirm that only the intended files changed, dry-run is the default, production credentials are not printed, and no test calls the real API.
+
+### Task 5: Append-Only Progress Reporting
+
+**Files:**
+- Modify: `/Users/fatballfish/Documents/Projects/PycharmProjects/playground/sub2/test_全站用户分组重分配.py`
+- Modify: `/Users/fatballfish/Documents/Projects/PycharmProjects/playground/sub2/全站用户分组重分配.py`
+
+**Step 1: Write the failing tests**
+
+Add callback-based tests for paginated loading progress, department batches, group discovery, per-user API-key loading, plan generation, and write-operation progress before and after each request.
+
+**Step 2: Run tests to verify they fail**
+
+Run: `python3 -m unittest -v test_全站用户分组重分配.ProgressReportingTests`
+
+Expected: FAIL because collection, planning, and execution do not accept a progress callback.
+
+**Step 3: Write minimal implementation**
+
+Thread an optional progress callback through collection, planning, and execution. Keep pure reconciliation functions output-free, and pass `print` from the CLI.
+
+**Step 4: Run tests to verify they pass**
+
+Run: `python3 -m unittest -v test_全站用户分组重分配.ProgressReportingTests`
+
+Expected: all progress tests PASS, followed by the complete suite.
