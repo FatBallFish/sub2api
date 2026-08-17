@@ -265,6 +265,7 @@ class DeploymentAssetTests(unittest.TestCase):
         self.assertIn("sing-box check", proxy)
         self.assertIn("Restart=on-failure", proxy)
         self.assertIn("NoNewPrivileges=true", proxy)
+        self.assertIn("RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK", proxy)
 
 
 class CLITests(unittest.TestCase):
