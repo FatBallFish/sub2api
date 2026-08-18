@@ -8,7 +8,7 @@ Create a standalone Python script that reconciles active ordinary users into the
 
 - Process only users with `status=active` and `role=user`.
 - Skip users whose email appears in the case-insensitive built-in whitelist.
-- Classify a user as research when the `dingtalk_department` custom attribute contains `研发部`; otherwise classify the user as non-research.
+- Classify a user as research when the `dingtalk_department` custom attribute contains `研发部` or starts with the literal prefix `安全技术部`; otherwise classify the user as non-research. A path such as `集团/安全技术部` does not match the prefix rule.
 - Use only Sub2API administrator endpoints authenticated by the hard-coded Admin API Key.
 - Default to dry-run. Require `--apply` for writes.
 

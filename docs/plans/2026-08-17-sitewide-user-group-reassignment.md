@@ -135,3 +135,27 @@ Thread an optional progress callback through collection, planning, and execution
 Run: `python3 -m unittest -v test_全站用户分组重分配.ProgressReportingTests`
 
 Expected: all progress tests PASS, followed by the complete suite.
+
+### Task 6: Security Technology Department Classification
+
+**Files:**
+- Modify: `/Users/fatballfish/Documents/Projects/PycharmProjects/playground/sub2/test_全站用户分组重分配.py`
+- Modify: `/Users/fatballfish/Documents/Projects/PycharmProjects/playground/sub2/全站用户分组重分配.py`
+
+**Step 1: Write the failing test**
+
+Assert that `安全技术部` and `安全技术部/安全平台组` are research, while `集团/安全技术部` and an unrelated `技术部` remain non-research under the new prefix rule.
+
+**Step 2: Run the focused test to verify it fails**
+
+Run: `python3 -m unittest -v test_全站用户分组重分配.ReassignmentRuleTests.test_security_technology_department_uses_literal_prefix`
+
+Expected: FAIL because the current classifier only checks for `研发部`.
+
+**Step 3: Implement the literal prefix check**
+
+Add a named `安全技术部` prefix constant and combine `startswith` with the existing `研发部` containment rule.
+
+**Step 4: Run focused and complete tests**
+
+Expected: the focused test and complete suite PASS.
