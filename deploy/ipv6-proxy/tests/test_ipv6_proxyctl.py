@@ -59,6 +59,20 @@ class StateTests(unittest.TestCase):
         self.assertFalse(state["entries"][0]["enabled"])
         self.assertEqual(state["entries"][2]["public_port"], 21003)
 
+    def test_add_entries_uses_available_host_bits_for_longer_prefixes(self):
+        state = proxyctl.new_state(
+            prefix="2604:980:e01a:525d::/96",
+            interface="eth0",
+            public_base=21001,
+            private_base=12001,
+        )
+
+        with mock.patch.object(proxyctl.secrets, "randbits", return_value=0x12345678) as randbits:
+            proxyctl.add_entries(state, 1)
+
+        randbits.assert_called_once_with(32)
+        self.assertEqual(state["entries"][0]["ipv6"], "2604:980:e01a:525d::1234:5678")
+
     def test_validate_state_rejects_duplicate_ipv6_and_ports(self):
         state = self.base_state()
         proxyctl.add_entries(state, 2, candidate_hosts=iter([0x101, 0x102]))

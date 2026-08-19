@@ -40,9 +40,9 @@ def new_state(
     }
 
 
-def _random_hosts():
+def _random_hosts(host_bits):
     while True:
-        yield secrets.randbits(64)
+        yield secrets.randbits(host_bits)
 
 
 def add_entries(state, count, candidate_hosts=None):
@@ -50,7 +50,8 @@ def add_entries(state, count, candidate_hosts=None):
         raise ValueError("count must be positive")
     validate_state(state)
     network = ipaddress.IPv6Network(state["prefix"], strict=True)
-    hosts = candidate_hosts if candidate_hosts is not None else _random_hosts()
+    host_bits = network.max_prefixlen - network.prefixlen
+    hosts = candidate_hosts if candidate_hosts is not None else _random_hosts(host_bits)
     used = {ipaddress.IPv6Address(value) for value in state.get("reserved_ipv6", [])}
     used.update(ipaddress.IPv6Address(entry["ipv6"]) for entry in state["entries"])
 
