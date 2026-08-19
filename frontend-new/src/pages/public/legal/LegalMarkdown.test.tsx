@@ -68,9 +68,9 @@ describe("public markdown pages", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Team Markdown" })).toBeInTheDocument();
+      expect(document.title).toBe("Configured Team | Mikiko CC");
     });
     expect(screen.getByText("Operator-led support.")).toBeInTheDocument();
-    expect(document.title).toBe("Configured Team | Mikiko CC");
   });
 
   it("renders every configured agreement document by id", async () => {
