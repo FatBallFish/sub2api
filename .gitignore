@@ -153,6 +153,7 @@ docs/screenshots/*
 !docs/screenshots/codex-referral-success.png
 .serena/
 .codex/
+/.worktrees/
 frontend/coverage/
 aicodex
 output/
