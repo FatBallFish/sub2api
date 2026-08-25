@@ -9,6 +9,8 @@ import {
   Cpu,
   Globe,
   LockKey,
+  Eye,
+  EyeSlash,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
@@ -59,6 +61,7 @@ export default function Auth() {
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [inviteCode, setInviteCode] = useState(initialInviteCode);
   const [sent, setSent] = useState(false);
@@ -188,6 +191,7 @@ export default function Auth() {
     if (requestInFlightRef.current) return;
     resetCaptcha();
     setMode(nextMode);
+    setPasswordVisible(false);
     setSent(false);
     setVerifyCode("");
     setStatus(null);
@@ -444,11 +448,19 @@ export default function Auth() {
                   <AuthTextField
                     id="login-password"
                     label={t("password")}
-                    type="password"
+                    type={passwordVisible ? "text" : "password"}
                     value={password}
                     onChange={setPassword}
                     placeholder={t("passwordPlaceholder")}
                     icon={<LockKey size={18} className="text-zinc-400" />}
+                    trailingAction={(
+                      <PasswordVisibilityButton
+                        visible={passwordVisible}
+                        onToggle={() => setPasswordVisible((visible) => !visible)}
+                        showLabel={t("showPassword")}
+                        hideLabel={t("hidePassword")}
+                      />
+                    )}
                   />
                   <CaptchaChallenge
                     ref={captchaRef}
@@ -495,12 +507,20 @@ export default function Auth() {
                   <AuthTextField
                     id="register-password"
                     label={t("password")}
-                    type="password"
+                    type={passwordVisible ? "text" : "password"}
                     minLength={6}
                     value={password}
                     onChange={setPassword}
                     placeholder={t("passwordMinPlaceholder")}
                     icon={<LockKey size={18} className="text-zinc-400" />}
+                    trailingAction={(
+                      <PasswordVisibilityButton
+                        visible={passwordVisible}
+                        onToggle={() => setPasswordVisible((visible) => !visible)}
+                        showLabel={t("showPassword")}
+                        hideLabel={t("hidePassword")}
+                      />
+                    )}
                   />
                   <AuthTextField
                     id="register-invitation-code"
@@ -655,9 +675,10 @@ interface AuthTextFieldProps {
   icon: React.ReactNode;
   minLength?: number;
   required?: boolean;
+  trailingAction?: React.ReactNode;
 }
 
-function AuthTextField({ id, label, type, value, onChange, placeholder, icon, minLength, required = true }: AuthTextFieldProps) {
+function AuthTextField({ id, label, type, value, onChange, placeholder, icon, minLength, required = true, trailingAction }: AuthTextFieldProps) {
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="ml-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
@@ -673,10 +694,32 @@ function AuthTextField({ id, label, type, value, onChange, placeholder, icon, mi
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-3 pl-12 pr-4 outline-none transition-colors focus:border-zinc-900"
+          className={`w-full rounded-xl border border-zinc-200 bg-zinc-50 py-3 pl-12 outline-none transition-colors focus:border-zinc-900 ${trailingAction ? "pr-12" : "pr-4"}`}
         />
+        {trailingAction ? <div className="absolute right-2 top-1/2 -translate-y-1/2">{trailingAction}</div> : null}
       </div>
     </div>
+  );
+}
+
+interface PasswordVisibilityButtonProps {
+  visible: boolean;
+  onToggle: () => void;
+  showLabel: string;
+  hideLabel: string;
+}
+
+function PasswordVisibilityButton({ visible, onToggle, showLabel, hideLabel }: PasswordVisibilityButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={visible ? hideLabel : showLabel}
+      aria-pressed={visible}
+      onClick={onToggle}
+      className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+    >
+      {visible ? <EyeSlash size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+    </button>
   );
 }
 

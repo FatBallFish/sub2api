@@ -177,6 +177,8 @@ const ja = {
     confirmPassword: "パスワードの確認",
     passwordPlaceholder: "パスワードを入力",
     passwordMinPlaceholder: "6 文字以上",
+    showPassword: "パスワードを表示",
+    hidePassword: "パスワードを非表示",
     inviteCode: "招待コード",
     inviteCodeRequired: "招待コード（必須）",
     invitePlaceholder: "招待コード（任意）",

@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { getConsoleBilling, getConsoleBootstrap, getConsoleOverview, getConsoleReferral } from "./console";
+import {
+  getConsoleBilling,
+  getConsoleBootstrap,
+  getConsoleOverview,
+  getConsoleReferral,
+  transferAffiliateRewards,
+} from "./console";
 
 describe("console API", () => {
   afterEach(() => {
@@ -142,5 +148,27 @@ describe("console API", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/console/referral", expect.any(Object));
+  });
+
+  it("transfers all available affiliate rewards into the user balance", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { transferred_quota: 12.5, balance: 87.25 },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await expect(transferAffiliateRewards()).resolves.toEqual({
+      transferred_quota: 12.5,
+      balance: 87.25,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/user/aff/transfer",
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });

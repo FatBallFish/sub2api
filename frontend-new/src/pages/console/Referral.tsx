@@ -5,13 +5,14 @@ import {
   Copy,
   Check,
   HandHeart,
-  CurrencyCircleDollar
+  CurrencyCircleDollar,
+  ArrowLineDown,
 } from "@phosphor-icons/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { getConsoleReferral } from "../../api/console";
+import { getConsoleReferral, transferAffiliateRewards } from "../../api/console";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { ConsoleReferral } from "../../types/console";
+import type { ConsoleAffiliateTransfer, ConsoleReferral } from "../../types/console";
 import { formatCredits, formatNumber } from "../../utils/format";
 import { REFERRAL_INVITEE_STATUS_LABEL_KEYS } from "../../utils/statusLabels";
 import {
@@ -54,6 +55,9 @@ export default function Referral() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<LocalizedMessage | null>(null);
   const [copyError, setCopyError] = useState<LocalizedMessage | null>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [transferResult, setTransferResult] = useState<ConsoleAffiliateTransfer | null>(null);
+  const [transferError, setTransferError] = useState<LocalizedMessage | null>(null);
   usePageTitle(t("referral.title"));
 
   useEffect(() => {
@@ -87,6 +91,22 @@ export default function Referral() {
     } catch (reason: unknown) {
       setCopied(false);
       setCopyError(errorMessage(reason, "referralCopyFailed", "affiliate"));
+    }
+  };
+
+  const transferRewards = async () => {
+    if (!referral || referral.stats.pending_rewards <= 0 || transferring) return;
+    setTransferring(true);
+    setTransferResult(null);
+    setTransferError(null);
+    try {
+      const result = await transferAffiliateRewards();
+      setTransferResult(result);
+      setReferral(await getConsoleReferral());
+    } catch (reason: unknown) {
+      setTransferError(errorMessage(reason, "referralTransferFailed", "affiliate"));
+    } finally {
+      setTransferring(false);
     }
   };
 
@@ -162,12 +182,26 @@ export default function Referral() {
         </div>
       )}
 
+      {transferResult ? (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {t("referral.transferSuccess", {
+            amount: formatCredits(transferResult.transferred_quota, locale),
+            balance: formatCredits(transferResult.balance, locale),
+          })}
+        </div>
+      ) : null}
+
+      {transferError ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {resolveLocalizedMessage(transferError)}
+        </div>
+      ) : null}
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
           { icon: Users, label: t("referral.totalInvited"), value: t("referral.users", { count: referral.stats.total_invited, formattedCount: formatNumber(referral.stats.total_invited, locale) }) },
           { icon: CurrencyCircleDollar, label: t("referral.creditsEarned"), value: formatCredits(referral.stats.credits_earned, locale) },
-          { icon: Gift, label: t("referral.pendingRewards"), value: formatCredits(referral.stats.pending_rewards, locale) },
         ].map(item => (
           <div key={item.label} className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm flex items-center gap-4">
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-zinc-400">
@@ -179,6 +213,26 @@ export default function Referral() {
             </div>
           </div>
         ))}
+        <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-zinc-400">
+              <Gift size={24} weight="duotone" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{t("referral.pendingRewards")}</span>
+              <div className="text-xl font-bold text-zinc-900">{formatCredits(referral.stats.pending_rewards, locale)}</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={transferring || referral.stats.pending_rewards <= 0}
+            onClick={() => void transferRewards()}
+            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500"
+          >
+            <ArrowLineDown size={17} weight="bold" aria-hidden="true" />
+            {transferring ? t("referral.transferring") : t("referral.transferToBalance")}
+          </button>
+        </div>
       </div>
 
       {/* Table & Rules */}
