@@ -139,11 +139,15 @@ describe("Auth page", () => {
     fireEvent.change(password, { target: { value: "login-secret" } });
     expect(password).toHaveAttribute("type", "password");
 
-    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    const showPasswordButton = screen.getByRole("button", { name: "Show password" });
+    expect(showPasswordButton).toContainElement(screen.getByTestId("password-hidden-icon"));
+    fireEvent.click(showPasswordButton);
     expect(password).toHaveAttribute("type", "text");
     expect(password).toHaveValue("login-secret");
 
-    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    const hidePasswordButton = screen.getByRole("button", { name: "Hide password" });
+    expect(hidePasswordButton).toContainElement(screen.getByTestId("password-visible-icon"));
+    fireEvent.click(hidePasswordButton);
     expect(password).toHaveAttribute("type", "password");
     expect(password).toHaveValue("login-secret");
   });
