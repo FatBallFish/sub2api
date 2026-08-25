@@ -22,6 +22,7 @@ import Billing from "./pages/console/Billing";
 import UsageHistory from "./pages/console/UsageHistory";
 import Announcements from "./pages/console/Announcements";
 import Referral from "./pages/console/Referral";
+import Redeem from "./pages/console/Redeem";
 import InstallGuide from "./pages/console/InstallGuide";
 import Playground from "./pages/console/Playground";
 import { getConsoleBootstrap } from "./api/console";
@@ -193,6 +194,7 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
         <Route path="playground" element={<Playground />} />
         <Route path="subscription-wallet" element={<Billing />} />
         <Route path="referral" element={<Referral />} />
+        <Route path="redeem" element={<Redeem />} />
         <Route path="model-pricing" element={<ModelPricing isConsole />} />
         <Route path="usage-history" element={<UsageHistory />} />
         <Route path="announcements" element={<Announcements />} />

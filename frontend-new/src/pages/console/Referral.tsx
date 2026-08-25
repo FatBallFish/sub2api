@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { getConsoleReferral, transferAffiliateRewards } from "../../api/console";
+import { getAffiliateRewards, getConsoleReferral, transferAffiliateRewards } from "../../api/console";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ConsoleAffiliateTransfer, ConsoleReferral } from "../../types/console";
 import { formatCredits, formatNumber } from "../../utils/format";
@@ -56,6 +56,7 @@ export default function Referral() {
   const [error, setError] = useState<LocalizedMessage | null>(null);
   const [copyError, setCopyError] = useState<LocalizedMessage | null>(null);
   const [transferring, setTransferring] = useState(false);
+  const [availableRewards, setAvailableRewards] = useState(0);
   const [transferResult, setTransferResult] = useState<ConsoleAffiliateTransfer | null>(null);
   const [transferError, setTransferError] = useState<LocalizedMessage | null>(null);
   usePageTitle(t("referral.title"));
@@ -63,10 +64,11 @@ export default function Referral() {
   useEffect(() => {
     let active = true;
 
-    getConsoleReferral()
-      .then((data) => {
+    Promise.all([getConsoleReferral(), getAffiliateRewards()])
+      .then(([data, rewards]) => {
         if (active) {
           setReferral(data);
+          setAvailableRewards(Number.isFinite(rewards.aff_quota) ? rewards.aff_quota : 0);
           setError(null);
         }
       })
@@ -95,14 +97,21 @@ export default function Referral() {
   };
 
   const transferRewards = async () => {
-    if (!referral || referral.stats.pending_rewards <= 0 || transferring) return;
+    if (!referral || availableRewards <= 0 || transferring) return;
     setTransferring(true);
     setTransferResult(null);
     setTransferError(null);
     try {
       const result = await transferAffiliateRewards();
       setTransferResult(result);
-      setReferral(await getConsoleReferral());
+      setAvailableRewards(0);
+      try {
+        const [nextReferral, rewards] = await Promise.all([getConsoleReferral(), getAffiliateRewards()]);
+        setReferral(nextReferral);
+        setAvailableRewards(Number.isFinite(rewards.aff_quota) ? rewards.aff_quota : 0);
+      } catch (reason: unknown) {
+        setTransferError(errorMessage(reason, "referralRefreshFailed", "affiliate"));
+      }
     } catch (reason: unknown) {
       setTransferError(errorMessage(reason, "referralTransferFailed", "affiliate"));
     } finally {
@@ -161,7 +170,7 @@ export default function Referral() {
           <div className="pt-4 flex flex-col sm:flex-row gap-4">
             <div className="console-inverted-subtle flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 flex items-center justify-between backdrop-blur-sm group-hover:border-white/20 transition-colors">
               <div className="min-w-0 mr-4">
-                <div className="console-inverted-label mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("referral.inviteLink")}</div>
+                <div className="console-inverted-label mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-300">{t("referral.inviteLink")}</div>
                 <code className="console-inverted-code block truncate text-sm font-mono text-zinc-300">{referral.invite_link}</code>
               </div>
               <button
@@ -198,17 +207,18 @@ export default function Referral() {
       ) : null}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {[
           { icon: Users, label: t("referral.totalInvited"), value: t("referral.users", { count: referral.stats.total_invited, formattedCount: formatNumber(referral.stats.total_invited, locale) }) },
           { icon: CurrencyCircleDollar, label: t("referral.creditsEarned"), value: formatCredits(referral.stats.credits_earned, locale) },
+          { icon: Gift, label: t("referral.pendingRewards"), value: formatCredits(referral.stats.pending_rewards, locale) },
         ].map(item => (
           <div key={item.label} className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-sm flex items-center gap-4">
             <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 text-zinc-400">
               <item.icon size={24} weight="duotone" />
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{item.label}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">{item.label}</span>
               <div className="text-xl font-bold text-zinc-900">{item.value}</div>
             </div>
           </div>
@@ -219,13 +229,13 @@ export default function Referral() {
               <Gift size={24} weight="duotone" />
             </div>
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{t("referral.pendingRewards")}</span>
-              <div className="text-xl font-bold text-zinc-900">{formatCredits(referral.stats.pending_rewards, locale)}</div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">{t("referral.availableRewards")}</span>
+              <div className="text-xl font-bold text-zinc-900">{formatCredits(availableRewards, locale)}</div>
             </div>
           </div>
           <button
             type="button"
-            disabled={transferring || referral.stats.pending_rewards <= 0}
+            disabled={transferring || availableRewards <= 0}
             onClick={() => void transferRewards()}
             className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-500"
           >
@@ -239,35 +249,37 @@ export default function Referral() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-2xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-zinc-100 font-bold text-zinc-900">{t("referral.recentlyJoined")}</div>
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50/50 border-b border-zinc-200">
-                <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("referral.invitee")}</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("referral.joined")}</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">{t("referral.status")}</th>
-                <th className="px-6 py-3 text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] text-right">{t("referral.earnings")}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {referral.recent_invitees.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-sm text-zinc-500">{t("referral.noRecentInvitees")}</td>
+          <div className="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-zinc-900" role="region" tabIndex={0} aria-label={t("referral.inviteeTableScrollLabel")}>
+            <table className="w-full min-w-[640px] text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50/50 border-b border-zinc-200">
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{t("referral.invitee")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{t("referral.joined")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{t("referral.status")}</th>
+                  <th className="px-6 py-3 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] text-right">{t("referral.earnings")}</th>
                 </tr>
-              )}
-              {referral.recent_invitees.map((row) => (
-                <tr key={row.id} className="hover:bg-zinc-50/50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-zinc-900">{row.email}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-500">{relativeTime(row.joined_at, t)}</td>
-                  <td className="px-6 py-4">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                      {inviteeStatusLabel(row.status, t)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-bold text-zinc-900 text-right">{formatCredits(row.earnings, locale)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {referral.recent_invitees.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-sm text-zinc-500">{t("referral.noRecentInvitees")}</td>
+                  </tr>
+                )}
+                {referral.recent_invitees.map((row) => (
+                  <tr key={row.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-zinc-900">{row.email}</td>
+                    <td className="px-6 py-4 text-sm text-zinc-500">{relativeTime(row.joined_at, t)}</td>
+                    <td className="px-6 py-4">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        {inviteeStatusLabel(row.status, t)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-bold text-zinc-900 text-right">{formatCredits(row.earnings, locale)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="space-y-6">

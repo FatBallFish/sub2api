@@ -43,6 +43,7 @@ describe("ConsoleLayout", () => {
     expect(screen.getAllByText(/120\.500000/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Pro Plan").length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /playground/i })).toHaveAttribute("href", "/console/playground");
+    expect(screen.getByRole("link", { name: /redeem/i })).toHaveAttribute("href", "/console/redeem");
     expect(screen.getByText("Overview content")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Change language" })).toBeInTheDocument();
   });

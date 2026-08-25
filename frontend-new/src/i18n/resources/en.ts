@@ -260,6 +260,7 @@ const en = {
       playground: "Playground",
       subscriptionCredits: "Subscription & Credits",
       referral: "Referral",
+      redeem: "Redeem",
       modelPricing: "Model Pricing",
       usageHistory: "Usage History",
       announcements: "Announcements",

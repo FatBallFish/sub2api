@@ -4,6 +4,7 @@ import {
   getConsoleBootstrap,
   getConsoleOverview,
   getConsoleReferral,
+  getAffiliateRewards,
   transferAffiliateRewards,
 } from "./console";
 
@@ -169,6 +170,21 @@ describe("console API", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/user/aff/transfer",
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("loads the transferable affiliate quota from the legacy-compatible user endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { aff_quota: 9.5 } }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await expect(getAffiliateRewards()).resolves.toEqual({ aff_quota: 9.5 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/user/aff",
+      expect.objectContaining({ method: "GET" }),
     );
   });
 });
