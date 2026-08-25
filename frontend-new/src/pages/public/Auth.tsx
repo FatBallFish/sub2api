@@ -718,7 +718,9 @@ function PasswordVisibilityButton({ visible, onToggle, showLabel, hideLabel }: P
       onClick={onToggle}
       className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
     >
-      {visible ? <EyeSlash size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+      {visible
+        ? <Eye size={18} aria-hidden="true" data-testid="password-visible-icon" />
+        : <EyeSlash size={18} aria-hidden="true" data-testid="password-hidden-icon" />}
     </button>
   );
 }
