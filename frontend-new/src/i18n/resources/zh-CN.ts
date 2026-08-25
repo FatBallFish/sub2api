@@ -177,6 +177,8 @@ const zhCN = {
     confirmPassword: "确认密码",
     passwordPlaceholder: "输入密码",
     passwordMinPlaceholder: "至少 6 个字符",
+    showPassword: "显示密码",
+    hidePassword: "隐藏密码",
     inviteCode: "邀请码",
     inviteCodeRequired: "邀请码（必填）",
     invitePlaceholder: "选填邀请码",

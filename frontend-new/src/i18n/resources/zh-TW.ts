@@ -177,6 +177,8 @@ const zhTW = {
     confirmPassword: "確認密碼",
     passwordPlaceholder: "輸入密碼",
     passwordMinPlaceholder: "至少 6 個字元",
+    showPassword: "顯示密碼",
+    hidePassword: "隱藏密碼",
     inviteCode: "邀請碼",
     inviteCodeRequired: "邀請碼（必填）",
     invitePlaceholder: "選填邀請碼",

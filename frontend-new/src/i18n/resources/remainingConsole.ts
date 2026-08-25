@@ -33,6 +33,9 @@ const en = {
     users_other: "{{formattedCount}} Users",
     creditsEarned: "Credits Earned",
     pendingRewards: "Pending Rewards",
+    transferToBalance: "Transfer to balance",
+    transferring: "Transferring...",
+    transferSuccess: "Transferred {{amount}} credits to your balance. New balance: {{balance}}.",
     recentlyJoined: "Recently Joined",
     invitee: "Invitee",
     joined: "Joined",
@@ -212,7 +215,7 @@ const zhCN = {
     title: "公告", description: "及时了解最新产品发布、维护通知和模型集成动态。", unavailable: "公告暂不可用", loading: "正在加载公告...", searchPlaceholder: "搜索公告...", filterLabel: "公告筛选", filterAll: "全部公告", filterUnread: "仅未读", featured: "精选", read: "已读", markAsRead: "标记为已读", markRead: "标记已读", markAsReadLabel: "将 {{title}} 标记为已读", empty: "未找到公告。", recently: "最近", categories: { notice: "通知", model: "模型", feature: "功能", release: "发布" },
   },
   referral: {
-    title: "推荐计划", description: "邀请好友，每次成功推荐均可赚取额度。", unavailable: "推荐计划暂不可用", loading: "正在加载推荐计划...", rewardBadge: "限时奖励", rewardHeadline: "赠送 {{give}}，获得 {{get}}。", rewardDescription: "好友注册后可获得 {{signupBonus}} 奖励额度。每次成功注册你可获得 {{inviterReward}}，并从其每笔符合条件的消费中赚取 {{rebateRate}}% 额度。", inviteLink: "邀请链接", copyInviteLink: "复制邀请链接", inviteLinkCopied: "已复制邀请链接", totalInvited: "累计邀请", users_one: "{{formattedCount}} 位用户", users_other: "{{formattedCount}} 位用户", creditsEarned: "已赚额度", pendingRewards: "待发奖励", recentlyJoined: "最近加入", invitee: "受邀用户", joined: "加入时间", status: "状态", earnings: "收益", inviteeStatuses: { joined: "已加入", rewarded: "已发放奖励" }, noRecentInvitees: "暂无最近加入的用户。", programRules: "计划规则", recently: "最近", minutesAgo: "{{count}} 分钟前", hoursAgo: "{{count}} 小时前", daysAgo: "{{count}} 天前",
+    title: "推荐计划", description: "邀请好友，每次成功推荐均可赚取额度。", unavailable: "推荐计划暂不可用", loading: "正在加载推荐计划...", rewardBadge: "限时奖励", rewardHeadline: "赠送 {{give}}，获得 {{get}}。", rewardDescription: "好友注册后可获得 {{signupBonus}} 奖励额度。每次成功注册你可获得 {{inviterReward}}，并从其每笔符合条件的消费中赚取 {{rebateRate}}% 额度。", inviteLink: "邀请链接", copyInviteLink: "复制邀请链接", inviteLinkCopied: "已复制邀请链接", totalInvited: "累计邀请", users_one: "{{formattedCount}} 位用户", users_other: "{{formattedCount}} 位用户", creditsEarned: "已赚额度", pendingRewards: "待转余额", transferToBalance: "转入余额", transferring: "正在转入...", transferSuccess: "已将 {{amount}} 额度转入余额，当前余额为 {{balance}}。", recentlyJoined: "最近加入", invitee: "受邀用户", joined: "加入时间", status: "状态", earnings: "收益", inviteeStatuses: { joined: "已加入", rewarded: "已发放奖励" }, noRecentInvitees: "暂无最近加入的用户。", programRules: "计划规则", recently: "最近", minutesAgo: "{{count}} 分钟前", hoursAgo: "{{count}} 小时前", daysAgo: "{{count}} 天前",
     rules: { useUniqueLink: "受邀用户必须使用你的专属链接。", inviteeBonus: "受邀用户注册后可获得 {{credits}} 额度。", inviterReward: "每次成功注册你可获得 {{credits}} 额度。", rewardCap: "邀请注册奖励上限为 {{credits}} 额度。", noRewardCap: "邀请注册奖励目前不设上限。", rebate: "订阅套餐可获得 {{rate}}% 奖励。", addOnExcluded: "当前不包含加购额度。", addOnIncluded: "包含加购额度。", instantEarnings: "收益会即时到账。" },
   },
   installGuide: {
@@ -242,7 +245,7 @@ const zhTW = {
     title: "公告", description: "隨時掌握最新產品發布、維護通知和模型整合動態。", unavailable: "公告暫時無法使用", loading: "正在載入公告...", searchPlaceholder: "搜尋公告...", filterLabel: "公告篩選", filterAll: "所有公告", filterUnread: "僅限未讀", featured: "精選", read: "已讀", markAsRead: "標示為已讀", markRead: "標示已讀", markAsReadLabel: "將 {{title}} 標示為已讀", empty: "找不到公告。", recently: "最近", categories: { notice: "通知", model: "模型", feature: "功能", release: "發布" },
   },
   referral: {
-    title: "推薦計畫", description: "邀請好友，每次成功推薦均可賺取額度。", unavailable: "推薦計畫暫時無法使用", loading: "正在載入推薦計畫...", rewardBadge: "限時獎勵", rewardHeadline: "贈送 {{give}}，獲得 {{get}}。", rewardDescription: "好友註冊後可獲得 {{signupBonus}} 獎勵額度。每次成功註冊你可獲得 {{inviterReward}}，並從其每筆符合資格的消費中賺取 {{rebateRate}}% 額度。", inviteLink: "邀請連結", copyInviteLink: "複製邀請連結", inviteLinkCopied: "已複製邀請連結", totalInvited: "累計邀請", users_one: "{{formattedCount}} 位使用者", users_other: "{{formattedCount}} 位使用者", creditsEarned: "已賺額度", pendingRewards: "待發獎勵", recentlyJoined: "最近加入", invitee: "受邀使用者", joined: "加入時間", status: "狀態", earnings: "收益", inviteeStatuses: { joined: "已加入", rewarded: "已發放獎勵" }, noRecentInvitees: "暫無最近加入的使用者。", programRules: "計畫規則", recently: "最近", minutesAgo: "{{count}} 分鐘前", hoursAgo: "{{count}} 小時前", daysAgo: "{{count}} 天前",
+    title: "推薦計畫", description: "邀請好友，每次成功推薦均可賺取額度。", unavailable: "推薦計畫暫時無法使用", loading: "正在載入推薦計畫...", rewardBadge: "限時獎勵", rewardHeadline: "贈送 {{give}}，獲得 {{get}}。", rewardDescription: "好友註冊後可獲得 {{signupBonus}} 獎勵額度。每次成功註冊你可獲得 {{inviterReward}}，並從其每筆符合資格的消費中賺取 {{rebateRate}}% 額度。", inviteLink: "邀請連結", copyInviteLink: "複製邀請連結", inviteLinkCopied: "已複製邀請連結", totalInvited: "累計邀請", users_one: "{{formattedCount}} 位使用者", users_other: "{{formattedCount}} 位使用者", creditsEarned: "已賺額度", pendingRewards: "待轉餘額", transferToBalance: "轉入餘額", transferring: "正在轉入...", transferSuccess: "已將 {{amount}} 額度轉入餘額，目前餘額為 {{balance}}。", recentlyJoined: "最近加入", invitee: "受邀使用者", joined: "加入時間", status: "狀態", earnings: "收益", inviteeStatuses: { joined: "已加入", rewarded: "已發放獎勵" }, noRecentInvitees: "暫無最近加入的使用者。", programRules: "計畫規則", recently: "最近", minutesAgo: "{{count}} 分鐘前", hoursAgo: "{{count}} 小時前", daysAgo: "{{count}} 天前",
     rules: { useUniqueLink: "受邀使用者必須使用你的專屬連結。", inviteeBonus: "受邀使用者註冊後可獲得 {{credits}} 額度。", inviterReward: "每次成功註冊你可獲得 {{credits}} 額度。", rewardCap: "邀請註冊獎勵上限為 {{credits}} 額度。", noRewardCap: "邀請註冊獎勵目前不設上限。", rebate: "訂閱方案可獲得 {{rate}}% 獎勵。", addOnExcluded: "目前不包含加購額度。", addOnIncluded: "包含加購額度。", instantEarnings: "收益會即時入帳。" },
   },
   installGuide: {
@@ -272,7 +275,7 @@ const ja = {
     title: "お知らせ", description: "製品リリース、メンテナンス情報、モデル連携の最新情報を確認できます。", unavailable: "お知らせを利用できません", loading: "お知らせを読み込んでいます...", searchPlaceholder: "お知らせを検索...", filterLabel: "お知らせフィルター", filterAll: "すべてのお知らせ", filterUnread: "未読のみ", featured: "注目", read: "既読", markAsRead: "既読にする", markRead: "既読にする", markAsReadLabel: "{{title}}を既読にする", empty: "お知らせが見つかりません。", recently: "最近", categories: { notice: "通知", model: "モデル", feature: "機能", release: "リリース" },
   },
   referral: {
-    title: "紹介プログラム", description: "友だちを招待し、紹介が成立するたびにクレジットを獲得できます。", unavailable: "紹介プログラムを利用できません", loading: "紹介プログラムを読み込んでいます...", rewardBadge: "期間限定特典", rewardHeadline: "{{give}} を贈って、{{get}} を獲得。", rewardDescription: "友だちは登録時に {{signupBonus}} のボーナスクレジットを受け取ります。紹介が成立するたびに {{inviterReward}} を獲得し、対象となる購入ごとに {{rebateRate}}% のクレジットを獲得できます。", inviteLink: "招待リンク", copyInviteLink: "招待リンクをコピー", inviteLinkCopied: "招待リンクをコピーしました", totalInvited: "招待人数", users_one: "{{formattedCount}} 人", users_other: "{{formattedCount}} 人", creditsEarned: "獲得クレジット", pendingRewards: "保留中の特典", recentlyJoined: "最近参加したユーザー", invitee: "招待ユーザー", joined: "参加日時", status: "ステータス", earnings: "獲得額", inviteeStatuses: { joined: "参加済み", rewarded: "特典付与済み" }, noRecentInvitees: "最近参加したユーザーはいません。", programRules: "プログラム規約", recently: "最近", minutesAgo: "{{count}}分前", hoursAgo: "{{count}}時間前", daysAgo: "{{count}}日前",
+    title: "紹介プログラム", description: "友だちを招待し、紹介が成立するたびにクレジットを獲得できます。", unavailable: "紹介プログラムを利用できません", loading: "紹介プログラムを読み込んでいます...", rewardBadge: "期間限定特典", rewardHeadline: "{{give}} を贈って、{{get}} を獲得。", rewardDescription: "友だちは登録時に {{signupBonus}} のボーナスクレジットを受け取ります。紹介が成立するたびに {{inviterReward}} を獲得し、対象となる購入ごとに {{rebateRate}}% のクレジットを獲得できます。", inviteLink: "招待リンク", copyInviteLink: "招待リンクをコピー", inviteLinkCopied: "招待リンクをコピーしました", totalInvited: "招待人数", users_one: "{{formattedCount}} 人", users_other: "{{formattedCount}} 人", creditsEarned: "獲得クレジット", pendingRewards: "振替可能な特典", transferToBalance: "残高に振り替える", transferring: "振替中...", transferSuccess: "{{amount}} クレジットを残高に振り替えました。現在の残高は {{balance}} です。", recentlyJoined: "最近参加したユーザー", invitee: "招待ユーザー", joined: "参加日時", status: "ステータス", earnings: "獲得額", inviteeStatuses: { joined: "参加済み", rewarded: "特典付与済み" }, noRecentInvitees: "最近参加したユーザーはいません。", programRules: "プログラム規約", recently: "最近", minutesAgo: "{{count}}分前", hoursAgo: "{{count}}時間前", daysAgo: "{{count}}日前",
     rules: { useUniqueLink: "招待された方は専用リンクを使用する必要があります。", inviteeBonus: "招待された方は登録後に {{credits}} クレジットを受け取ります。", inviterReward: "紹介が成立するたびに {{credits}} クレジットを受け取ります。", rewardCap: "登録紹介特典の上限は {{credits}} クレジットです。", noRewardCap: "登録紹介特典には現在上限がありません。", rebate: "サブスクリプションプランには {{rate}}% の特典が適用されます。", addOnExcluded: "追加クレジットは現在対象外です。", addOnIncluded: "追加クレジットも対象です。", instantEarnings: "獲得額は即時に反映されます。" },
   },
   installGuide: {
@@ -304,6 +307,7 @@ const remainingErrorsEn = {
     announcementMarkReadFailed: "Unable to mark the announcement as read.",
     referralLoadFailed: "Unable to load referral.",
     referralCopyFailed: "Unable to copy the invite link.",
+    referralTransferFailed: "Unable to transfer referral rewards.",
     playgroundKeysLoadFailed: "Unable to load active API keys.",
     playgroundGroupsLoadFailed: "Groups could not be loaded. All active API keys remain available.",
     playgroundRequestFailed: "Playground request failed.",
@@ -323,6 +327,7 @@ export const remainingErrors = {
     announcementMarkReadFailed: "无法将公告标记为已读。",
     referralLoadFailed: "无法加载推荐计划。",
     referralCopyFailed: "无法复制邀请链接。",
+    referralTransferFailed: "无法将推荐奖励转入余额。",
     playgroundKeysLoadFailed: "无法加载启用的 API 密钥。",
     playgroundGroupsLoadFailed: "无法加载分组，仍可使用全部启用的 API 密钥。",
     playgroundRequestFailed: "调试台请求失败。",
@@ -339,6 +344,7 @@ export const remainingErrors = {
     announcementMarkReadFailed: "無法將公告標示為已讀。",
     referralLoadFailed: "無法載入推薦計畫。",
     referralCopyFailed: "無法複製邀請連結。",
+    referralTransferFailed: "無法將推薦獎勵轉入餘額。",
     playgroundKeysLoadFailed: "無法載入啟用的 API 金鑰。",
     playgroundGroupsLoadFailed: "無法載入群組，仍可使用所有啟用的 API 金鑰。",
     playgroundRequestFailed: "測試台請求失敗。",
@@ -355,6 +361,7 @@ export const remainingErrors = {
     announcementMarkReadFailed: "お知らせを既読にできませんでした。",
     referralLoadFailed: "紹介プログラムを読み込めませんでした。",
     referralCopyFailed: "招待リンクをコピーできませんでした。",
+    referralTransferFailed: "紹介特典を残高に振り替えられませんでした。",
     playgroundKeysLoadFailed: "有効な API キーを読み込めませんでした。",
     playgroundGroupsLoadFailed: "グループを読み込めませんでした。すべての有効な API キーは引き続き利用できます。",
     playgroundRequestFailed: "プレイグラウンドのリクエストに失敗しました。",

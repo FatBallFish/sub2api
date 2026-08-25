@@ -180,6 +180,8 @@ const en = {
     confirmPassword: "Confirm Password",
     passwordPlaceholder: "Your password",
     passwordMinPlaceholder: "At least 6 characters",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
     inviteCode: "Invite Code",
     inviteCodeRequired: "Invite Code (required)",
     invitePlaceholder: "Optional invite code",

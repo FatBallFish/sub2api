@@ -60,6 +60,105 @@ describe("Referral", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/console/referral", expect.any(Object));
   });
 
+  it("transfers pending rewards, blocks duplicate clicks, and refreshes referral data", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    let resolveTransfer!: (value: Response) => void;
+    const transferResponse = new Promise<Response>((resolve) => {
+      resolveTransfer = resolve;
+    });
+    let referralCalls = 0;
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === "/api/v1/user/aff/transfer") return transferResponse;
+      if (url === "/api/v1/console/referral") {
+        referralCalls += 1;
+        return Promise.resolve(new Response(JSON.stringify({
+          success: true,
+          data: {
+            invite_link: "https://example.com/register?ref=TRANSFER",
+            rules: {
+              signup_bonus: 5,
+              inviter_signup_reward: 10,
+              inviter_signup_reward_cap: 0,
+              first_order_bonus: 10,
+              rebate_rate: 0.1,
+              add_on_excluded: true,
+            },
+            stats: {
+              total_invited: 2,
+              credits_earned: 12,
+              pending_rewards: referralCalls === 1 ? 4 : 0,
+            },
+            recent_invitees: [],
+          },
+        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Referral />);
+
+    const transferButton = await screen.findByRole("button", { name: "Transfer to balance" });
+    expect(transferButton).toBeEnabled();
+    await userEvent.click(transferButton);
+
+    expect(screen.getByRole("button", { name: "Transferring..." })).toBeDisabled();
+    expect(fetchMock.mock.calls.filter(([input]) => input.toString() === "/api/v1/user/aff/transfer")).toHaveLength(1);
+
+    await act(async () => {
+      resolveTransfer(new Response(JSON.stringify({
+        success: true,
+        data: { transferred_quota: 4, balance: 24 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    });
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Transferred 4.000000 credits to your balance. New balance: 24.000000.");
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([input]) => input.toString() === "/api/v1/console/referral")).toHaveLength(2);
+    });
+    expect(screen.getByRole("button", { name: "Transfer to balance" })).toBeDisabled();
+  });
+
+  it("shows the backend error when an affiliate transfer fails", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (input.toString() === "/api/v1/console/referral") {
+        return Promise.resolve(new Response(JSON.stringify({
+          success: true,
+          data: {
+            invite_link: "https://example.com/register?ref=FAILED",
+            rules: {
+              signup_bonus: 0,
+              inviter_signup_reward: 0,
+              inviter_signup_reward_cap: 0,
+              first_order_bonus: 0,
+              rebate_rate: 0,
+              add_on_excluded: true,
+            },
+            stats: { total_invited: 1, credits_earned: 5, pending_rewards: 5 },
+            recent_invitees: [],
+          },
+        }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        success: false,
+        message: "Transfer temporarily unavailable",
+      }), { status: 409, headers: { "Content-Type": "application/json" } }));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<Referral />);
+    await userEvent.click(await screen.findByRole("button", { name: "Transfer to balance" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Transfer temporarily unavailable");
+    expect(screen.getByRole("button", { name: "Transfer to balance" })).toBeEnabled();
+  });
+
   it("renders Japanese referral copy and updates messages without refetching", async () => {
     await act(async () => {
       await i18n.changeLanguage("ja");
@@ -164,6 +263,7 @@ describe("Referral", () => {
     expect(await screen.findByText("最近参加したユーザーはいません。")).toBeInTheDocument();
     expect(screen.getByText("追加クレジットも対象です。")).toBeInTheDocument();
     expect(screen.getByText("登録紹介特典には現在上限がありません。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "残高に振り替える" })).toBeDisabled();
   });
 
   it("localizes referral loading failures", async () => {

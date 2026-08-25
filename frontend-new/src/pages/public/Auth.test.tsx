@@ -121,6 +121,55 @@ describe("Auth page", () => {
     aliyunHarness.reset.mockReset();
   });
 
+  it("toggles password visibility on the login form without clearing the value", async () => {
+    await i18n.changeLanguage("en");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { email_verify_enabled: false } }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    const password = screen.getByLabelText("Password");
+    fireEvent.change(password, { target: { value: "login-secret" } });
+    expect(password).toHaveAttribute("type", "password");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("login-secret");
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(password).toHaveAttribute("type", "password");
+    expect(password).toHaveValue("login-secret");
+  });
+
+  it("toggles password visibility on the registration form", async () => {
+    await i18n.changeLanguage("en");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { email_verify_enabled: false } }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    const password = screen.getByLabelText("Password");
+    fireEvent.change(password, { target: { value: "register-secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+
+    expect(password).toHaveAttribute("type", "text");
+    expect(password).toHaveValue("register-secret");
+  });
+
   it("renders login and registration copy in Japanese and updates the page title", async () => {
     await i18n.changeLanguage("ja");
     globalThis.fetch = vi.fn().mockResolvedValue({

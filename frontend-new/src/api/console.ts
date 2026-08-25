@@ -1,5 +1,11 @@
-import { getJSON } from "./client";
-import type { ConsoleBilling, ConsoleBootstrap, ConsoleOverview, ConsoleReferral } from "../types/console";
+import { getJSON, postJSON } from "./client";
+import type {
+  ConsoleAffiliateTransfer,
+  ConsoleBilling,
+  ConsoleBootstrap,
+  ConsoleOverview,
+  ConsoleReferral,
+} from "../types/console";
 
 export function getConsoleBootstrap() {
   return getJSON<ConsoleBootstrap>("/console/bootstrap");
@@ -15,4 +21,8 @@ export function getConsoleBilling() {
 
 export function getConsoleReferral() {
   return getJSON<ConsoleReferral>("/console/referral");
+}
+
+export function transferAffiliateRewards() {
+  return postJSON<ConsoleAffiliateTransfer>("/user/aff/transfer");
 }

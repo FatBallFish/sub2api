@@ -190,3 +190,8 @@ export interface ConsoleReferral {
   stats: ConsoleReferralStats;
   recent_invitees: ConsoleReferralInvitee[];
 }
+
+export interface ConsoleAffiliateTransfer {
+  transferred_quota: number;
+  balance: number;
+}
