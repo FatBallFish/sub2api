@@ -257,6 +257,7 @@ const zhTW = {
       playground: "測試台",
       subscriptionCredits: "訂閱與額度",
       referral: "推薦獎勵",
+      redeem: "兌換",
       modelPricing: "模型價格",
       usageHistory: "使用記錄",
       announcements: "公告",

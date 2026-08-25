@@ -257,6 +257,7 @@ const zhCN = {
       playground: "调试台",
       subscriptionCredits: "订阅与额度",
       referral: "邀请返利",
+      redeem: "兑换",
       modelPricing: "模型价格",
       usageHistory: "使用记录",
       announcements: "公告",

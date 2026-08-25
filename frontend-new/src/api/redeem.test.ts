@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getRedeemHistory, redeemCode } from "./redeem";
+import { getRedeemAccountProfile, getRedeemHistory, redeemCode } from "./redeem";
 
 describe("redeem API", () => {
   afterEach(() => {
@@ -78,6 +78,24 @@ describe("redeem API", () => {
     await expect(getRedeemHistory()).resolves.toEqual(history);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/redeem/history",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("loads the current balance and concurrency from the existing user profile", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      data: { id: 7, balance: 18.75, concurrency: 6 },
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    globalThis.fetch = fetchMock;
+
+    await expect(getRedeemAccountProfile()).resolves.toEqual({
+      id: 7,
+      balance: 18.75,
+      concurrency: 6,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/user/profile",
       expect.objectContaining({ method: "GET" }),
     );
   });

@@ -195,3 +195,7 @@ export interface ConsoleAffiliateTransfer {
   transferred_quota: number;
   balance: number;
 }
+
+export interface ConsoleAffiliateRewards {
+  aff_quota: number;
+}

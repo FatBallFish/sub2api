@@ -168,6 +168,50 @@ describe("App console routes", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/console/bootstrap", expect.any(Object));
   });
 
+  it("renders the redemption page at its authenticated console route", async () => {
+    await act(async () => {
+      await i18n.changeLanguage("en");
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url === "/api/v1/settings/public") return Promise.resolve(jsonResponse({ site_name: "Mikiko" }));
+      if (url === "/api/v1/console/bootstrap") {
+        return Promise.resolve(jsonResponse({
+          user: { id: 7, email: "redeem@example.com", role: "user" },
+          wallet: { available_balance: 18.75, add_on_credits: 0, currency: "USD" },
+          global_plan: {
+            active: true,
+            name: "Starter",
+            quota_limit: 10,
+            quota_used: 2,
+            quota_remaining: 8,
+            used_percent: 20,
+          },
+          unread_announcements: 0,
+          affiliate_enabled: true,
+        }));
+      }
+      if (url === "/api/v1/user/profile") {
+        return Promise.resolve(jsonResponse({ id: 7, balance: 18.75, concurrency: 4 }));
+      }
+      if (url === "/api/v1/redeem/history") return Promise.resolve(jsonResponse([]));
+      return Promise.reject(new Error(`Unexpected request ${url}`));
+    });
+    globalThis.fetch = fetchMock;
+
+    render(
+      <App
+        RouterComponent={MemoryRouter}
+        routerProps={{ initialEntries: ["/console/redeem"] }}
+      />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Redeem Code", level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId("console-shell")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Redeem" })).toHaveAttribute("aria-current", "page");
+    expect(document.title).toBe("Redeem | Mikiko CC");
+  });
+
   it("refreshes console bootstrap on an interval so credit state stays current", async () => {
     let bootstrapRefresh: (() => void) | undefined;
     const setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation((handler: TimerHandler, timeout?: number) => {

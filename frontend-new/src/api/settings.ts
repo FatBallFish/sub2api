@@ -24,6 +24,7 @@ export interface PublicSettings {
   site_name?: string;
   site_logo?: string;
   api_base_url?: string;
+  contact_info?: string;
   hide_ccs_import_button?: boolean;
   login_agreement_enabled?: boolean;
   login_agreement_mode?: "modal" | "checkbox" | string;

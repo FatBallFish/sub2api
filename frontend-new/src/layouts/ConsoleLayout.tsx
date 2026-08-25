@@ -17,6 +17,7 @@ import {
   Sun,
   List,
   X,
+  Ticket,
 } from "@phosphor-icons/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -53,6 +54,7 @@ const navItems = [
   { id: "playground", labelKey: "nav.playground", href: "/console/playground", icon: Flask },
   { id: "subscriptionCredits", labelKey: "nav.subscriptionCredits", href: "/console/subscription-wallet", icon: CreditCard },
   { id: "referral", labelKey: "nav.referral", href: "/console/referral", icon: Users },
+  { id: "redeem", labelKey: "nav.redeem", href: "/console/redeem", icon: Ticket },
   { id: "modelPricing", labelKey: "nav.modelPricing", href: "/console/model-pricing", icon: ChartBar },
   { id: "usageHistory", labelKey: "nav.usageHistory", href: "/console/usage-history", icon: Clock },
   { id: "announcements", labelKey: "nav.announcements", href: "/console/announcements", icon: Megaphone },

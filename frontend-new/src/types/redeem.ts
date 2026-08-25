@@ -24,3 +24,9 @@ export interface RedeemHistoryItem {
     name: string;
   };
 }
+
+export interface RedeemAccountProfile {
+  id: number;
+  balance: number;
+  concurrency: number;
+}

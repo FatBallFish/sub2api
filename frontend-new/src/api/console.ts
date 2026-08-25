@@ -1,6 +1,7 @@
 import { getJSON, postJSON } from "./client";
 import type {
   ConsoleAffiliateTransfer,
+  ConsoleAffiliateRewards,
   ConsoleBilling,
   ConsoleBootstrap,
   ConsoleOverview,
@@ -25,4 +26,8 @@ export function getConsoleReferral() {
 
 export function transferAffiliateRewards() {
   return postJSON<ConsoleAffiliateTransfer>("/user/aff/transfer");
+}
+
+export function getAffiliateRewards() {
+  return getJSON<ConsoleAffiliateRewards>("/user/aff");
 }

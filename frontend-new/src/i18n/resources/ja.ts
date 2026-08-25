@@ -257,6 +257,7 @@ const ja = {
       playground: "プレイグラウンド",
       subscriptionCredits: "サブスクリプションとクレジット",
       referral: "紹介プログラム",
+      redeem: "コード交換",
       modelPricing: "モデル料金",
       usageHistory: "利用履歴",
       announcements: "お知らせ",
