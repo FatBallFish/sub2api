@@ -46,6 +46,11 @@ func TestValidateCreemBindingTarget(t *testing.T) {
 	require.Error(t, validateCreemBindingTarget("recurring", &planID, nil))
 }
 
+func TestStringSliceContainsFoldTrimsAndIgnoresCase(t *testing.T) {
+	require.True(t, stringSliceContainsFold([]string{" stripe ", " CREEM "}, payment.TypeCreem))
+	require.False(t, stringSliceContainsFold([]string{"stripe"}, payment.TypeCreem))
+}
+
 func TestCreateCreemBindingEnforcesOneTimeActiveProduct(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)

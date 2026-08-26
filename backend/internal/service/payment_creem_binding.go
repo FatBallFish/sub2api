@@ -96,7 +96,7 @@ func (s *PaymentConfigService) ListCreemFixedOffers(ctx context.Context) ([]Cree
 	if err != nil {
 		return nil, err
 	}
-	if !creemStringSliceContains(cfg.EnabledTypes, payment.TypeCreem) {
+	if !stringSliceContainsFold(cfg.EnabledTypes, payment.TypeCreem) {
 		return []CreemFixedOffer{}, nil
 	}
 	bindings, err := s.entClient.CreemProductBinding.Query().Where(
@@ -363,7 +363,7 @@ func (s *PaymentConfigService) expectedCreemPlanPriceMinor(ctx context.Context, 
 	return payment.AmountToMinorUnit(payment.FormatAmountForCurrency(converted, currency), currency)
 }
 
-func creemStringSliceContains(values []string, expected string) bool {
+func stringSliceContainsFold(values []string, expected string) bool {
 	for _, value := range values {
 		if strings.EqualFold(strings.TrimSpace(value), expected) {
 			return true
