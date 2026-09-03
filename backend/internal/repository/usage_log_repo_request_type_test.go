@@ -299,7 +299,7 @@ func TestPrepareUsageLogInsert_PersistsNativeCompactionV2WithoutChangingRequestT
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
 	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-2])
 	require.Equal(t, true, prepared.args[len(prepared.args)-2])
-	require.Equal(t, int16(service.RequestTypeStream), prepared.args[30])
+	require.Equal(t, int16(service.RequestTypeStream), prepared.args[35])
 	require.Equal(t, service.RequestTypeStream, log.RequestType)
 	require.True(t, log.Stream)
 	require.False(t, log.OpenAIWSMode)
@@ -540,6 +540,7 @@ func TestUsageLogRepositoryUsageAggregatesFilterNativeCompactionV2(t *testing.T)
 				"requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens",
 				"cost", "actual_cost", "account_cost", "avg_duration_ms",
 			}))
+		expectRemainingCreditInventoryQueries(mock, 0, 0, 0)
 
 		_, err := repo.GetStatsWithFilters(context.Background(), filters)
 		require.NoError(t, err)
