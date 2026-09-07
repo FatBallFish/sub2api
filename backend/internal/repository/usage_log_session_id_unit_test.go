@@ -81,18 +81,22 @@ func TestPrepareUsageLogInsert_RequestedReasoningEffortArgWiring(t *testing.T) {
 	})
 
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
-	require.Equal(t, "text", usageLogInsertArgTypes[48], "requested_reasoning_effort must follow reasoning_effort")
-	require.Equal(t, "text", usageLogInsertArgTypes[47], "reasoning_effort arg type must stay text")
+	findStringArg := func(want string) int {
+		for i, arg := range prepared.args {
+			value, ok := arg.(sql.NullString)
+			if ok && value.Valid && value.String == want {
+				return i
+			}
+		}
+		return -1
+	}
 
-	forwardedArg, ok := prepared.args[47].(sql.NullString)
-	require.True(t, ok)
-	require.True(t, forwardedArg.Valid)
-	require.Equal(t, forwarded, forwardedArg.String)
-
-	requestedArg, ok := prepared.args[48].(sql.NullString)
-	require.True(t, ok)
-	require.True(t, requestedArg.Valid)
-	require.Equal(t, requested, requestedArg.String)
+	forwardedIdx := findStringArg(forwarded)
+	requestedIdx := findStringArg(requested)
+	require.NotEqual(t, -1, forwardedIdx)
+	require.Equal(t, forwardedIdx+1, requestedIdx, "requested_reasoning_effort must follow reasoning_effort")
+	require.Equal(t, "text", usageLogInsertArgTypes[forwardedIdx])
+	require.Equal(t, "text", usageLogInsertArgTypes[requestedIdx])
 }
 
 // TestUsageLogInsertQueries_IncludeSessionID guards that every generated INSERT path
