@@ -5,15 +5,24 @@ import { mount } from '@vue/test-utils'
 import PlanEditDialog from '../PlanEditDialog.vue'
 import type { AdminGroup } from '@/types'
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (key === 'payment.admin.subscriptionCnyPayPreview') return `preview ${params?.amount}`
-      if (key === 'payment.admin.subscriptionCnyPayPreviewWithFee') return `fee ${params?.feeRate} ${params?.total}`
-      return key
-    },
-  }),
+const { createPlan, updatePlan } = vi.hoisted(() => ({
+  createPlan: vi.fn(),
+  updatePlan: vi.fn(),
 }))
+
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'payment.admin.subscriptionCnyPayPreview') return `preview ${params?.amount}`
+        if (key === 'payment.admin.subscriptionCnyPayPreviewWithFee') return `fee ${params?.feeRate} ${params?.total}`
+        return key
+      },
+    }),
+  }
+})
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -22,12 +31,19 @@ vi.mock('@/stores/app', () => ({
   }),
 }))
 
-vi.mock('@/api/admin/payment', () => ({
-  adminPaymentAPI: {
-    createPlan: vi.fn(),
-    updatePlan: vi.fn(),
-  },
-}))
+vi.mock('@/api/admin/payment', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/admin/payment')>()
+  const adminPaymentAPI = {
+    ...actual.adminPaymentAPI,
+    createPlan,
+    updatePlan,
+  }
+  return {
+    ...actual,
+    adminPaymentAPI,
+    default: adminPaymentAPI,
+  }
+})
 
 const BaseDialogStub = defineComponent({
   name: 'BaseDialog',

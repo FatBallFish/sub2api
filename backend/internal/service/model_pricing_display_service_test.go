@@ -196,7 +196,7 @@ func newModelPricingDisplayServiceForTest(t *testing.T, configJSON string, group
 			return map[int64]string{1: "anthropic", 2: "anthropic", 3: "openai"}, nil
 		},
 	}
-	channelService := NewChannelService(channelRepo, groupRepo, nil, nil)
+	channelService := NewChannelService(channelRepo, groupRepo, nil, nil, nil)
 	billingService := &BillingService{fallbackPrices: map[string]*ModelPricing{
 		"claude-sonnet-4": {
 			InputPricePerToken:         3e-6,
