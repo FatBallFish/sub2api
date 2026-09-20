@@ -68,6 +68,14 @@ type noHostServicesPlugin struct {
 	pluginv1.UnimplementedTransportPluginServer
 }
 
+type actionProbePlugin struct {
+	pluginv1.UnimplementedTransportPluginServer
+}
+
+func (p *actionProbePlugin) RunAction(_ context.Context, req *pluginv1.RunActionRequest) (*pluginv1.RunActionResponse, error) {
+	return &pluginv1.RunActionResponse{Accepted: string(req.ActionJson) == `{"kind":"probe"}`, Message: "accepted"}, nil
+}
+
 type legacyHostServicesPlugin struct {
 	pluginv1.UnimplementedTransportPluginServer
 	broker *hcplugin.GRPCBroker
@@ -173,4 +181,13 @@ func TestOfferPluginHostServices_NilHostServicesNoop(t *testing.T) {
 	require.NotPanics(t, func() {
 		offerPluginHostServices(context.Background(), &PluginInstallation{PluginKey: "test.plugin"}, tc.TransportPluginClient, tc.Broker, nil, 5*time.Second)
 	})
+}
+
+func TestPluginTransportRunActionRoundtrip(t *testing.T) {
+	tc := dispenseTransportClient(t, &actionProbePlugin{})
+
+	resp, err := tc.RunAction(context.Background(), &pluginv1.RunActionRequest{ActionJson: []byte(`{"kind":"probe"}`)})
+	require.NoError(t, err)
+	require.True(t, resp.Accepted)
+	assert.Equal(t, "accepted", resp.Message)
 }
