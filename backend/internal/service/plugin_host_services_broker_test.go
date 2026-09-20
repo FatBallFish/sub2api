@@ -68,6 +68,39 @@ type noHostServicesPlugin struct {
 	pluginv1.UnimplementedTransportPluginServer
 }
 
+type legacyHostServicesPlugin struct {
+	pluginv1.UnimplementedTransportPluginServer
+	broker *hcplugin.GRPCBroker
+
+	mu       sync.Mutex
+	versions []uint32
+	ready    bool
+}
+
+func (p *legacyHostServicesPlugin) SetHostBroker(broker *hcplugin.GRPCBroker) { p.broker = broker }
+
+func (p *legacyHostServicesPlugin) InitHostServices(ctx context.Context, req *pluginv1.InitHostServicesRequest) (*pluginv1.InitHostServicesResponse, error) {
+	p.mu.Lock()
+	p.versions = append(p.versions, req.HostServiceApiVersion)
+	p.mu.Unlock()
+	if req.HostServiceApiVersion != 1 {
+		return &pluginv1.InitHostServicesResponse{Ready: false, Message: "unsupported host service API"}, nil
+	}
+	conn, err := p.broker.Dial(req.HostServiceId)
+	if err != nil {
+		return &pluginv1.InitHostServicesResponse{Ready: false, Message: err.Error()}, nil
+	}
+	defer func() { _ = conn.Close() }()
+	client := pluginv1.NewHostServiceClient(conn)
+	if _, err := client.KVGet(ctx, &pluginv1.KVGetRequest{Namespace: "state", Key: "probe"}); err != nil {
+		return &pluginv1.InitHostServicesResponse{Ready: false, Message: err.Error()}, nil
+	}
+	p.mu.Lock()
+	p.ready = true
+	p.mu.Unlock()
+	return &pluginv1.InitHostServicesResponse{Ready: true}, nil
+}
+
 func dispenseTransportClient(t *testing.T, impl pluginv1.TransportPluginServer) *pluginv1.TransportClient {
 	t.Helper()
 	client, _ := hcplugin.TestPluginGRPCConn(t, false, map[string]hcplugin.Plugin{
@@ -119,6 +152,19 @@ func TestOfferPluginHostServices_UnimplementedIsGraceful(t *testing.T) {
 	_, found, err := store.Get(context.Background(), "test.plugin", "state", "probe")
 	require.NoError(t, err)
 	assert.False(t, found)
+}
+
+func TestOfferPluginHostServices_FallsBackToLegacyAPIVersion(t *testing.T) {
+	probe := &legacyHostServicesPlugin{}
+	tc := dispenseTransportClient(t, probe)
+
+	hostServer := newPluginHostServiceServer("test.plugin", newFakePluginKVStore(), nil, PluginAccountScope{})
+	offerPluginHostServices(context.Background(), &PluginInstallation{PluginKey: "test.plugin"}, tc.TransportPluginClient, tc.Broker, hostServer, 5*time.Second)
+
+	probe.mu.Lock()
+	defer probe.mu.Unlock()
+	require.True(t, probe.ready)
+	assert.Equal(t, []uint32{pluginv1.HostServiceAPIVersion, 1}, probe.versions)
 }
 
 // hostServices 为 nil（未配置键值存储）时不得触发任何 broker 交互。

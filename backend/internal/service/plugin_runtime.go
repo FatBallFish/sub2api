@@ -147,6 +147,17 @@ func offerPluginHostServices(
 		}
 		return
 	}
+	if resp != nil && !resp.Ready && pluginv1.HostServiceAPIVersion > 1 &&
+		strings.EqualFold(strings.TrimSpace(resp.Message), "unsupported host service API") {
+		resp, err = api.InitHostServices(initCtx, &pluginv1.InitHostServicesRequest{
+			HostServiceId:         brokerID,
+			HostServiceApiVersion: 1,
+		})
+		if err != nil {
+			slog.Warn("plugin_host_services_legacy_init_failed", "plugin", pluginKey, "error", err)
+			return
+		}
+	}
 	if resp != nil && !resp.Ready {
 		slog.Debug("plugin_host_services_declined", "plugin", pluginKey, "message", resp.Message)
 	}
