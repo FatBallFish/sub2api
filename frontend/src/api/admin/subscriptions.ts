@@ -50,6 +50,7 @@ export async function bulkAction(
     { headers: { 'Idempotency-Key': idempotencyKey } }
   )
   return data
+}
 
 export interface AssignGlobalPlanRequest {
   user_id: number

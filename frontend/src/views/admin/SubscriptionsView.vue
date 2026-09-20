@@ -1622,7 +1622,7 @@ const handleAssignSubscription = async () => {
     if (batchAssignEnabled.value && assignForm.entitlement_type === 'group') {
       batchAssignResult.value = await adminAPI.subscriptions.bulkAssign({
         user_ids: assignUsers.value.map((user) => user.id),
-        group_id: assignForm.group_id,
+        group_id: assignForm.group_id!,
         validity_days: assignForm.validity_days
       })
       const result = batchAssignResult.value
@@ -1636,12 +1636,12 @@ const handleAssignSubscription = async () => {
     }
     if (assignForm.entitlement_type === 'global') {
       await adminAPI.subscriptions.assignGlobalPlan({
-        user_id: assignForm.user_id,
+        user_id: assignForm.user_id!,
         plan_id: assignForm.plan_id!
       })
     } else {
       await adminAPI.subscriptions.assign({
-        user_id: assignForm.user_id,
+        user_id: assignForm.user_id!,
         group_id: assignForm.group_id!,
         validity_days: assignForm.validity_days
       })
