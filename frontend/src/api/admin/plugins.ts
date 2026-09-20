@@ -84,6 +84,11 @@ export interface PluginStatusResult {
   status_json?: string
 }
 
+export interface PluginActionResult {
+  accepted: boolean
+  message: string
+}
+
 export interface PluginUISession {
   url: string
   bridge_token: string
@@ -150,6 +155,14 @@ export async function status(id: number): Promise<PluginStatusResult> {
   return data
 }
 
+export async function action(
+  id: number,
+  payload: Record<string, unknown>
+): Promise<PluginActionResult> {
+  const { data } = await apiClient.post<PluginActionResult>(`/admin/plugins/${id}/actions`, payload)
+  return data
+}
+
 export async function createUISession(id: number): Promise<PluginUISession> {
   const { data } = await apiClient.post<PluginUISession>(`/admin/plugins/${id}/ui-session`)
   return data
@@ -165,5 +178,6 @@ export default {
   saveConfig,
   test,
   status,
+  action,
   createUISession
 }

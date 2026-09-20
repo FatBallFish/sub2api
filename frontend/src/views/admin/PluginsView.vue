@@ -335,6 +335,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { loadPluginResources } from "./pluginResources";
 import {
   adminAPI,
   type PluginInstallation,
@@ -358,6 +359,7 @@ interface PluginBridgeMessage {
   type?: string;
   request_id?: string;
   config?: unknown;
+  action?: unknown;
   height?: unknown;
   level?: unknown;
   message?: unknown;
@@ -612,7 +614,9 @@ async function handleBridgeMessage(event: MessageEvent): Promise<void> {
     message.type === "config.load" ||
     message.type === "config.save" ||
     message.type === "config.test" ||
-    message.type === "plugin.status";
+    message.type === "plugin.status" ||
+    message.type === "plugin.action" ||
+    message.type === "plugin.resources";
   if (expectsResponse) {
     if (!requestID || pendingBridgeRequests.has(requestID)) return;
     registerBridgeRequest(requestID);
@@ -667,6 +671,28 @@ async function handleBridgeMessage(event: MessageEvent): Promise<void> {
         // channel for any plugin to surface live state without abusing config.test.
         const result = await adminAPI.plugins.status(configPlugin.value!.id);
         postBridgeResult(message, { ok: true, result });
+        break;
+      }
+      case "plugin.action": {
+        if (
+          !message.action ||
+          typeof message.action !== "object" ||
+          Array.isArray(message.action)
+        ) {
+          throw new Error(t("admin.plugins.bridgeRejected"));
+        }
+        const result = await pluginStepUp.run(() =>
+          adminAPI.plugins.action(configPlugin.value!.id, {
+            ...(message.action as Record<string, unknown>),
+            request_id: requestID,
+          }),
+        );
+        postBridgeResult(message, { ok: result.accepted, result });
+        break;
+      }
+      case "plugin.resources": {
+        const resources = await loadPluginResources(configPlugin.value);
+        postBridgeResult(message, { ok: true, resources });
         break;
       }
       case "ui.resize": {

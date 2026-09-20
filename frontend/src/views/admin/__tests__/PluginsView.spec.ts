@@ -8,6 +8,7 @@ const {
   uploadPlugin,
   enablePlugin,
   savePluginConfig,
+  runPluginAction,
   createUISession,
   stepUpRun,
 } = vi.hoisted(() => ({
@@ -15,6 +16,7 @@ const {
   uploadPlugin: vi.fn(),
   enablePlugin: vi.fn(),
   savePluginConfig: vi.fn(),
+  runPluginAction: vi.fn(),
   createUISession: vi.fn(),
   stepUpRun: vi.fn((action: () => Promise<unknown>) => action()),
 }))
@@ -29,7 +31,9 @@ vi.mock('@/api/admin', () => ({
       remove: vi.fn(),
       getConfig: vi.fn().mockResolvedValue({}),
       saveConfig: savePluginConfig,
+      action: runPluginAction,
       test: vi.fn().mockResolvedValue({ success: true, message: 'ok', latency_ms: 1 }),
+      status: vi.fn().mockResolvedValue({ healthy: true, message: 'ok' }),
       createUISession,
     },
   },
@@ -130,6 +134,7 @@ describe('管理员插件页二次验证', () => {
     uploadPlugin.mockResolvedValue(plugin)
     enablePlugin.mockResolvedValue(plugin)
     savePluginConfig.mockResolvedValue({ enabled: true })
+    runPluginAction.mockResolvedValue({ accepted: true, message: 'accepted' })
     createUISession.mockResolvedValue({
       url: '/api/v1/plugin-ui/token/index.html#bridge_token=bridge',
       bridge_token: 'bridge',
@@ -165,5 +170,33 @@ describe('管理员插件页二次验证', () => {
 
     expect(stepUpRun).toHaveBeenCalledTimes(1)
     expect(uploadPlugin).toHaveBeenCalledTimes(1)
+  })
+
+  it('插件动作消息通过 step-up 控制器转发到运行时', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const configure = wrapper.findAll('button').find((item) => item.text().includes('admin.plugins.configure'))
+    await configure!.trigger('click')
+    await flushPromises()
+
+    const frame = wrapper.get('iframe').element as HTMLIFrameElement
+    window.dispatchEvent(new MessageEvent('message', {
+      origin: 'null',
+      source: frame.contentWindow,
+      data: {
+        source: 'sub2api-plugin-ui',
+        bridge_token: 'bridge',
+        type: 'plugin.action',
+        request_id: 'action-1',
+        action: { kind: 'proxy_test' },
+      },
+    }))
+    await flushPromises()
+
+    expect(runPluginAction).toHaveBeenCalledWith(7, {
+      kind: 'proxy_test',
+      request_id: 'action-1',
+    })
+    expect(stepUpRun).toHaveBeenCalledTimes(1)
   })
 })
