@@ -20,6 +20,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type middlewareGlobalPlanEligibilityStub struct {
+	available bool
+	err       error
+}
+
+func (s middlewareGlobalPlanEligibilityStub) HasApplicableRemaining(context.Context, int64, int64, time.Time) (bool, error) {
+	return s.available, s.err
+}
+
 func TestGoogleAPIKeyAuthRejectsOversizedCredentialsBeforeLookup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var calls atomic.Int32
@@ -684,6 +693,44 @@ func TestApiKeyAuthWithSubscriptionGoogle_RejectsExhaustedBalance(t *testing.T) 
 	require.Equal(t, http.StatusForbidden, resp.Error.Code)
 	require.Equal(t, "Insufficient account balance", resp.Error.Message)
 	require.Equal(t, "PERMISSION_DENIED", resp.Error.Status)
+}
+
+func TestApiKeyAuthWithSubscriptionGoogle_AllowsExhaustedBalanceWithApplicableGlobalPlan(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	group := &service.Group{
+		ID:               42,
+		Status:           service.StatusActive,
+		Hydrated:         true,
+		SubscriptionType: service.SubscriptionTypeStandard,
+	}
+	r := gin.New()
+	apiKeyService := newTestAPIKeyService(fakeAPIKeyRepo{
+		getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+			return &service.APIKey{
+				ID:      1,
+				Key:     key,
+				Status:  service.StatusActive,
+				Group:   group,
+				GroupID: &group.ID,
+				User: &service.User{
+					ID:      123,
+					Status:  service.StatusActive,
+					Balance: 0,
+				},
+			}, nil
+		},
+	})
+	apiKeyService.SetGlobalPlanEligibilityChecker(middlewareGlobalPlanEligibilityStub{available: true})
+	r.Use(APIKeyAuthWithSubscriptionGoogle(apiKeyService, nil, &config.Config{}))
+	r.GET("/v1beta/test", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
+
+	req := httptest.NewRequest(http.MethodGet, "/v1beta/test", nil)
+	req.Header.Set("Authorization", "Bearer ok")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
 }
 
 func TestApiKeyAuthWithSubscriptionGoogle_TouchesLastUsedOnSuccess(t *testing.T) {

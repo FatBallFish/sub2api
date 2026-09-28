@@ -62,6 +62,8 @@ type PluginManager struct {
 	route              atomic.Pointer[pluginRoute]
 }
 
+const pluginActionMaxBytes = 32 * 1024
+
 func NewPluginManager(repo PluginRepository, encryptor SecretEncryptor, cfg *config.Config, hostInfo PluginHostInfo, kvStore PluginKVStore) *PluginManager {
 	return &PluginManager{
 		repo:               repo,
@@ -837,6 +839,28 @@ func (m *PluginManager) Status(ctx context.Context, id int64) (*pluginv1.HealthR
 	statusCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	return runtime.status(statusCtx)
+}
+
+// RunAction dispatches an explicit administrator command to an already-running
+// plugin. It never creates a temporary runtime, because actions may have side effects.
+func (m *PluginManager) RunAction(ctx context.Context, id int64, raw []byte) (*pluginv1.RunActionResponse, error) {
+	m.operationMu.Lock()
+	defer m.operationMu.Unlock()
+	if len(raw) == 0 || len(raw) > pluginActionMaxBytes {
+		return nil, errors.New("插件动作参数为空或过大")
+	}
+	if _, err := m.repo.GetByID(ctx, id); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	runtime := m.runtimes[id]
+	m.mu.Unlock()
+	if runtime == nil {
+		return nil, errors.New("请先在插件管理中启用插件")
+	}
+	actionCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	return runtime.api.RunAction(actionCtx, &pluginv1.RunActionRequest{ActionJson: raw})
 }
 
 type pluginUIAssetClaims struct {

@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -30,7 +31,41 @@ func (SubscriptionPlan) Annotations() []schema.Annotation {
 
 func (SubscriptionPlan) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int64("group_id"),
+		field.Int64("group_id").
+			Optional().
+			Nillable(),
+		field.String("plan_scope").
+			MaxLen(20).
+			Default("group"),
+		field.String("plan_category").
+			MaxLen(64).
+			Default("default"),
+		field.String("applicable_group_mode").
+			MaxLen(20).
+			Default("all"),
+		field.JSON("applicable_group_ids", []int64{}).
+			Default([]int64{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.Int("tier_rank").
+			Default(0),
+		field.String("quota_period").
+			MaxLen(20).
+			Default("none"),
+		field.Float("quota_per_period_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.Float("monthly_max_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.String("speed_tier").
+			MaxLen(30).
+			Default(""),
+		field.String("support_tier").
+			MaxLen(30).
+			Default(""),
+		field.String("public_badge").
+			MaxLen(50).
+			Default(""),
 		field.String("name").
 			MaxLen(100).
 			NotEmpty(),
@@ -75,6 +110,14 @@ func (SubscriptionPlan) Fields() []ent.Field {
 func (SubscriptionPlan) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("group_id"),
+		index.Fields("plan_scope", "for_sale", "sort_order"),
+		index.Fields("plan_scope", "plan_category", "tier_rank"),
 		index.Fields("for_sale"),
+	}
+}
+
+func (SubscriptionPlan) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("global_plan_subscriptions", UserGlobalPlanSubscription.Type),
 	}
 }

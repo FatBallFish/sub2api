@@ -1,0 +1,13 @@
+[Unit]
+Description=Prepare stable IPv6 SOCKS proxy addresses and firewall
+Wants=network-online.target
+After=network-online.target
+Before=ipv6-proxy.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ipv6-proxyctl prepare
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -189,6 +189,30 @@ func (f CompositeModelRouteFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CompositeModelRouteMutation", m)
 }
 
+// The CreemProductBindingFunc type is an adapter to allow the use of ordinary
+// function as CreemProductBinding mutator.
+type CreemProductBindingFunc func(context.Context, *ent.CreemProductBindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreemProductBindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreemProductBindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreemProductBindingMutation", m)
+}
+
+// The CreemRefundEventFunc type is an adapter to allow the use of ordinary
+// function as CreemRefundEvent mutator.
+type CreemRefundEventFunc func(context.Context, *ent.CreemRefundEventMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CreemRefundEventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CreemRefundEventMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CreemRefundEventMutation", m)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary
 // function as ErrorPassthroughRule mutator.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleMutation) (ent.Value, error)
@@ -451,6 +475,18 @@ func (f UserAttributeValueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAttributeValueMutation", m)
+}
+
+// The UserGlobalPlanSubscriptionFunc type is an adapter to allow the use of ordinary
+// function as UserGlobalPlanSubscription mutator.
+type UserGlobalPlanSubscriptionFunc func(context.Context, *ent.UserGlobalPlanSubscriptionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserGlobalPlanSubscriptionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserGlobalPlanSubscriptionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserGlobalPlanSubscriptionMutation", m)
 }
 
 // The UserPlatformQuotaFunc type is an adapter to allow the use of ordinary

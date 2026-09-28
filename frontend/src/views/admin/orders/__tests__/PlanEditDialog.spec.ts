@@ -5,15 +5,24 @@ import { mount } from '@vue/test-utils'
 import PlanEditDialog from '../PlanEditDialog.vue'
 import type { AdminGroup } from '@/types'
 
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (key === 'payment.admin.subscriptionCnyPayPreview') return `preview ${params?.amount}`
-      if (key === 'payment.admin.subscriptionCnyPayPreviewWithFee') return `fee ${params?.feeRate} ${params?.total}`
-      return key
-    },
-  }),
+const { createPlan, updatePlan } = vi.hoisted(() => ({
+  createPlan: vi.fn(),
+  updatePlan: vi.fn(),
 }))
+
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'payment.admin.subscriptionCnyPayPreview') return `preview ${params?.amount}`
+        if (key === 'payment.admin.subscriptionCnyPayPreviewWithFee') return `fee ${params?.feeRate} ${params?.total}`
+        return key
+      },
+    }),
+  }
+})
 
 vi.mock('@/stores/app', () => ({
   useAppStore: () => ({
@@ -22,12 +31,19 @@ vi.mock('@/stores/app', () => ({
   }),
 }))
 
-vi.mock('@/api/admin/payment', () => ({
-  adminPaymentAPI: {
-    createPlan: vi.fn(),
-    updatePlan: vi.fn(),
-  },
-}))
+vi.mock('@/api/admin/payment', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/api/admin/payment')>()
+  const adminPaymentAPI = {
+    ...actual.adminPaymentAPI,
+    createPlan,
+    updatePlan,
+  }
+  return {
+    ...actual,
+    adminPaymentAPI,
+    default: adminPaymentAPI,
+  }
+})
 
 const BaseDialogStub = defineComponent({
   name: 'BaseDialog',
@@ -53,7 +69,8 @@ const SelectStub = defineComponent({
   setup(_props, { emit }) {
     const onChange = (event: Event) => {
       const value = (event.target as HTMLSelectElement).value
-      emit('update:modelValue', value === '' ? null : Number(value))
+      const numericValue = Number(value)
+      emit('update:modelValue', value === '' ? null : Number.isNaN(numericValue) ? value : numericValue)
     }
     return { onChange }
   },
@@ -169,7 +186,7 @@ describe('PlanEditDialog', () => {
     expect(wrapper.text()).not.toContain('¥71.43')
   })
 
-  it('allows composite subscription groups for payment plans', () => {
+  it('allows composite subscription groups for payment plans', async () => {
     const wrapper = mountDialog({
       groups: [
         groupFixture({
@@ -188,9 +205,11 @@ describe('PlanEditDialog', () => {
       ],
     })
 
+    await wrapper.find('select').setValue('group')
+
     const options = wrapper.findAll('option').map(option => option.text())
 
-    expect(options).toContain('OpenAI + Claude + Gemini + Grok — composite (1.2x)')
-    expect(options).not.toContain('Standard OpenAI — openai (1x)')
+    expect(options.some(option => option.includes('OpenAI + Claude + Gemini + Grok — composite (1.2x'))).toBe(true)
+    expect(options.some(option => option.includes('Standard OpenAI — openai (1x'))).toBe(false)
   })
 })

@@ -5,6 +5,7 @@ package sub2api.plugin.v1;
 option go_package = "github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1;pluginv1";
 
 service TransportPlugin {
+  rpc RunAction(RunActionRequest) returns (RunActionResponse);
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
@@ -27,6 +28,10 @@ service HostService {
   rpc KVSet(KVSetRequest) returns (KVSetResponse);
   rpc KVDelete(KVDeleteRequest) returns (KVDeleteResponse);
   rpc KVList(KVListRequest) returns (KVListResponse);
+  // Optional resource catalog. Summaries never contain credentials; an
+  // authenticated proxy URL is resolved only for an explicitly selected id.
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  rpc ResolveProxy(ResolveProxyRequest) returns (ResolveProxyResponse);
   // Account directory: enumerate the accounts the plugin is bound to act on
   // (with full readable metadata) and resolve the outbound identity
   // (credentials/headers/proxy) the host would attach to a live request. The
@@ -271,4 +276,43 @@ message ResolveOutboundIdentityResponse {
   string proxy_url = 5;
   string token = 6;
   map<string, HeaderValues> headers = 7;
+}
+
+message ListResourcesRequest {}
+
+message AccountSummary {
+  int64 id = 1;
+  string name = 2;
+}
+
+message ProxySummary {
+  int64 id = 1;
+  string name = 2;
+  string protocol = 3;
+  string host = 4;
+  int32 port = 5;
+}
+
+message ListResourcesResponse {
+  repeated AccountSummary accounts = 1;
+  repeated ProxySummary proxies = 2;
+  bool actions_supported = 3;
+}
+
+message ResolveProxyRequest {
+  int64 proxy_id = 1;
+}
+
+message ResolveProxyResponse {
+  bool found = 1;
+  string proxy_url = 2;
+}
+
+message RunActionRequest {
+  bytes action_json = 1;
+}
+
+message RunActionResponse {
+  bool accepted = 1;
+  string message = 2;
 }

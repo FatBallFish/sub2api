@@ -30,6 +30,8 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
 	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
+	"github.com/Wei-Shaw/sub2api/ent/creemproductbinding"
+	"github.com/Wei-Shaw/sub2api/ent/creemrefundevent"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -52,6 +54,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/userglobalplansubscription"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 
@@ -93,6 +96,10 @@ type Client struct {
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
 	// CompositeModelRoute is the client for interacting with the CompositeModelRoute builders.
 	CompositeModelRoute *CompositeModelRouteClient
+	// CreemProductBinding is the client for interacting with the CreemProductBinding builders.
+	CreemProductBinding *CreemProductBindingClient
+	// CreemRefundEvent is the client for interacting with the CreemRefundEvent builders.
+	CreemRefundEvent *CreemRefundEventClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -137,6 +144,8 @@ type Client struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserGlobalPlanSubscription is the client for interacting with the UserGlobalPlanSubscription builders.
+	UserGlobalPlanSubscription *UserGlobalPlanSubscriptionClient
 	// UserPlatformQuota is the client for interacting with the UserPlatformQuota builders.
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
@@ -167,6 +176,8 @@ func (c *Client) init() {
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
 	c.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(c.config)
 	c.CompositeModelRoute = NewCompositeModelRouteClient(c.config)
+	c.CreemProductBinding = NewCreemProductBindingClient(c.config)
+	c.CreemRefundEvent = NewCreemRefundEventClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
@@ -189,6 +200,7 @@ func (c *Client) init() {
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
+	c.UserGlobalPlanSubscription = NewUserGlobalPlanSubscriptionClient(c.config)
 	c.UserPlatformQuota = NewUserPlatformQuotaClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
 }
@@ -298,6 +310,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
 		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
+		CreemProductBinding:           NewCreemProductBindingClient(cfg),
+		CreemRefundEvent:              NewCreemRefundEventClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -320,6 +334,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserGlobalPlanSubscription:    NewUserGlobalPlanSubscriptionClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -356,6 +371,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
 		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
+		CreemProductBinding:           NewCreemProductBindingClient(cfg),
+		CreemRefundEvent:              NewCreemRefundEventClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
@@ -378,6 +395,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserGlobalPlanSubscription:    NewUserGlobalPlanSubscriptionClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -413,13 +431,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.CompositeModelRoute, c.CreemProductBinding, c.CreemRefundEvent,
+		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.UserGlobalPlanSubscription, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
 	}
@@ -433,13 +452,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.CompositeModelRoute, c.CreemProductBinding, c.CreemRefundEvent,
+		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
 		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
 		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
 		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
 		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
 		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
-		c.UserPlatformQuota, c.UserSubscription,
+		c.UserGlobalPlanSubscription, c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -478,6 +498,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelMonitorRequestTemplate.mutate(ctx, m)
 	case *CompositeModelRouteMutation:
 		return c.CompositeModelRoute.mutate(ctx, m)
+	case *CreemProductBindingMutation:
+		return c.CreemProductBinding.mutate(ctx, m)
+	case *CreemRefundEventMutation:
+		return c.CreemRefundEvent.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -522,6 +546,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserAttributeDefinition.mutate(ctx, m)
 	case *UserAttributeValueMutation:
 		return c.UserAttributeValue.mutate(ctx, m)
+	case *UserGlobalPlanSubscriptionMutation:
+		return c.UserGlobalPlanSubscription.mutate(ctx, m)
 	case *UserPlatformQuotaMutation:
 		return c.UserPlatformQuota.mutate(ctx, m)
 	case *UserSubscriptionMutation:
@@ -2883,6 +2909,272 @@ func (c *CompositeModelRouteClient) mutate(ctx context.Context, m *CompositeMode
 	}
 }
 
+// CreemProductBindingClient is a client for the CreemProductBinding schema.
+type CreemProductBindingClient struct {
+	config
+}
+
+// NewCreemProductBindingClient returns a client for the CreemProductBinding from the given config.
+func NewCreemProductBindingClient(c config) *CreemProductBindingClient {
+	return &CreemProductBindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creemproductbinding.Hooks(f(g(h())))`.
+func (c *CreemProductBindingClient) Use(hooks ...Hook) {
+	c.hooks.CreemProductBinding = append(c.hooks.CreemProductBinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creemproductbinding.Intercept(f(g(h())))`.
+func (c *CreemProductBindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreemProductBinding = append(c.inters.CreemProductBinding, interceptors...)
+}
+
+// Create returns a builder for creating a CreemProductBinding entity.
+func (c *CreemProductBindingClient) Create() *CreemProductBindingCreate {
+	mutation := newCreemProductBindingMutation(c.config, OpCreate)
+	return &CreemProductBindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreemProductBinding entities.
+func (c *CreemProductBindingClient) CreateBulk(builders ...*CreemProductBindingCreate) *CreemProductBindingCreateBulk {
+	return &CreemProductBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreemProductBindingClient) MapCreateBulk(slice any, setFunc func(*CreemProductBindingCreate, int)) *CreemProductBindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreemProductBindingCreateBulk{err: fmt.Errorf("calling to CreemProductBindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreemProductBindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreemProductBindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Update() *CreemProductBindingUpdate {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdate)
+	return &CreemProductBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreemProductBindingClient) UpdateOne(_m *CreemProductBinding) *CreemProductBindingUpdateOne {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdateOne, withCreemProductBinding(_m))
+	return &CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreemProductBindingClient) UpdateOneID(id int64) *CreemProductBindingUpdateOne {
+	mutation := newCreemProductBindingMutation(c.config, OpUpdateOne, withCreemProductBindingID(id))
+	return &CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Delete() *CreemProductBindingDelete {
+	mutation := newCreemProductBindingMutation(c.config, OpDelete)
+	return &CreemProductBindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreemProductBindingClient) DeleteOne(_m *CreemProductBinding) *CreemProductBindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreemProductBindingClient) DeleteOneID(id int64) *CreemProductBindingDeleteOne {
+	builder := c.Delete().Where(creemproductbinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreemProductBindingDeleteOne{builder}
+}
+
+// Query returns a query builder for CreemProductBinding.
+func (c *CreemProductBindingClient) Query() *CreemProductBindingQuery {
+	return &CreemProductBindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreemProductBinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreemProductBinding entity by its id.
+func (c *CreemProductBindingClient) Get(ctx context.Context, id int64) (*CreemProductBinding, error) {
+	return c.Query().Where(creemproductbinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreemProductBindingClient) GetX(ctx context.Context, id int64) *CreemProductBinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CreemProductBindingClient) Hooks() []Hook {
+	return c.hooks.CreemProductBinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreemProductBindingClient) Interceptors() []Interceptor {
+	return c.inters.CreemProductBinding
+}
+
+func (c *CreemProductBindingClient) mutate(ctx context.Context, m *CreemProductBindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreemProductBindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreemProductBindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreemProductBindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreemProductBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreemProductBinding mutation op: %q", m.Op())
+	}
+}
+
+// CreemRefundEventClient is a client for the CreemRefundEvent schema.
+type CreemRefundEventClient struct {
+	config
+}
+
+// NewCreemRefundEventClient returns a client for the CreemRefundEvent from the given config.
+func NewCreemRefundEventClient(c config) *CreemRefundEventClient {
+	return &CreemRefundEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `creemrefundevent.Hooks(f(g(h())))`.
+func (c *CreemRefundEventClient) Use(hooks ...Hook) {
+	c.hooks.CreemRefundEvent = append(c.hooks.CreemRefundEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `creemrefundevent.Intercept(f(g(h())))`.
+func (c *CreemRefundEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CreemRefundEvent = append(c.inters.CreemRefundEvent, interceptors...)
+}
+
+// Create returns a builder for creating a CreemRefundEvent entity.
+func (c *CreemRefundEventClient) Create() *CreemRefundEventCreate {
+	mutation := newCreemRefundEventMutation(c.config, OpCreate)
+	return &CreemRefundEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CreemRefundEvent entities.
+func (c *CreemRefundEventClient) CreateBulk(builders ...*CreemRefundEventCreate) *CreemRefundEventCreateBulk {
+	return &CreemRefundEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CreemRefundEventClient) MapCreateBulk(slice any, setFunc func(*CreemRefundEventCreate, int)) *CreemRefundEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CreemRefundEventCreateBulk{err: fmt.Errorf("calling to CreemRefundEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CreemRefundEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CreemRefundEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Update() *CreemRefundEventUpdate {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdate)
+	return &CreemRefundEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CreemRefundEventClient) UpdateOne(_m *CreemRefundEvent) *CreemRefundEventUpdateOne {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdateOne, withCreemRefundEvent(_m))
+	return &CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CreemRefundEventClient) UpdateOneID(id int64) *CreemRefundEventUpdateOne {
+	mutation := newCreemRefundEventMutation(c.config, OpUpdateOne, withCreemRefundEventID(id))
+	return &CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Delete() *CreemRefundEventDelete {
+	mutation := newCreemRefundEventMutation(c.config, OpDelete)
+	return &CreemRefundEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CreemRefundEventClient) DeleteOne(_m *CreemRefundEvent) *CreemRefundEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CreemRefundEventClient) DeleteOneID(id int64) *CreemRefundEventDeleteOne {
+	builder := c.Delete().Where(creemrefundevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CreemRefundEventDeleteOne{builder}
+}
+
+// Query returns a query builder for CreemRefundEvent.
+func (c *CreemRefundEventClient) Query() *CreemRefundEventQuery {
+	return &CreemRefundEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCreemRefundEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CreemRefundEvent entity by its id.
+func (c *CreemRefundEventClient) Get(ctx context.Context, id int64) (*CreemRefundEvent, error) {
+	return c.Query().Where(creemrefundevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CreemRefundEventClient) GetX(ctx context.Context, id int64) *CreemRefundEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CreemRefundEventClient) Hooks() []Hook {
+	return c.hooks.CreemRefundEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *CreemRefundEventClient) Interceptors() []Interceptor {
+	return c.inters.CreemRefundEvent
+}
+
+func (c *CreemRefundEventClient) mutate(ctx context.Context, m *CreemRefundEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CreemRefundEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CreemRefundEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CreemRefundEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CreemRefundEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CreemRefundEvent mutation op: %q", m.Op())
+	}
+}
+
 // ErrorPassthroughRuleClient is a client for the ErrorPassthroughRule schema.
 type ErrorPassthroughRuleClient struct {
 	config
@@ -3827,6 +4119,22 @@ func (c *PaymentOrderClient) QueryUser(_m *PaymentOrder) *UserQuery {
 			sqlgraph.From(paymentorder.Table, paymentorder.FieldID, id),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, paymentorder.UserTable, paymentorder.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGlobalPlanSubscriptions queries the global_plan_subscriptions edge of a PaymentOrder.
+func (c *PaymentOrderClient) QueryGlobalPlanSubscriptions(_m *PaymentOrder) *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(paymentorder.Table, paymentorder.FieldID, id),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, paymentorder.GlobalPlanSubscriptionsTable, paymentorder.GlobalPlanSubscriptionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -5193,6 +5501,22 @@ func (c *SubscriptionPlanClient) GetX(ctx context.Context, id int64) *Subscripti
 	return obj
 }
 
+// QueryGlobalPlanSubscriptions queries the global_plan_subscriptions edge of a SubscriptionPlan.
+func (c *SubscriptionPlanClient) QueryGlobalPlanSubscriptions(_m *SubscriptionPlan) *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(subscriptionplan.Table, subscriptionplan.FieldID, id),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, subscriptionplan.GlobalPlanSubscriptionsTable, subscriptionplan.GlobalPlanSubscriptionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *SubscriptionPlanClient) Hooks() []Hook {
 	return c.hooks.SubscriptionPlan
@@ -5672,6 +5996,22 @@ func (c *UsageLogClient) QuerySubscription(_m *UsageLog) *UserSubscriptionQuery 
 	return query
 }
 
+// QueryGlobalPlanSubscription queries the global_plan_subscription edge of a UsageLog.
+func (c *UsageLogClient) QueryGlobalPlanSubscription(_m *UsageLog) *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usagelog.Table, usagelog.FieldID, id),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usagelog.GlobalPlanSubscriptionTable, usagelog.GlobalPlanSubscriptionColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UsageLogClient) Hooks() []Hook {
 	return c.hooks.UsageLog
@@ -5958,6 +6298,38 @@ func (c *UserClient) QueryPaymentOrders(_m *User) *PaymentOrderQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PaymentOrdersTable, user.PaymentOrdersColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGlobalPlanSubscriptions queries the global_plan_subscriptions edge of a User.
+func (c *UserClient) QueryGlobalPlanSubscriptions(_m *User) *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.GlobalPlanSubscriptionsTable, user.GlobalPlanSubscriptionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssignedGlobalPlanSubscriptions queries the assigned_global_plan_subscriptions edge of a User.
+func (c *UserClient) QueryAssignedGlobalPlanSubscriptions(_m *User) *UserGlobalPlanSubscriptionQuery {
+	query := (&UserGlobalPlanSubscriptionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(userglobalplansubscription.Table, userglobalplansubscription.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AssignedGlobalPlanSubscriptionsTable, user.AssignedGlobalPlanSubscriptionsColumn),
 		)
 		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
 		return fromV, nil
@@ -6488,6 +6860,221 @@ func (c *UserAttributeValueClient) mutate(ctx context.Context, m *UserAttributeV
 	}
 }
 
+// UserGlobalPlanSubscriptionClient is a client for the UserGlobalPlanSubscription schema.
+type UserGlobalPlanSubscriptionClient struct {
+	config
+}
+
+// NewUserGlobalPlanSubscriptionClient returns a client for the UserGlobalPlanSubscription from the given config.
+func NewUserGlobalPlanSubscriptionClient(c config) *UserGlobalPlanSubscriptionClient {
+	return &UserGlobalPlanSubscriptionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `userglobalplansubscription.Hooks(f(g(h())))`.
+func (c *UserGlobalPlanSubscriptionClient) Use(hooks ...Hook) {
+	c.hooks.UserGlobalPlanSubscription = append(c.hooks.UserGlobalPlanSubscription, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `userglobalplansubscription.Intercept(f(g(h())))`.
+func (c *UserGlobalPlanSubscriptionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserGlobalPlanSubscription = append(c.inters.UserGlobalPlanSubscription, interceptors...)
+}
+
+// Create returns a builder for creating a UserGlobalPlanSubscription entity.
+func (c *UserGlobalPlanSubscriptionClient) Create() *UserGlobalPlanSubscriptionCreate {
+	mutation := newUserGlobalPlanSubscriptionMutation(c.config, OpCreate)
+	return &UserGlobalPlanSubscriptionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserGlobalPlanSubscription entities.
+func (c *UserGlobalPlanSubscriptionClient) CreateBulk(builders ...*UserGlobalPlanSubscriptionCreate) *UserGlobalPlanSubscriptionCreateBulk {
+	return &UserGlobalPlanSubscriptionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserGlobalPlanSubscriptionClient) MapCreateBulk(slice any, setFunc func(*UserGlobalPlanSubscriptionCreate, int)) *UserGlobalPlanSubscriptionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserGlobalPlanSubscriptionCreateBulk{err: fmt.Errorf("calling to UserGlobalPlanSubscriptionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserGlobalPlanSubscriptionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserGlobalPlanSubscriptionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) Update() *UserGlobalPlanSubscriptionUpdate {
+	mutation := newUserGlobalPlanSubscriptionMutation(c.config, OpUpdate)
+	return &UserGlobalPlanSubscriptionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserGlobalPlanSubscriptionClient) UpdateOne(_m *UserGlobalPlanSubscription) *UserGlobalPlanSubscriptionUpdateOne {
+	mutation := newUserGlobalPlanSubscriptionMutation(c.config, OpUpdateOne, withUserGlobalPlanSubscription(_m))
+	return &UserGlobalPlanSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserGlobalPlanSubscriptionClient) UpdateOneID(id int64) *UserGlobalPlanSubscriptionUpdateOne {
+	mutation := newUserGlobalPlanSubscriptionMutation(c.config, OpUpdateOne, withUserGlobalPlanSubscriptionID(id))
+	return &UserGlobalPlanSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) Delete() *UserGlobalPlanSubscriptionDelete {
+	mutation := newUserGlobalPlanSubscriptionMutation(c.config, OpDelete)
+	return &UserGlobalPlanSubscriptionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserGlobalPlanSubscriptionClient) DeleteOne(_m *UserGlobalPlanSubscription) *UserGlobalPlanSubscriptionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserGlobalPlanSubscriptionClient) DeleteOneID(id int64) *UserGlobalPlanSubscriptionDeleteOne {
+	builder := c.Delete().Where(userglobalplansubscription.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserGlobalPlanSubscriptionDeleteOne{builder}
+}
+
+// Query returns a query builder for UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) Query() *UserGlobalPlanSubscriptionQuery {
+	return &UserGlobalPlanSubscriptionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserGlobalPlanSubscription},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserGlobalPlanSubscription entity by its id.
+func (c *UserGlobalPlanSubscriptionClient) Get(ctx context.Context, id int64) (*UserGlobalPlanSubscription, error) {
+	return c.Query().Where(userglobalplansubscription.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserGlobalPlanSubscriptionClient) GetX(ctx context.Context, id int64) *UserGlobalPlanSubscription {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) QueryUser(_m *UserGlobalPlanSubscription) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userglobalplansubscription.Table, userglobalplansubscription.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userglobalplansubscription.UserTable, userglobalplansubscription.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPlan queries the plan edge of a UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) QueryPlan(_m *UserGlobalPlanSubscription) *SubscriptionPlanQuery {
+	query := (&SubscriptionPlanClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userglobalplansubscription.Table, userglobalplansubscription.FieldID, id),
+			sqlgraph.To(subscriptionplan.Table, subscriptionplan.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userglobalplansubscription.PlanTable, userglobalplansubscription.PlanColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySourceOrder queries the source_order edge of a UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) QuerySourceOrder(_m *UserGlobalPlanSubscription) *PaymentOrderQuery {
+	query := (&PaymentOrderClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userglobalplansubscription.Table, userglobalplansubscription.FieldID, id),
+			sqlgraph.To(paymentorder.Table, paymentorder.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userglobalplansubscription.SourceOrderTable, userglobalplansubscription.SourceOrderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAssignedByUser queries the assigned_by_user edge of a UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) QueryAssignedByUser(_m *UserGlobalPlanSubscription) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userglobalplansubscription.Table, userglobalplansubscription.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, userglobalplansubscription.AssignedByUserTable, userglobalplansubscription.AssignedByUserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUsageLogs queries the usage_logs edge of a UserGlobalPlanSubscription.
+func (c *UserGlobalPlanSubscriptionClient) QueryUsageLogs(_m *UserGlobalPlanSubscription) *UsageLogQuery {
+	query := (&UsageLogClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(userglobalplansubscription.Table, userglobalplansubscription.FieldID, id),
+			sqlgraph.To(usagelog.Table, usagelog.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, userglobalplansubscription.UsageLogsTable, userglobalplansubscription.UsageLogsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserGlobalPlanSubscriptionClient) Hooks() []Hook {
+	hooks := c.hooks.UserGlobalPlanSubscription
+	return append(hooks[:len(hooks):len(hooks)], userglobalplansubscription.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserGlobalPlanSubscriptionClient) Interceptors() []Interceptor {
+	inters := c.inters.UserGlobalPlanSubscription
+	return append(inters[:len(inters):len(inters)], userglobalplansubscription.Interceptors[:]...)
+}
+
+func (c *UserGlobalPlanSubscriptionClient) mutate(ctx context.Context, m *UserGlobalPlanSubscriptionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserGlobalPlanSubscriptionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserGlobalPlanSubscriptionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserGlobalPlanSubscriptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserGlobalPlanSubscriptionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserGlobalPlanSubscription mutation op: %q", m.Op())
+	}
+}
+
 // UserPlatformQuotaClient is a client for the UserPlatformQuota schema.
 type UserPlatformQuotaClient struct {
 	config
@@ -6844,24 +7431,26 @@ type (
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		ChannelMonitorRequestTemplate, CompositeModelRoute, CreemProductBinding,
+		CreemRefundEvent, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserGlobalPlanSubscription, UserPlatformQuota,
 		UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
-		Group, IdempotencyRecord, IdentityAdoptionDecision, PaymentAuditLog,
-		PaymentOrder, PaymentProviderInstance, PendingAuthSession, PromoCode,
-		PromoCodeUsage, Proxy, RedeemCode, SecuritySecret, Setting, SubscriptionPlan,
-		TLSFingerprintProfile, UsageCleanupTask, UsageLog, User, UserAllowedGroup,
-		UserAttributeDefinition, UserAttributeValue, UserPlatformQuota,
+		ChannelMonitorRequestTemplate, CompositeModelRoute, CreemProductBinding,
+		CreemRefundEvent, ErrorPassthroughRule, Group, IdempotencyRecord,
+		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
+		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
+		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
+		UserAttributeValue, UserGlobalPlanSubscription, UserPlatformQuota,
 		UserSubscription []ent.Interceptor
 	}
 )

@@ -26,9 +26,10 @@ const (
 	SettingBalancePayDisabled  = "BALANCE_PAYMENT_DISABLED"
 	SettingBalanceRechargeMult = "BALANCE_RECHARGE_MULTIPLIER"
 	// SettingSubscriptionUSDToCNYRate 是订阅 CNY 换算汇率（1 USD = X CNY）。
-	// 0/未配置 = 关闭换算（订阅按 price 数值直付），显式配置后 CNY 通道订阅按 price × rate 收款。
+	// 保留用于兼容线上已有配置；新功能统一使用 SettingCurrencyExchange。
 	SettingSubscriptionUSDToCNYRate      = "SUBSCRIPTION_USD_TO_CNY_RATE"
 	SettingRechargeFeeRate               = "RECHARGE_FEE_RATE"
+	SettingCurrencyExchange              = "PAYMENT_CURRENCY_EXCHANGE_RATES"
 	SettingProductNamePrefix             = "PRODUCT_NAME_PREFIX"
 	SettingProductNameSuffix             = "PRODUCT_NAME_SUFFIX"
 	SettingHelpImageURL                  = "PAYMENT_HELP_IMAGE_URL"
@@ -59,7 +60,7 @@ type PaymentConfig struct {
 	EnabledTypes              []string `json:"enabled_payment_types"`
 	BalanceDisabled           bool     `json:"balance_disabled"`
 	BalanceRechargeMultiplier float64  `json:"balance_recharge_multiplier"`
-	// SubscriptionUSDToCNYRate 为 0 时订阅换算关闭（兼容存量行为）。
+	// SubscriptionUSDToCNYRate 为老配置字段，保留读写以兼容线上已有数据。
 	SubscriptionUSDToCNYRate float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate          float64 `json:"recharge_fee_rate"`
 	// RechargeBonusTiers 余额充值优惠阶梯（按 MinAmount 升序）；空表示无优惠。
@@ -67,13 +68,15 @@ type PaymentConfig struct {
 	// RechargeBonusMode 阶梯模式：bonus（赠金）/ discount（折扣），已归一化。
 	RechargeBonusMode string `json:"recharge_bonus_mode"`
 	// RechargeBonusNotice 充值页展示的 Markdown 活动文案；空表示不展示。
-	RechargeBonusNotice  string `json:"recharge_bonus_notice"`
-	LoadBalanceStrategy  string `json:"load_balance_strategy"`
-	ProductNamePrefix    string `json:"product_name_prefix"`
-	ProductNameSuffix    string `json:"product_name_suffix"`
-	HelpImageURL         string `json:"help_image_url"`
-	HelpText             string `json:"help_text"`
-	StripePublishableKey string `json:"stripe_publishable_key,omitempty"`
+	RechargeBonusNotice string `json:"recharge_bonus_notice"`
+	// CurrencyExchangeRates 自定义汇率配置（JSON）。
+	CurrencyExchangeRates string `json:"currency_exchange_rates"`
+	LoadBalanceStrategy   string `json:"load_balance_strategy"`
+	ProductNamePrefix     string `json:"product_name_prefix"`
+	ProductNameSuffix     string `json:"product_name_suffix"`
+	HelpImageURL          string `json:"help_image_url"`
+	HelpText              string `json:"help_text"`
+	StripePublishableKey  string `json:"stripe_publishable_key,omitempty"`
 
 	// Cancel rate limit settings
 	CancelRateLimitEnabled bool   `json:"cancel_rate_limit_enabled"`
@@ -102,14 +105,15 @@ type UpdatePaymentConfigRequest struct {
 	SubscriptionUSDToCNYRate  *float64 `json:"subscription_usd_to_cny_rate"`
 	RechargeFeeRate           *float64 `json:"recharge_fee_rate"`
 	// RechargeBonusTiers nil 表示不更新；空切片表示清空阶梯。
-	RechargeBonusTiers  *[]RechargeBonusTier `json:"recharge_bonus_tiers"`
-	RechargeBonusMode   *string              `json:"recharge_bonus_mode"`
-	RechargeBonusNotice *string              `json:"recharge_bonus_notice"`
-	LoadBalanceStrategy *string              `json:"load_balance_strategy"`
-	ProductNamePrefix   *string              `json:"product_name_prefix"`
-	ProductNameSuffix   *string              `json:"product_name_suffix"`
-	HelpImageURL        *string              `json:"help_image_url"`
-	HelpText            *string              `json:"help_text"`
+	RechargeBonusTiers    *[]RechargeBonusTier `json:"recharge_bonus_tiers"`
+	RechargeBonusMode     *string              `json:"recharge_bonus_mode"`
+	RechargeBonusNotice   *string              `json:"recharge_bonus_notice"`
+	CurrencyExchangeRates *string              `json:"currency_exchange_rates"`
+	LoadBalanceStrategy   *string              `json:"load_balance_strategy"`
+	ProductNamePrefix     *string              `json:"product_name_prefix"`
+	ProductNameSuffix     *string              `json:"product_name_suffix"`
+	HelpImageURL          *string              `json:"help_image_url"`
+	HelpText              *string              `json:"help_text"`
 
 	// Cancel rate limit settings
 	CancelRateLimitEnabled *bool   `json:"cancel_rate_limit_enabled"`
@@ -173,33 +177,59 @@ type UpdateProviderInstanceRequest struct {
 	AllowUserRefund *bool             `json:"allow_user_refund"`
 }
 type CreatePlanRequest struct {
-	GroupID       int64    `json:"group_id"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	Price         float64  `json:"price"`
-	OriginalPrice *float64 `json:"original_price"`
-	Currency      string   `json:"currency"`
-	ValidityDays  int      `json:"validity_days"`
-	ValidityUnit  string   `json:"validity_unit"`
-	Features      string   `json:"features"`
-	ProductName   string   `json:"product_name"`
-	ForSale       bool     `json:"for_sale"`
-	SortOrder     int      `json:"sort_order"`
+	GroupID                     int64    `json:"group_id"`
+	PlanScope                   string   `json:"plan_scope"`
+	PlanCategory                string   `json:"plan_category"`
+	ApplicableGroupMode         string   `json:"applicable_group_mode"`
+	ApplicableGroupIDs          []int64  `json:"applicable_group_ids"`
+	ApplicableGroupWhitelistIDs []int64  `json:"applicable_group_whitelist_ids"`
+	ApplicableGroupBlacklistIDs []int64  `json:"applicable_group_blacklist_ids"`
+	TierRank                    int      `json:"tier_rank"`
+	QuotaPeriod                 string   `json:"quota_period"`
+	QuotaPerPeriodUSD           float64  `json:"quota_per_period_usd"`
+	MonthlyMaxUSD               float64  `json:"monthly_max_usd"`
+	SpeedTier                   string   `json:"speed_tier"`
+	SupportTier                 string   `json:"support_tier"`
+	PublicBadge                 string   `json:"public_badge"`
+	Name                        string   `json:"name"`
+	Description                 string   `json:"description"`
+	Price                       float64  `json:"price"`
+	OriginalPrice               *float64 `json:"original_price"`
+	Currency                    string   `json:"currency"`
+	ValidityDays                int      `json:"validity_days"`
+	ValidityUnit                string   `json:"validity_unit"`
+	Features                    string   `json:"features"`
+	ProductName                 string   `json:"product_name"`
+	ForSale                     bool     `json:"for_sale"`
+	SortOrder                   int      `json:"sort_order"`
 }
 
 type UpdatePlanRequest struct {
-	GroupID       *int64   `json:"group_id"`
-	Name          *string  `json:"name"`
-	Description   *string  `json:"description"`
-	Price         *float64 `json:"price"`
-	OriginalPrice *float64 `json:"original_price"`
-	Currency      *string  `json:"currency"`
-	ValidityDays  *int     `json:"validity_days"`
-	ValidityUnit  *string  `json:"validity_unit"`
-	Features      *string  `json:"features"`
-	ProductName   *string  `json:"product_name"`
-	ForSale       *bool    `json:"for_sale"`
-	SortOrder     *int     `json:"sort_order"`
+	GroupID                     *int64   `json:"group_id"`
+	PlanScope                   *string  `json:"plan_scope"`
+	PlanCategory                *string  `json:"plan_category"`
+	ApplicableGroupMode         *string  `json:"applicable_group_mode"`
+	ApplicableGroupIDs          []int64  `json:"applicable_group_ids"`
+	ApplicableGroupWhitelistIDs []int64  `json:"applicable_group_whitelist_ids"`
+	ApplicableGroupBlacklistIDs []int64  `json:"applicable_group_blacklist_ids"`
+	TierRank                    *int     `json:"tier_rank"`
+	QuotaPeriod                 *string  `json:"quota_period"`
+	QuotaPerPeriodUSD           *float64 `json:"quota_per_period_usd"`
+	MonthlyMaxUSD               *float64 `json:"monthly_max_usd"`
+	SpeedTier                   *string  `json:"speed_tier"`
+	SupportTier                 *string  `json:"support_tier"`
+	PublicBadge                 *string  `json:"public_badge"`
+	Name                        *string  `json:"name"`
+	Description                 *string  `json:"description"`
+	Price                       *float64 `json:"price"`
+	OriginalPrice               *float64 `json:"original_price"`
+	Currency                    *string  `json:"currency"`
+	ValidityDays                *int     `json:"validity_days"`
+	ValidityUnit                *string  `json:"validity_unit"`
+	Features                    *string  `json:"features"`
+	ProductName                 *string  `json:"product_name"`
+	ForSale                     *bool    `json:"for_sale"`
+	SortOrder                   *int     `json:"sort_order"`
 }
 
 // PaymentConfigService manages payment configuration and CRUD for
@@ -230,7 +260,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 		SettingPaymentEnabled, SettingMinRechargeAmount, SettingMaxRechargeAmount,
 		SettingDailyRechargeLimit, SettingOrderTimeoutMinutes, SettingMaxPendingOrders,
 		SettingEnabledPaymentTypes, SettingBalancePayDisabled, SettingBalanceRechargeMult, SettingSubscriptionUSDToCNYRate, SettingRechargeFeeRate, SettingLoadBalanceStrategy,
-		SettingRechargeBonusTiers, SettingRechargeBonusMode, SettingRechargeBonusNotice,
+		SettingRechargeBonusTiers, SettingRechargeBonusMode, SettingRechargeBonusNotice, SettingCurrencyExchange,
 		SettingProductNamePrefix, SettingProductNameSuffix,
 		SettingHelpImageURL, SettingHelpText,
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
@@ -263,6 +293,7 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 		RechargeFeeRate:           pcParseFloat(vals[SettingRechargeFeeRate], 0),
 		RechargeBonusTiers:        parseRechargeBonusTiers(vals[SettingRechargeBonusTiers]),
 		RechargeBonusNotice:       vals[SettingRechargeBonusNotice],
+		CurrencyExchangeRates:     normalizePaymentCurrencyExchangeRates(vals[SettingCurrencyExchange]),
 		LoadBalanceStrategy:       vals[SettingLoadBalanceStrategy],
 		ProductNamePrefix:         vals[SettingProductNamePrefix],
 		ProductNameSuffix:         vals[SettingProductNameSuffix],
@@ -408,6 +439,9 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	}
 	if req.RechargeBonusNotice != nil {
 		m[SettingRechargeBonusNotice] = strings.TrimSpace(*req.RechargeBonusNotice)
+	}
+	if req.CurrencyExchangeRates != nil {
+		m[SettingCurrencyExchange] = derefStr(req.CurrencyExchangeRates)
 	}
 	if req.LoadBalanceStrategy != nil {
 		m[SettingLoadBalanceStrategy] = derefStr(req.LoadBalanceStrategy)
@@ -563,6 +597,15 @@ func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInst
 					available[VisibleMethodSourceEasyPayAlipay] = true
 				case payment.TypeWxpay:
 					available[VisibleMethodSourceEasyPayWechat] = true
+				}
+			}
+		case payment.TypeJeepay:
+			for _, supportedType := range splitTypes(inst.SupportedTypes) {
+				switch NormalizeVisibleMethod(supportedType) {
+				case payment.TypeAlipay:
+					available[VisibleMethodSourceJeepayAlipay] = true
+				case payment.TypeWxpay:
+					available[VisibleMethodSourceJeepayWechat] = true
 				}
 			}
 		}
