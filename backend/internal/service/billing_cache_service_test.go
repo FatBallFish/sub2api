@@ -14,6 +14,7 @@ import (
 type billingCacheWorkerStub struct {
 	balanceUpdates      int64
 	subscriptionUpdates int64
+	lastBalanceAmount   atomic.Int64
 }
 
 func (b *billingCacheWorkerStub) GetUserBalance(ctx context.Context, userID int64) (float64, error) {
@@ -27,6 +28,7 @@ func (b *billingCacheWorkerStub) SetUserBalance(ctx context.Context, userID int6
 
 func (b *billingCacheWorkerStub) DeductUserBalance(ctx context.Context, userID int64, amount float64) error {
 	atomic.AddInt64(&b.balanceUpdates, 1)
+	b.lastBalanceAmount.Store(int64(amount * 1000000))
 	return nil
 }
 
@@ -129,4 +131,30 @@ func TestBillingCacheServiceEnqueueAfterStopReturnsFalse(t *testing.T) {
 		amount: 1,
 	})
 	require.False(t, enqueued)
+}
+
+func TestFinalizePostUsageBillingUsesBalancePortionForCache(t *testing.T) {
+	cache := &billingCacheWorkerStub{}
+	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, &config.Config{}, nil)
+	t.Cleanup(svc.Stop)
+
+	finalizePostUsageBilling(context.Background(), &postUsageBillingParams{
+		Cost:    &CostBreakdown{ActualCost: 3},
+		User:    &User{ID: 1},
+		APIKey:  &APIKey{ID: 2},
+		Account: &Account{ID: 3},
+	}, &billingDeps{
+		billingCacheService: svc,
+		deferredService:     &DeferredService{},
+	}, &UsageBillingApplyResult{
+		Applied:        true,
+		FundingSource:  UsageFundingSourceMixed,
+		GlobalPlanCost: 2,
+		BalanceCost:    1,
+	})
+
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt64(&cache.balanceUpdates) == 1
+	}, 2*time.Second, 10*time.Millisecond)
+	require.Equal(t, int64(1000000), cache.lastBalanceAmount.Load())
 }

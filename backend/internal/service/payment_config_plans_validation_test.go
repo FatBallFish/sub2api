@@ -9,98 +9,166 @@ import (
 )
 
 func TestValidatePlanRequired_AllValid(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.NoError(t, err)
 }
 
 func TestValidatePlanRequired_EmptyName(t *testing.T) {
-	err := validatePlanRequired("", 1, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "plan name")
 }
 
 func TestValidatePlanRequired_WhitespaceName(t *testing.T) {
-	err := validatePlanRequired("   ", 1, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "   ", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "plan name")
 }
 
 func TestValidatePlanRequired_ZeroGroupID(t *testing.T) {
-	err := validatePlanRequired("Pro", 0, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 0, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "group")
 }
 
 func TestValidatePlanRequired_NegativeGroupID(t *testing.T) {
-	err := validatePlanRequired("Pro", -1, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: -1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "group")
 }
 
 func TestValidatePlanRequired_ZeroPrice(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 0, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 0, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "price")
 }
 
 func TestValidatePlanRequired_NegativePrice(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, -5, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: -5, ValidityDays: 30, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "price")
 }
 
 func TestValidatePlanRequired_ZeroValidityDays(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 9.99, 0, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 0, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "validity days")
 }
 
 func TestValidatePlanRequired_NegativeValidityDays(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 9.99, -7, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: -7, ValidityUnit: "days"})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "validity days")
 }
 
 func TestValidatePlanRequired_EmptyValidityUnit(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: ""})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "validity unit")
 }
 
 func TestValidatePlanRequired_WhitespaceValidityUnit(t *testing.T) {
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "   ", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "   "})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "validity unit")
 }
 
 func TestValidatePlanRequired_NameValidatedFirst(t *testing.T) {
-	err := validatePlanRequired("", 0, 0, 0, "", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "", GroupID: 0, Price: 0, ValidityDays: 0, ValidityUnit: ""})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "plan name")
 }
 
 func TestValidatePlanRequired_TrimmedValidName(t *testing.T) {
-	err := validatePlanRequired("  Pro  ", 1, 9.99, 30, "days", nil)
+	err := validatePlanRequired(CreatePlanRequest{Name: "  Pro  ", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days"})
 	require.NoError(t, err)
 }
 
 func TestValidatePlanRequired_NegativeOriginalPrice(t *testing.T) {
 	neg := -10.0
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "days", &neg)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days", OriginalPrice: &neg})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "original price")
 }
 
 func TestValidatePlanRequired_ZeroOriginalPrice(t *testing.T) {
 	zero := 0.0
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "days", &zero)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days", OriginalPrice: &zero})
 	require.NoError(t, err)
 }
 
 func TestValidatePlanRequired_ValidOriginalPrice(t *testing.T) {
 	op := 19.99
-	err := validatePlanRequired("Pro", 1, 9.99, 30, "days", &op)
+	err := validatePlanRequired(CreatePlanRequest{Name: "Pro", GroupID: 1, Price: 9.99, ValidityDays: 30, ValidityUnit: "days", OriginalPrice: &op})
 	require.NoError(t, err)
+}
+
+func TestValidatePlanRequired_GlobalPlanAllowsEmptyGroup(t *testing.T) {
+	err := validatePlanRequired(CreatePlanRequest{
+		PlanScope:         "global",
+		Name:              "Pro Global",
+		Price:             49,
+		ValidityDays:      30,
+		ValidityUnit:      "month",
+		QuotaPeriod:       "week",
+		QuotaPerPeriodUSD: 60,
+	})
+	require.NoError(t, err)
+}
+
+func TestValidatePlanRequired_GlobalPlanAllowsDayQuotaPeriod(t *testing.T) {
+	err := validatePlanRequired(CreatePlanRequest{
+		PlanScope:         "global",
+		Name:              "Pro Global Daily",
+		Price:             49,
+		ValidityDays:      30,
+		ValidityUnit:      "month",
+		QuotaPeriod:       "day",
+		QuotaPerPeriodUSD: 10,
+	})
+	require.NoError(t, err)
+}
+
+func TestValidatePlanRequired_GlobalPlanRejectsMixedGroupScopeLists(t *testing.T) {
+	err := validatePlanRequired(CreatePlanRequest{
+		PlanScope:                   "global",
+		Name:                        "Broken Global",
+		Price:                       49,
+		ValidityDays:                30,
+		ValidityUnit:                "month",
+		QuotaPeriod:                 "week",
+		QuotaPerPeriodUSD:           60,
+		ApplicableGroupMode:         "whitelist",
+		ApplicableGroupIDs:          []int64{1},
+		ApplicableGroupBlacklistIDs: []int64{2},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "group scope")
+}
+
+func TestNormalizePlanApplicableGroupsKeepsModeScopedIDs(t *testing.T) {
+	mode, ids, err := normalizePlanApplicableGroups("whitelist", []int64{3, 2, 3}, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, PlanApplicableGroupModeWhitelist, mode)
+	require.Equal(t, []int64{3, 2}, ids)
+
+	mode, ids, err = normalizePlanApplicableGroups("blacklist", []int64{4, 0, 4, 5}, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, PlanApplicableGroupModeBlacklist, mode)
+	require.Equal(t, []int64{4, 5}, ids)
+}
+
+func TestValidatePlanRequired_GlobalPlanRequiresQuota(t *testing.T) {
+	err := validatePlanRequired(CreatePlanRequest{
+		PlanScope:    "global",
+		Name:         "Broken Global",
+		Price:        49,
+		ValidityDays: 30,
+		ValidityUnit: "month",
+		QuotaPeriod:  "week",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "quota")
 }
 
 // --- validatePlanPatch tests ---

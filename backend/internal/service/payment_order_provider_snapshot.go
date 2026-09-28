@@ -8,6 +8,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 )
 
 type paymentOrderProviderSnapshot struct {
@@ -18,6 +19,14 @@ type paymentOrderProviderSnapshot struct {
 	MerchantAppID      string
 	MerchantID         string
 	Currency           string
+	StripeApplePay     string
+	StripeGooglePay    string
+}
+
+// StripeWalletDisplayPreferences is the non-sensitive Stripe Payment Element policy.
+type StripeWalletDisplayPreferences struct {
+	ApplePay  string `json:"apple_pay"`
+	GooglePay string `json:"google_pay"`
 }
 
 func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSnapshot {
@@ -33,6 +42,8 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		MerchantAppID:      psSnapshotStringValue(order.ProviderSnapshot["merchant_app_id"]),
 		MerchantID:         psSnapshotStringValue(order.ProviderSnapshot["merchant_id"]),
 		Currency:           psSnapshotStringValue(order.ProviderSnapshot["currency"]),
+		StripeApplePay:     psSnapshotStringValue(order.ProviderSnapshot["stripe_apple_pay"]),
+		StripeGooglePay:    psSnapshotStringValue(order.ProviderSnapshot["stripe_google_pay"]),
 	}
 	if snapshot.SchemaVersion == 0 &&
 		snapshot.ProviderInstanceID == "" &&
@@ -40,10 +51,31 @@ func psOrderProviderSnapshot(order *dbent.PaymentOrder) *paymentOrderProviderSna
 		snapshot.PaymentMode == "" &&
 		snapshot.MerchantAppID == "" &&
 		snapshot.MerchantID == "" &&
-		snapshot.Currency == "" {
+		snapshot.Currency == "" &&
+		snapshot.StripeApplePay == "" &&
+		snapshot.StripeGooglePay == "" {
 		return nil
 	}
 	return snapshot
+}
+
+// PaymentOrderStripeWalletPreferences returns the order-time Stripe wallet policy.
+func PaymentOrderStripeWalletPreferences(order *dbent.PaymentOrder) *StripeWalletDisplayPreferences {
+	snapshot := psOrderProviderSnapshot(order)
+	if snapshot == nil || !strings.EqualFold(snapshot.ProviderKey, payment.TypeStripe) {
+		return nil
+	}
+	wallets, err := provider.ResolveStripeWalletPreferences(map[string]string{
+		"applePay":  snapshot.StripeApplePay,
+		"googlePay": snapshot.StripeGooglePay,
+	})
+	if err != nil {
+		return nil
+	}
+	return &StripeWalletDisplayPreferences{
+		ApplePay:  wallets.ApplePay,
+		GooglePay: wallets.GooglePay,
+	}
 }
 
 func psSnapshotStringValue(value any) string {
@@ -219,6 +251,52 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 		}
 		if actual := strings.TrimSpace(metadata["status"]); actual != "" && !strings.EqualFold(actual, "SUCCEEDED") {
 			return fmt.Errorf("airwallex status mismatch: expected SUCCEEDED, got %s", actual)
+		}
+	case payment.TypeJeepay:
+		if expected := strings.TrimSpace(snapshot.MerchantID); expected != "" {
+			actual := strings.TrimSpace(metadata["mchNo"])
+			if actual == "" {
+				return fmt.Errorf("jeepay mchNo missing")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay mchNo mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.MerchantAppID); expected != "" {
+			actual := strings.TrimSpace(metadata["appId"])
+			if actual == "" {
+				return fmt.Errorf("jeepay appId missing")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay appId mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.Currency); expected != "" {
+			actual := strings.ToUpper(strings.TrimSpace(metadata["currency"]))
+			if actual == "" {
+				return fmt.Errorf("jeepay notification missing currency")
+			}
+			if !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("jeepay currency mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+	case payment.TypeCreem:
+		expectedProduct := psSnapshotStringValue(order.ProviderSnapshot["creem_product_id"])
+		actualProduct := strings.TrimSpace(metadata["product_id"])
+		if expectedProduct == "" || actualProduct == "" || expectedProduct != actualProduct {
+			return fmt.Errorf("creem product mismatch: expected %s, got %s", expectedProduct, actualProduct)
+		}
+		if expected := strings.TrimSpace(snapshot.ProviderInstanceID); expected != "" {
+			actual := strings.TrimSpace(metadata["provider_instance_id"])
+			if actual == "" || expected != actual {
+				return fmt.Errorf("creem provider instance mismatch: expected %s, got %s", expected, actual)
+			}
+		}
+		if expected := strings.TrimSpace(snapshot.Currency); expected != "" {
+			actual := strings.ToUpper(strings.TrimSpace(metadata["currency"]))
+			if actual == "" || !strings.EqualFold(expected, actual) {
+				return fmt.Errorf("creem currency mismatch: expected %s, got %s", expected, actual)
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -15,6 +16,28 @@ const (
 	FieldID = "id"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
+	// FieldPlanScope holds the string denoting the plan_scope field in the database.
+	FieldPlanScope = "plan_scope"
+	// FieldPlanCategory holds the string denoting the plan_category field in the database.
+	FieldPlanCategory = "plan_category"
+	// FieldApplicableGroupMode holds the string denoting the applicable_group_mode field in the database.
+	FieldApplicableGroupMode = "applicable_group_mode"
+	// FieldApplicableGroupIds holds the string denoting the applicable_group_ids field in the database.
+	FieldApplicableGroupIds = "applicable_group_ids"
+	// FieldTierRank holds the string denoting the tier_rank field in the database.
+	FieldTierRank = "tier_rank"
+	// FieldQuotaPeriod holds the string denoting the quota_period field in the database.
+	FieldQuotaPeriod = "quota_period"
+	// FieldQuotaPerPeriodUsd holds the string denoting the quota_per_period_usd field in the database.
+	FieldQuotaPerPeriodUsd = "quota_per_period_usd"
+	// FieldMonthlyMaxUsd holds the string denoting the monthly_max_usd field in the database.
+	FieldMonthlyMaxUsd = "monthly_max_usd"
+	// FieldSpeedTier holds the string denoting the speed_tier field in the database.
+	FieldSpeedTier = "speed_tier"
+	// FieldSupportTier holds the string denoting the support_tier field in the database.
+	FieldSupportTier = "support_tier"
+	// FieldPublicBadge holds the string denoting the public_badge field in the database.
+	FieldPublicBadge = "public_badge"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
 	// FieldDescription holds the string denoting the description field in the database.
@@ -41,14 +64,34 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeGlobalPlanSubscriptions holds the string denoting the global_plan_subscriptions edge name in mutations.
+	EdgeGlobalPlanSubscriptions = "global_plan_subscriptions"
 	// Table holds the table name of the subscriptionplan in the database.
 	Table = "subscription_plans"
+	// GlobalPlanSubscriptionsTable is the table that holds the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsInverseTable is the table name for the UserGlobalPlanSubscription entity.
+	// It exists in this package in order to avoid circular dependency with the "userglobalplansubscription" package.
+	GlobalPlanSubscriptionsInverseTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsColumn is the table column denoting the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsColumn = "plan_id"
 )
 
 // Columns holds all SQL columns for subscriptionplan fields.
 var Columns = []string{
 	FieldID,
 	FieldGroupID,
+	FieldPlanScope,
+	FieldPlanCategory,
+	FieldApplicableGroupMode,
+	FieldApplicableGroupIds,
+	FieldTierRank,
+	FieldQuotaPeriod,
+	FieldQuotaPerPeriodUsd,
+	FieldMonthlyMaxUsd,
+	FieldSpeedTier,
+	FieldSupportTier,
+	FieldPublicBadge,
 	FieldName,
 	FieldDescription,
 	FieldPrice,
@@ -75,6 +118,42 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultPlanScope holds the default value on creation for the "plan_scope" field.
+	DefaultPlanScope string
+	// PlanScopeValidator is a validator for the "plan_scope" field. It is called by the builders before save.
+	PlanScopeValidator func(string) error
+	// DefaultPlanCategory holds the default value on creation for the "plan_category" field.
+	DefaultPlanCategory string
+	// PlanCategoryValidator is a validator for the "plan_category" field. It is called by the builders before save.
+	PlanCategoryValidator func(string) error
+	// DefaultApplicableGroupMode holds the default value on creation for the "applicable_group_mode" field.
+	DefaultApplicableGroupMode string
+	// ApplicableGroupModeValidator is a validator for the "applicable_group_mode" field. It is called by the builders before save.
+	ApplicableGroupModeValidator func(string) error
+	// DefaultApplicableGroupIds holds the default value on creation for the "applicable_group_ids" field.
+	DefaultApplicableGroupIds []int64
+	// DefaultTierRank holds the default value on creation for the "tier_rank" field.
+	DefaultTierRank int
+	// DefaultQuotaPeriod holds the default value on creation for the "quota_period" field.
+	DefaultQuotaPeriod string
+	// QuotaPeriodValidator is a validator for the "quota_period" field. It is called by the builders before save.
+	QuotaPeriodValidator func(string) error
+	// DefaultQuotaPerPeriodUsd holds the default value on creation for the "quota_per_period_usd" field.
+	DefaultQuotaPerPeriodUsd float64
+	// DefaultMonthlyMaxUsd holds the default value on creation for the "monthly_max_usd" field.
+	DefaultMonthlyMaxUsd float64
+	// DefaultSpeedTier holds the default value on creation for the "speed_tier" field.
+	DefaultSpeedTier string
+	// SpeedTierValidator is a validator for the "speed_tier" field. It is called by the builders before save.
+	SpeedTierValidator func(string) error
+	// DefaultSupportTier holds the default value on creation for the "support_tier" field.
+	DefaultSupportTier string
+	// SupportTierValidator is a validator for the "support_tier" field. It is called by the builders before save.
+	SupportTierValidator func(string) error
+	// DefaultPublicBadge holds the default value on creation for the "public_badge" field.
+	DefaultPublicBadge string
+	// PublicBadgeValidator is a validator for the "public_badge" field. It is called by the builders before save.
+	PublicBadgeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
 	// DefaultDescription holds the default value on creation for the "description" field.
@@ -118,6 +197,56 @@ func ByID(opts ...sql.OrderTermOption) OrderOption {
 // ByGroupID orders the results by the group_id field.
 func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
+}
+
+// ByPlanScope orders the results by the plan_scope field.
+func ByPlanScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanScope, opts...).ToFunc()
+}
+
+// ByPlanCategory orders the results by the plan_category field.
+func ByPlanCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanCategory, opts...).ToFunc()
+}
+
+// ByApplicableGroupMode orders the results by the applicable_group_mode field.
+func ByApplicableGroupMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApplicableGroupMode, opts...).ToFunc()
+}
+
+// ByTierRank orders the results by the tier_rank field.
+func ByTierRank(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTierRank, opts...).ToFunc()
+}
+
+// ByQuotaPeriod orders the results by the quota_period field.
+func ByQuotaPeriod(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaPeriod, opts...).ToFunc()
+}
+
+// ByQuotaPerPeriodUsd orders the results by the quota_per_period_usd field.
+func ByQuotaPerPeriodUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaPerPeriodUsd, opts...).ToFunc()
+}
+
+// ByMonthlyMaxUsd orders the results by the monthly_max_usd field.
+func ByMonthlyMaxUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMonthlyMaxUsd, opts...).ToFunc()
+}
+
+// BySpeedTier orders the results by the speed_tier field.
+func BySpeedTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpeedTier, opts...).ToFunc()
+}
+
+// BySupportTier orders the results by the support_tier field.
+func BySupportTier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupportTier, opts...).ToFunc()
+}
+
+// ByPublicBadge orders the results by the public_badge field.
+func ByPublicBadge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublicBadge, opts...).ToFunc()
 }
 
 // ByName orders the results by the name field.
@@ -183,4 +312,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByGlobalPlanSubscriptionsCount orders the results by global_plan_subscriptions count.
+func ByGlobalPlanSubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newGlobalPlanSubscriptionsStep(), opts...)
+	}
+}
+
+// ByGlobalPlanSubscriptions orders the results by global_plan_subscriptions terms.
+func ByGlobalPlanSubscriptions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGlobalPlanSubscriptionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newGlobalPlanSubscriptionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GlobalPlanSubscriptionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, GlobalPlanSubscriptionsTable, GlobalPlanSubscriptionsColumn),
+	)
 }

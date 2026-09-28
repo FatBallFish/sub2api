@@ -1,0 +1,1686 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>中转站价格工作台</title>
+  <style>
+    :root {
+      --paper: #f2f4f3;
+      --paper-strong: #ffffff;
+      --ink: #171916;
+      --muted: #6b6e67;
+      --line: #c7cdca;
+      --line-strong: #242721;
+      --blue: #205b86;
+      --blue-soft: #e1edf4;
+      --green: #246a49;
+      --green-soft: #dfeee3;
+      --red: #a63e32;
+      --red-soft: #f4dfda;
+      --amber: #8a6419;
+      --amber-soft: #f4e8c8;
+      --gray-soft: #e8ecea;
+      --shadow: 0 16px 40px rgba(27, 29, 24, 0.08);
+      --radius: 5px;
+      --body-font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --display-font: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+      font-family: var(--body-font);
+      color: var(--ink);
+      background: var(--paper);
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--paper); }
+    body { margin: 0; min-height: 100vh; background: var(--paper); }
+    button, input, textarea, select { font: inherit; }
+    button, input, textarea, select { letter-spacing: 0; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .app-header {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      display: flex;
+      min-height: 76px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 13px clamp(16px, 3vw, 42px);
+      border-bottom: 1px solid var(--line-strong);
+      background: rgba(242, 244, 243, 0.96);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand { min-width: 190px; }
+    .brand h1 {
+      margin: 0;
+      font-family: var(--display-font);
+      font-size: clamp(20px, 2.2vw, 29px);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .view-tabs {
+      display: flex;
+      align-self: stretch;
+      align-items: stretch;
+      gap: 4px;
+    }
+    .tab-button {
+      position: relative;
+      min-width: 112px;
+      border: 0;
+      background: transparent;
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+    .tab-button::after {
+      position: absolute;
+      right: 14px;
+      bottom: 1px;
+      left: 14px;
+      height: 3px;
+      background: var(--ink);
+      content: "";
+      opacity: 0;
+      transform: scaleX(0.5);
+      transition: 160ms ease;
+    }
+    .tab-button[aria-selected="true"]::after { opacity: 1; transform: scaleX(1); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      min-height: calc(100vh - 76px);
+    }
+    .control-rail {
+      position: sticky;
+      top: 76px;
+      align-self: start;
+      min-height: calc(100vh - 76px);
+      padding: 24px 20px;
+      border-right: 1px solid var(--line);
+      background: #e7ebe9;
+    }
+    .rail-title {
+      margin: 0 0 18px;
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .field { display: grid; gap: 7px; margin-bottom: 16px; }
+    .field > label { color: var(--muted); font-size: 12px; font-weight: 650; }
+    .input-unit { position: relative; }
+    .input-unit input { padding-right: 44px; }
+    .input-unit span {
+      position: absolute;
+      top: 50%;
+      right: 11px;
+      color: var(--muted);
+      font-size: 11px;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid #aaa79e;
+      border-radius: 3px;
+      outline: 0;
+      background: var(--paper-strong);
+      padding: 9px 10px;
+      color: var(--ink);
+      transition: border-color 120ms, box-shadow 120ms;
+    }
+    input:focus, textarea:focus, select:focus, button:focus-visible {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(32, 91, 134, 0.16);
+      outline: none;
+    }
+    input[type="number"] { font-variant-numeric: tabular-nums; }
+    .rail-divider { height: 1px; margin: 22px 0; background: var(--line); }
+    .rail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .rail-actions .button:last-child { grid-column: 1 / -1; }
+
+    .button {
+      display: inline-flex;
+      min-height: 36px;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: transparent;
+      padding: 7px 11px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: 120ms ease;
+    }
+    .button:hover { background: rgba(23, 25, 22, 0.07); }
+    .button.primary { background: var(--ink); color: white; }
+    .button.primary:hover { background: #30332d; }
+    .button.danger { border-color: #b56b62; color: var(--red); }
+    .button.compact { min-height: 32px; padding: 5px 9px; }
+
+    .view-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .view-actions select { width: auto; min-width: 154px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 18px; color: var(--muted); font-size: 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-swatch { width: 11px; height: 11px; border: 1px solid rgba(23, 25, 22, 0.22); }
+    .legend-swatch.up { background: var(--red-soft); }
+    .legend-swatch.down { background: var(--green-soft); }
+    .legend-swatch.same { background: var(--gray-soft); }
+    .legend-swatch.new { background: var(--amber-soft); }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+      gap: 14px 18px;
+      margin-bottom: 22px;
+    }
+    .editor-grid .field { margin: 0; }
+    .editor-grid .wide { grid-column: 1 / -1; }
+    .editor-grid textarea { min-height: 72px; resize: vertical; line-height: 1.55; }
+
+    .table-wrap {
+      width: 100%;
+      overflow: auto;
+      border-top: 2px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+      background: var(--paper-strong);
+    }
+    .data-table { width: 100%; min-width: 780px; border-collapse: collapse; font-size: 13px; }
+    .data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    .data-table th {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      background: #dfe4e1;
+      color: #3d403a;
+      font-size: 11px;
+      font-weight: 750;
+      text-transform: uppercase;
+    }
+    .data-table tr:last-child td { border-bottom: 0; }
+    .data-table .number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .data-table .category-cell { width: 155px; color: var(--muted); font-size: 12px; }
+    .data-table .name-cell { min-width: 220px; font-weight: 650; }
+    .data-table input { min-width: 108px; padding: 7px 8px; color: var(--blue); font-weight: 700; }
+    .price-pair { display: grid; grid-template-columns: minmax(108px, 1fr) auto; align-items: center; gap: 10px; }
+    .cny-value { min-width: 86px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .change-cell { min-width: 130px; font-weight: 700; }
+    tr.change-up .change-cell { background: var(--red-soft); color: var(--red); }
+    tr.change-down .change-cell { background: var(--green-soft); color: var(--green); }
+    tr.change-same .change-cell { background: var(--gray-soft); color: var(--muted); }
+    tr.change-new .change-cell { background: var(--amber-soft); color: var(--amber); }
+    .section-caption { margin: 11px 0 0; color: var(--muted); font-size: 12px; }
+    .analysis-input {
+      display: grid;
+      grid-template-columns: minmax(180px, 250px) minmax(0, 1fr);
+      align-items: end;
+      gap: 22px;
+      margin-bottom: 26px;
+    }
+    .analysis-input .field { margin: 0; }
+    .metric-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .metric {
+      min-width: 0;
+      padding: 12px 14px;
+      border-right: 1px solid var(--line);
+    }
+    .metric:last-child { border-right: 0; }
+    .metric span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .metric strong { display: block; overflow: hidden; font-family: var(--display-font); font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
+    .metric strong.negative { color: var(--red); }
+    .table-section-title { margin: 30px 0 12px; font-family: var(--display-font); font-size: 18px; }
+    .profit-editor {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.2fr) repeat(2, minmax(180px, 1fr));
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+    .profit-editor .field { margin: 0; }
+    .conversion-note { margin: 6px 0 0; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .margin-negative { background: var(--red-soft); color: var(--red); font-weight: 750; }
+    .margin-low { background: var(--amber-soft); color: var(--amber); font-weight: 750; }
+    .margin-healthy { background: var(--green-soft); color: var(--green); font-weight: 750; }
+    .tool-dialog {
+      width: min(860px, calc(100vw - 32px));
+      max-height: min(760px, calc(100vh - 32px));
+      overflow: auto;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--paper-strong);
+      padding: 0;
+      color: var(--ink);
+      box-shadow: 0 24px 70px rgba(23, 25, 22, 0.24);
+    }
+    .tool-dialog::backdrop { background: rgba(23, 25, 22, 0.42); backdrop-filter: blur(2px); }
+    .dialog-header {
+      position: sticky;
+      z-index: 4;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      border-bottom: 1px solid var(--line-strong);
+      background: var(--paper-strong);
+      padding: 18px 20px;
+    }
+    .dialog-header h2 { margin: 0; font-family: var(--display-font); font-size: 24px; }
+    .icon-button {
+      display: inline-grid;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .dialog-body { padding: 20px; }
+    .dialog-caption { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+    .group-manager-list { border-top: 2px solid var(--line-strong); }
+    .group-manager-row {
+      display: grid;
+      grid-template-columns: minmax(135px, 0.8fr) minmax(210px, 1.4fr) minmax(95px, 0.5fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 54px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .group-manager-row .managed-category { color: var(--muted); font-size: 12px; }
+    .group-manager-row .managed-name { min-width: 0; font-weight: 650; }
+    .group-manager-row .managed-name small { display: block; overflow: hidden; margin-top: 3px; color: var(--muted); font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+    .group-manager-row .managed-price { text-align: right; font-variant-numeric: tabular-nums; }
+    .group-add-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr 0.55fr;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line-strong);
+    }
+    .group-add-form h3 { grid-column: 1 / -1; margin: 0; font-family: var(--display-font); font-size: 18px; }
+    .group-add-form .field { margin: 0; }
+    .group-add-form .wide { grid-column: 1 / -1; }
+    .dialog-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+    .selection-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .selection-toolbar .view-actions { flex-wrap: nowrap; }
+    .selection-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .export-group-list { border-top: 2px solid var(--line-strong); }
+    .export-group-row {
+      display: grid;
+      grid-template-columns: 22px minmax(130px, 0.7fr) minmax(220px, 1.4fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 50px;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .export-group-row:hover { background: #f6f8f7; }
+    .export-group-row input { width: 17px; height: 17px; margin: 0; accent-color: var(--ink); }
+    .export-group-row .export-category { color: var(--muted); font-size: 12px; }
+    .export-group-row .export-name { font-weight: 650; }
+    .export-group-row .export-price { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .view-container { min-width: 0; padding: 28px clamp(16px, 3.4vw, 52px) 60px; }
+    .view-panel { animation: reveal 220ms ease both; }
+    .view-panel > header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 2px solid var(--line-strong);
+    }
+    .view-panel h2 {
+      margin: 0;
+      font-family: var(--display-font);
+      font-size: clamp(25px, 3vw, 38px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    .view-panel header p { max-width: 580px; margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .placeholder {
+      min-height: 320px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      font-family: var(--display-font);
+    }
+    .status-toast {
+      position: fixed;
+      z-index: 80;
+      right: 20px;
+      bottom: 20px;
+      max-width: min(380px, calc(100vw - 40px));
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      background: var(--ink);
+      padding: 11px 14px;
+      color: white;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+    }
+    @keyframes reveal { from { opacity: 0; transform: translateY(5px); } }
+
+    @media (max-width: 900px) {
+      .app-header { position: relative; display: grid; gap: 12px; }
+      .view-tabs { overflow-x: auto; }
+      .tab-button { min-height: 42px; min-width: 104px; }
+      .workspace { display: block; }
+      .control-rail {
+        position: relative;
+        top: 0;
+        min-height: auto;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(130px, 1fr));
+        gap: 10px 14px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .rail-title, .rail-divider { display: none; }
+      .field { margin: 0; }
+      .rail-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; }
+      .rail-actions .button:last-child { grid-column: auto; }
+    }
+    @media (max-width: 620px) {
+      .control-rail { grid-template-columns: 1fr 1fr; padding: 16px; }
+      .field:first-of-type { grid-column: 1 / -1; }
+      .view-container { padding-top: 22px; }
+      .view-panel > header { align-items: start; flex-direction: column; }
+      .editor-grid { grid-template-columns: 1fr; }
+      .editor-grid .wide { grid-column: auto; }
+      .analysis-input { grid-template-columns: 1fr; }
+      .metric-strip { grid-template-columns: 1fr 1fr; }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+      .profit-editor { grid-template-columns: 1fr; }
+      .group-manager-row { grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; }
+      .group-manager-row .managed-category, .group-manager-row .managed-name { grid-column: 1; }
+      .group-manager-row .managed-price, .group-manager-row .button { grid-column: 2; }
+      .group-manager-row .managed-price { grid-row: 1; }
+      .group-manager-row .button { grid-row: 2 / span 2; }
+      .group-add-form { grid-template-columns: 1fr; }
+      .group-add-form h3, .group-add-form .wide { grid-column: auto; }
+      .export-group-row { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 5px 10px; }
+      .export-group-row input { grid-row: 1 / span 2; }
+      .export-group-row .export-category { grid-column: 2; }
+      .export-group-row .export-name { grid-column: 2; }
+      .export-group-row .export-price { grid-column: 3; grid-row: 1 / span 2; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <h1>价格与盈利工作台</h1>
+      <p>每日定价 · Stripe 净收款 · 额度利润</p>
+    </div>
+    <nav class="view-tabs" aria-label="工作区">
+      <button class="tab-button" type="button" data-view-target="prices" aria-selected="true">每日价格</button>
+      <button class="tab-button" type="button" data-view-target="stripe" aria-selected="false">Stripe 收款</button>
+      <button class="tab-button" type="button" data-view-target="profit" aria-selected="false">盈利模板</button>
+    </nav>
+  </header>
+
+  <main class="workspace" id="app">
+    <aside class="control-rail" aria-label="全局参数">
+      <p class="rail-title">全局计算口径</p>
+      <div class="field">
+        <label for="global-exchange-rate">人民币汇率</label>
+        <div class="input-unit">
+          <input id="global-exchange-rate" type="number" min="0.0001" step="0.01" inputmode="decimal">
+          <span>CNY/$</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="global-stripe-rate">Stripe 比例费率</label>
+        <div class="input-unit">
+          <input id="global-stripe-rate" type="number" min="0" step="0.01" inputmode="decimal">
+          <span>%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="global-stripe-fixed">每笔固定手续费</label>
+        <div class="input-unit">
+          <input id="global-stripe-fixed" type="number" min="0" step="0.01" inputmode="decimal">
+          <span>USD</span>
+        </div>
+      </div>
+      <div class="rail-divider"></div>
+      <div class="rail-actions">
+        <button class="button compact" id="backup-export" type="button">导出备份</button>
+        <button class="button compact" id="backup-import" type="button">导入备份</button>
+        <button class="button compact danger" id="reset-state" type="button">恢复初始数据</button>
+      </div>
+      <input id="backup-file" type="file" accept="application/json,.json" hidden>
+    </aside>
+
+    <div class="view-container">
+      <section class="view-panel" data-view="prices">
+        <header>
+          <div><h2>每日价格</h2><p>复制历史版本、调整各分组美元价格，并按上一日变化导出公告图。</p></div>
+          <div class="view-actions">
+            <select id="price-day-select" aria-label="选择价格日期"></select>
+            <button class="button" id="manage-price-groups" type="button">管理分组</button>
+            <button class="button" id="duplicate-day" type="button">复制当天</button>
+            <button class="button danger" id="delete-day" type="button">删除</button>
+            <button class="button primary" id="export-price-image" type="button">导出图片</button>
+          </div>
+        </header>
+        <div id="daily-price-root">
+          <div class="legend" aria-label="价格变化图例">
+            <span class="legend-item"><i class="legend-swatch up"></i>涨价</span>
+            <span class="legend-item"><i class="legend-swatch down"></i>降价</span>
+            <span class="legend-item"><i class="legend-swatch same"></i>持平</span>
+            <span class="legend-item"><i class="legend-swatch new"></i>新增</span>
+          </div>
+          <div class="editor-grid" id="day-meta-editor"></div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>类型</th><th>分组</th><th>美元价格</th><th>人民币换算</th><th>较上一日</th></tr></thead>
+              <tbody id="price-groups-body"></tbody>
+            </table>
+          </div>
+          <p class="section-caption" id="comparison-caption"></p>
+        </div>
+      </section>
+      <section class="view-panel" data-view="stripe" hidden>
+        <header>
+          <div><h2>Stripe 收款</h2><p>查看固定手续费对小额充值的损耗，以及各充值档位的实际到账。</p></div>
+        </header>
+        <div id="stripe-root">
+          <div class="analysis-input">
+            <div class="field">
+              <label for="stripe-custom-amount">指定充值金额</label>
+              <div class="input-unit"><input id="stripe-custom-amount" type="number" min="0.01" step="0.01" inputmode="decimal"><span>USD</span></div>
+            </div>
+            <div class="metric-strip" id="stripe-custom-results"></div>
+          </div>
+          <h3 class="table-section-title">充值档位明细 · $1-$50</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>充值金额 / 理应收款</th><th>Stripe 手续费</th><th>实际收款</th><th>损耗率</th><th>收款率</th></tr></thead>
+              <tbody id="stripe-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section class="view-panel" data-view="profit" hidden>
+        <header>
+          <div><h2>盈利模板</h2><p>用多套成本与售价假设，对比不同充值档位下的真实利润空间。</p></div>
+          <div class="view-actions">
+            <select id="profit-template-select" aria-label="选择盈利模板"></select>
+            <button class="button" id="create-profit-template" type="button">新建</button>
+            <button class="button" id="duplicate-profit-template" type="button">复制</button>
+            <button class="button danger" id="delete-profit-template" type="button">删除</button>
+          </div>
+        </header>
+        <div id="profit-root">
+          <div class="profit-editor">
+            <div class="field"><label for="profit-template-name">模板名称</label><input id="profit-template-name" data-template-field="name"></div>
+            <div class="field"><label for="profit-cost-price">实际成本单价（USD）</label><input id="profit-cost-price" data-template-field="costPrice" type="number" min="0" step="0.0001" inputmode="decimal"><p class="conversion-note" id="profit-cost-cny"></p></div>
+            <div class="field"><label for="profit-sale-price">销售单价（USD）</label><input id="profit-sale-price" data-template-field="salePrice" type="number" min="0.000001" step="0.0001" inputmode="decimal"><p class="conversion-note" id="profit-sale-cny"></p></div>
+          </div>
+          <div class="metric-strip" id="profit-summary"></div>
+          <h3 class="table-section-title">充值档位利润 · $1-$50</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>充值档位</th><th>实际到账</th><th>每 $1 可用额度</th><th>档位实际成本</th><th>表面盈利率</th><th>实际盈利额</th><th>实际盈利率</th></tr></thead>
+              <tbody id="profit-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <dialog class="tool-dialog" id="group-manager-dialog" aria-labelledby="group-manager-title">
+    <div class="dialog-header">
+      <div><h2 id="group-manager-title">管理每日分组</h2><p class="dialog-caption" id="group-manager-date"></p></div>
+      <button class="icon-button" id="close-group-manager" type="button" aria-label="关闭分组管理">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="dialog-caption">分组调整仅作用于当前日期，新增、删除和恢复默认都会自动保存。</p>
+      <div class="group-manager-list" id="group-manager-list"></div>
+      <form class="group-add-form" id="add-group-form">
+        <h3>新增分组</h3>
+        <div class="field"><label for="new-group-category">类型</label><input id="new-group-category" required placeholder="例如：语言分组 · 自定义"></div>
+        <div class="field"><label for="new-group-name">分组名称</label><input id="new-group-name" required placeholder="例如：custom - fast"></div>
+        <div class="field"><label for="new-group-price">美元价格</label><input id="new-group-price" type="number" min="0" step="0.000001" inputmode="decimal" required value="0"></div>
+        <div class="field wide"><label for="new-group-note">说明（可选）</label><input id="new-group-note" placeholder="线路、画质或其他备注"></div>
+        <div class="wide"><button class="button primary" id="add-price-group" type="submit">添加并保存</button></div>
+      </form>
+      <div class="dialog-footer">
+        <button class="button danger" id="restore-default-groups" type="button">恢复内置分组</button>
+        <button class="button" id="done-group-manager" type="button">完成</button>
+      </div>
+    </div>
+  </dialog>
+  <dialog class="tool-dialog" id="export-groups-dialog" aria-labelledby="export-groups-title">
+    <div class="dialog-header">
+      <div><h2 id="export-groups-title">选择导出分组</h2><p class="dialog-caption" id="export-groups-date"></p></div>
+      <button class="icon-button" id="close-export-groups" type="button" aria-label="关闭导出选择">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="selection-toolbar">
+        <span class="selection-count" id="export-group-count"></span>
+        <div class="view-actions">
+          <button class="button compact" id="select-all-export-groups" type="button">全选</button>
+          <button class="button compact" id="clear-export-groups" type="button">清空</button>
+        </div>
+      </div>
+      <div class="export-group-list" id="export-group-list"></div>
+      <div class="dialog-footer">
+        <button class="button" id="cancel-price-export" type="button">取消</button>
+        <button class="button primary" id="confirm-price-export" type="button">导出选中分组</button>
+      </div>
+    </div>
+  </dialog>
+  <div class="status-toast" id="status-toast" role="status" aria-live="polite" hidden></div>
+
+  <script id="calculator-core">
+  (() => {
+    "use strict";
+
+    const STATE_VERSION = 1;
+
+    function round(value, precision = 12) {
+      if (!Number.isFinite(value)) return value;
+      return Number(value.toFixed(precision));
+    }
+
+    function assertFinite(name, value, { min = -Infinity, exclusiveMin = false } = {}) {
+      if (!Number.isFinite(value)) throw new TypeError(`${name} must be a finite number`);
+      if (exclusiveMin ? value <= min : value < min) {
+        const boundary = exclusiveMin && min === 0 ? "zero" : String(min);
+        throw new RangeError(`${name} must be greater than ${boundary}`);
+      }
+    }
+
+    function calculateStripe(amount, rate, fixedFee) {
+      assertFinite("amount", amount, { min: 0, exclusiveMin: true });
+      assertFinite("rate", rate, { min: 0 });
+      assertFinite("fixed fee", fixedFee, { min: 0 });
+      const fee = round(amount * rate + fixedFee);
+      const net = round(Math.max(0, amount - fee));
+      return {
+        amount: round(amount),
+        fee,
+        net,
+        lossRate: round(fee / amount),
+        collectionRate: round(net / amount),
+      };
+    }
+
+    function buildStripeRows(start, end, assumptions) {
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
+        throw new RangeError("Stripe row range must contain positive ascending integers");
+      }
+      return Array.from({ length: end - start + 1 }, (_, index) => (
+        calculateStripe(start + index, assumptions.rate, assumptions.fixedFee)
+      ));
+    }
+
+    function calculateProfitability(amount, options) {
+      const { costPrice, salePrice, rate, fixedFee } = options;
+      assertFinite("amount", amount, { min: 0, exclusiveMin: true });
+      assertFinite("cost price", costPrice, { min: 0 });
+      assertFinite("sale price", salePrice, { min: 0, exclusiveMin: true });
+      const stripe = calculateStripe(amount, rate, fixedFee);
+      const quotaPerDollar = 1 / salePrice;
+      const costPerDollar = quotaPerDollar * costPrice;
+      const totalCost = amount * costPerDollar;
+      const surfaceMargin = 1 - costPerDollar;
+      const actualProfit = stripe.net - totalCost;
+      const actualMargin = stripe.net > 0 ? actualProfit / stripe.net : null;
+      return {
+        ...stripe,
+        quotaPerDollar: round(quotaPerDollar),
+        costPerDollar: round(costPerDollar),
+        totalCost: round(totalCost),
+        surfaceMargin: round(surfaceMargin),
+        actualProfit: round(actualProfit),
+        actualMargin: actualMargin === null ? null : round(actualMargin),
+      };
+    }
+
+    function buildProfitRows(start, end, template, stripe) {
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start <= 0 || end < start) {
+        throw new RangeError("Profit row range must contain positive ascending integers");
+      }
+      return Array.from({ length: end - start + 1 }, (_, index) => calculateProfitability(start + index, {
+        costPrice: template.costPrice,
+        salePrice: template.salePrice,
+        rate: stripe.rate,
+        fixedFee: stripe.fixedFee,
+      }));
+    }
+
+    function usdToCny(usd, exchangeRate) {
+      assertFinite("USD amount", usd, { min: 0 });
+      assertFinite("exchange rate", exchangeRate, { min: 0, exclusiveMin: true });
+      return round(usd * exchangeRate);
+    }
+
+    function comparePrice(current, previous) {
+      assertFinite("current price", current, { min: 0 });
+      if (previous === null || previous === undefined || !Number.isFinite(previous)) {
+        return { status: "new", delta: null, deltaRate: null };
+      }
+      assertFinite("previous price", previous, { min: 0 });
+      const delta = round(current - previous);
+      const status = delta > 0 ? "up" : delta < 0 ? "down" : "same";
+      return {
+        status,
+        delta,
+        deltaRate: previous === 0 ? null : round(delta / previous),
+      };
+    }
+
+    function findPreviousDay(days, date) {
+      return days
+        .filter((day) => day.date < date)
+        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+    }
+
+    function buildPriceComparison(day, days) {
+      const previousDay = findPreviousDay(days, day.date);
+      const previousById = new Map((previousDay?.groups ?? []).map((item) => [item.id, item]));
+      return {
+        day,
+        previousDay,
+        rows: day.groups.map((item) => {
+          const previous = previousById.get(item.id);
+          return {
+            group: item,
+            previousPrice: previous?.price ?? null,
+            comparison: comparePrice(item.price, previous?.price),
+          };
+        }),
+      };
+    }
+
+    function filterPriceComparison(model, selectedIds) {
+      if (!selectedIds || selectedIds.size < 1) throw new RangeError("Select at least one group for export");
+      return { ...model, rows: model.rows.filter((row) => selectedIds.has(row.group.id)) };
+    }
+
+    function cloneJson(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function addUtcDays(dateText, amount) {
+      const date = new Date(`${dateText}T00:00:00Z`);
+      date.setUTCDate(date.getUTCDate() + amount);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function clonePriceDay(source, existingDays) {
+      const usedDates = new Set(existingDays.map((day) => day.date));
+      let date = addUtcDays(source.date, 1);
+      while (usedDates.has(date)) date = addUtcDays(date, 1);
+      const copy = cloneJson(source);
+      copy.date = date;
+      copy.id = `day-${date}`;
+      return copy;
+    }
+
+    function nextTemplateId(existingTemplates) {
+      const used = new Set(existingTemplates.map((template) => template.id));
+      let index = 1;
+      while (used.has(`template-${index}`)) index += 1;
+      return `template-${index}`;
+    }
+
+    function cloneProfitTemplate(source, existingTemplates) {
+      return {
+        ...cloneJson(source),
+        id: nextTemplateId(existingTemplates),
+        name: `${source.name} 副本`,
+      };
+    }
+
+    function createProfitTemplate(existingTemplates) {
+      const id = nextTemplateId(existingTemplates);
+      const suffix = id.split("-").at(-1);
+      return { id, name: `新模板 ${suffix}`, costPrice: 0.01, salePrice: 0.02 };
+    }
+
+    function removePriceDay(state, id) {
+      if (state.days.length <= 1) throw new RangeError("Keep at least one price day");
+      const index = state.days.findIndex((day) => day.id === id);
+      if (index < 0) return false;
+      state.days.splice(index, 1);
+      if (state.selectedDayId === id) state.selectedDayId = state.days.at(-1).id;
+      return true;
+    }
+
+    function removeProfitTemplate(state, id) {
+      if (state.templates.length <= 1) throw new RangeError("Keep at least one profit template");
+      const index = state.templates.findIndex((template) => template.id === id);
+      if (index < 0) return false;
+      state.templates.splice(index, 1);
+      if (state.selectedTemplateId === id) state.selectedTemplateId = state.templates.at(-1).id;
+      return true;
+    }
+
+    function createPriceGroup(input, days) {
+      const category = String(input.category ?? "").trim();
+      const name = String(input.name ?? "").trim();
+      const note = String(input.note ?? "").trim();
+      const price = Number(input.price);
+      if (!category) throw new TypeError("Price group category is required");
+      if (!name) throw new TypeError("Price group name is required");
+      if (!Number.isFinite(price) || price < 0) throw new RangeError("Price group price must be non-negative");
+
+      const usedIds = new Set(days.flatMap((day) => day.groups.map((item) => item.id)));
+      let index = 1;
+      while (usedIds.has(`custom-${index}`)) index += 1;
+      return { id: `custom-${index}`, category, name, price, note };
+    }
+
+    function removePriceGroup(day, groupId) {
+      const index = day.groups.findIndex((item) => item.id === groupId);
+      if (index < 0) return false;
+      day.groups.splice(index, 1);
+      return true;
+    }
+
+    function group(id, category, name, price, note = "") {
+      return { id, category, name, price, note };
+    }
+
+    const baseImageGroups = [
+      group("gpt-image-low", "生图分组", "gpt - image - low", 0.01, "仅支持 1/2K，中低画质"),
+      group("gpt-image-medium", "生图分组", "gpt - image - medium", 0.02, "支持 1/2/4K，中画质"),
+      group("gpt-image-high", "生图分组", "gpt - image - high", 0.045, "支持 1/2/4K，高画质"),
+      group("grok-image", "生图分组", "grok - image", 0.002 / 6.8, "每张"),
+    ];
+
+    function createGroups(prices) {
+      return [
+        group("gpt-regression", "语言分组 · GPT", prices.regressionName ?? "gpt - regression（老客分组）", prices.regression),
+        group("gpt-offer", "语言分组 · GPT", "gpt - offer", prices.offer),
+        group("gpt-normal", "语言分组 · GPT", "gpt - normal", prices.normal),
+        group("gpt-stable", "语言分组 · GPT", "gpt - stable", prices.stable),
+        group("claude-offer", "语言分组 · Claude", "claude - offer（kiro高缓）", 0.012),
+        group("grok-offer", "语言分组 · Grok", "grok - offer", 0.005),
+        group("opensource-openai", "语言分组 · 开源国模", "opensource - openai", 0.3),
+        group("opensource-claude", "语言分组 · 开源国模", "opensource - claude", 0.3),
+        ...baseImageGroups.map((item) => ({ ...item })),
+      ];
+    }
+
+    function createDefaultGroups() {
+      return createGroups({ regression: 0.009, offer: 0.013, normal: 0.018, stable: 0.024 });
+    }
+
+    function restoreDefaultGroups(day) {
+      const existingById = new Map(day.groups.map((item) => [item.id, item]));
+      day.groups = createDefaultGroups().map((defaultGroup) => ({
+        ...defaultGroup,
+        price: existingById.get(defaultGroup.id)?.price ?? defaultGroup.price,
+      }));
+      return day.groups;
+    }
+
+    function priceDay(date, prices, market, note) {
+      return {
+        id: `day-${date}`,
+        date,
+        market,
+        note,
+        website: "https://mikiko.cc（带梯子访问）",
+        downstream: "1. 开池模式\n2. 同账号重试次数 5-10\n3. 同账号重试状态码：400,401,403,429,502,503,524",
+        groups: createGroups(prices),
+      };
+    }
+
+    function createDefaultState() {
+      const days = [
+        priceDay(
+          "2026-07-22",
+          { regression: 0.004, offer: 0.008, normal: 0.016, stable: 0.023 },
+          "号池全面拉闸，所有分组价格上调",
+          "还没想好",
+        ),
+        priceDay(
+          "2026-07-23",
+          { regression: 0.011, offer: 0.015, normal: 0.018, stable: 0.023 },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-24",
+          {
+            regression: 0.012,
+            regressionName: "gpt - regression（老客分组不稳定）",
+            offer: 0.018,
+            normal: 0.023,
+            stable: 0.027,
+          },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-25",
+          {
+            regression: 0.009,
+            regressionName: "gpt - regression（老客分组不稳定）",
+            offer: 0.016,
+            normal: 0.018,
+            stable: 0.024,
+          },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+        priceDay(
+          "2026-07-26",
+          { regression: 0.009, offer: 0.013, normal: 0.018, stable: 0.024 },
+          "号池白天难产，价格下不去；晚上顺产，价格会下调",
+          "消除恐惧最好的办法就是面对恐惧，加油，奥利给！！！",
+        ),
+      ];
+
+      return {
+        version: STATE_VERSION,
+        activeView: "prices",
+        exchangeRate: 6.8,
+        stripe: { rate: 0.029, fixedFee: 0.3, customAmount: 10 },
+        selectedDayId: days.at(-1).id,
+        selectedTemplateId: "template-default",
+        days,
+        templates: [{
+          id: "template-default",
+          name: "标准模型",
+          costPrice: 0.01470588235,
+          salePrice: 0.02,
+        }],
+      };
+    }
+
+    function validateState(state) {
+      if (!state || typeof state !== "object") return false;
+      if (state.version !== STATE_VERSION) return false;
+      if (!Number.isFinite(state.exchangeRate) || state.exchangeRate <= 0) return false;
+      if (!state.stripe || !Number.isFinite(state.stripe.rate) || state.stripe.rate < 0) return false;
+      if (!Number.isFinite(state.stripe.fixedFee) || state.stripe.fixedFee < 0) return false;
+      if (!Array.isArray(state.days) || state.days.length < 1) return false;
+      if (!Array.isArray(state.templates) || state.templates.length < 1) return false;
+      const daysValid = state.days.every((day) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(day.date) || !Array.isArray(day.groups)) return false;
+        const ids = day.groups.map((item) => item.id);
+        return new Set(ids).size === ids.length
+          && day.groups.every((item) => typeof item.id === "string"
+            && typeof item.category === "string"
+            && item.category.trim().length > 0
+            && typeof item.name === "string"
+            && item.name.trim().length > 0
+            && typeof item.note === "string"
+            && Number.isFinite(item.price)
+            && item.price >= 0);
+      });
+      const templatesValid = state.templates.every((template) => typeof template.id === "string"
+        && typeof template.name === "string"
+        && Number.isFinite(template.costPrice)
+        && template.costPrice >= 0
+        && Number.isFinite(template.salePrice)
+        && template.salePrice > 0);
+      return daysValid && templatesValid;
+    }
+
+    function normalizeImportedState(input) {
+      const copy = cloneJson(input);
+      if (!validateState(copy)) throw new TypeError("Invalid backup data");
+      if (!copy.days.some((day) => day.id === copy.selectedDayId)) copy.selectedDayId = copy.days.at(-1).id;
+      if (!copy.templates.some((template) => template.id === copy.selectedTemplateId)) {
+        copy.selectedTemplateId = copy.templates[0].id;
+      }
+      if (!["prices", "stripe", "profit"].includes(copy.activeView)) copy.activeView = "prices";
+      return copy;
+    }
+
+    function wrapTextByChars(text, maxChars) {
+      if (!Number.isInteger(maxChars) || maxChars < 1) throw new RangeError("maxChars must be a positive integer");
+      return String(text ?? "").split("\n").flatMap((paragraph) => {
+        if (!paragraph) return [""];
+        const lines = [];
+        for (let index = 0; index < paragraph.length; index += maxChars) {
+          lines.push(paragraph.slice(index, index + maxChars));
+        }
+        return lines;
+      });
+    }
+
+    function makePriceImageFilename(day) {
+      return `中转站价格-${day.date}.png`;
+    }
+
+    function serializeState(state) {
+      if (!validateState(state)) throw new TypeError("Invalid backup data");
+      return JSON.stringify(state, null, 2);
+    }
+
+    window.PricingCalculatorCore = Object.freeze({
+      STATE_VERSION,
+      round,
+      calculateStripe,
+      buildStripeRows,
+      calculateProfitability,
+      buildProfitRows,
+      usdToCny,
+      comparePrice,
+      findPreviousDay,
+      buildPriceComparison,
+      filterPriceComparison,
+      clonePriceDay,
+      cloneProfitTemplate,
+      createProfitTemplate,
+      removePriceDay,
+      removeProfitTemplate,
+      createPriceGroup,
+      removePriceGroup,
+      restoreDefaultGroups,
+      validateState,
+      normalizeImportedState,
+      wrapTextByChars,
+      makePriceImageFilename,
+      serializeState,
+      createDefaultState,
+    });
+  })();
+  </script>
+  <script>
+  (() => {
+    "use strict";
+    const core = window.PricingCalculatorCore;
+    const STORAGE_KEY = "relay-pricing-calculator-state-v1";
+    let state = loadState();
+    let toastTimer;
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? core.normalizeImportedState(JSON.parse(saved)) : core.createDefaultState();
+      } catch {
+        return core.createDefaultState();
+      }
+    }
+
+    function persist() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function showStatus(message, tone = "default") {
+      const toast = document.querySelector("#status-toast");
+      toast.textContent = message;
+      toast.style.background = tone === "error" ? "var(--red)" : "var(--ink)";
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 3200);
+    }
+
+    function renderShell() {
+      document.querySelector("#global-exchange-rate").value = state.exchangeRate;
+      document.querySelector("#global-stripe-rate").value = core.round(state.stripe.rate * 100, 4);
+      document.querySelector("#global-stripe-fixed").value = state.stripe.fixedFee;
+      document.querySelectorAll("[data-view-target]").forEach((button) => {
+        button.setAttribute("aria-selected", String(button.dataset.viewTarget === state.activeView));
+      });
+      document.querySelectorAll("[data-view]").forEach((panel) => {
+        panel.hidden = panel.dataset.view !== state.activeView;
+      });
+      renderDailyPrices();
+      renderStripe();
+      renderProfit();
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;",
+      })[character]);
+    }
+
+    function formatUsd(value, precision = 6) {
+      return `$${core.round(value, precision).toFixed(precision).replace(/0+$/, "").replace(/\.$/, "")}`;
+    }
+
+    function formatPercent(value, precision = 2) {
+      if (value === null || !Number.isFinite(value)) return "—";
+      return `${(value * 100).toFixed(precision)}%`;
+    }
+
+    function renderDailyPrices() {
+      const sortedDays = [...state.days].sort((a, b) => b.date.localeCompare(a.date));
+      let day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) {
+        day = sortedDays[0];
+        state.selectedDayId = day.id;
+      }
+      const model = core.buildPriceComparison(day, state.days);
+      document.querySelector("#price-day-select").innerHTML = sortedDays.map((item) => (
+        `<option value="${escapeHtml(item.id)}" ${item.id === day.id ? "selected" : ""}>${escapeHtml(item.date)}</option>`
+      )).join("");
+      document.querySelector("#day-meta-editor").innerHTML = `
+        <div class="field"><label for="day-date">发布日期</label><input id="day-date" data-day-field="date" type="date" value="${escapeHtml(day.date)}"></div>
+        <div class="field"><label for="day-website">官网地址</label><input id="day-website" data-day-field="website" value="${escapeHtml(day.website)}"></div>
+        <div class="field wide"><label for="day-market">今日行情</label><textarea id="day-market" data-day-field="market">${escapeHtml(day.market)}</textarea></div>
+        <div class="field wide"><label for="day-note">每日备注</label><textarea id="day-note" data-day-field="note">${escapeHtml(day.note)}</textarea></div>
+        <div class="field wide"><label for="day-downstream">下游配置说明</label><textarea id="day-downstream" data-day-field="downstream">${escapeHtml(day.downstream)}</textarea></div>
+      `;
+      document.querySelector("#price-groups-body").innerHTML = model.rows.map(({ group: item, comparison }) => {
+        const labels = {
+          up: `↑ 涨 ${formatUsd(Math.abs(comparison.delta))}`,
+          down: `↓ 降 ${formatUsd(Math.abs(comparison.delta))}`,
+          same: "— 持平",
+          new: "+ 新增",
+        };
+        return `<tr class="change-${comparison.status}" data-group-row="${escapeHtml(item.id)}">
+          <td class="category-cell">${escapeHtml(item.category)}</td>
+          <td class="name-cell">${escapeHtml(item.name)}${item.note ? `<small style="display:block;margin-top:4px;color:var(--muted);font-weight:400">${escapeHtml(item.note)}</small>` : ""}</td>
+          <td><input type="number" min="0" step="0.000001" inputmode="decimal" data-group-id="${escapeHtml(item.id)}" value="${core.round(item.price, 8)}"></td>
+          <td class="number cny-value">¥${core.usdToCny(item.price, state.exchangeRate).toFixed(4)}</td>
+          <td class="change-cell">${labels[comparison.status]}</td>
+        </tr>`;
+      }).join("");
+      document.querySelector("#comparison-caption").textContent = model.previousDay
+        ? `当前价格与 ${model.previousDay.date} 对比；所有输入以美元为准，人民币按 ${state.exchangeRate} 汇率换算。`
+        : `这是最早一条价格记录；所有分组标记为新增。人民币按 ${state.exchangeRate} 汇率换算。`;
+    }
+
+    function renderGroupManager() {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      document.querySelector("#group-manager-date").textContent = `${day.date} · ${day.groups.length} 个分组`;
+      document.querySelector("#group-manager-list").innerHTML = day.groups.length ? day.groups.map((item) => `
+        <div class="group-manager-row" data-managed-group-id="${escapeHtml(item.id)}">
+          <span class="managed-category">${escapeHtml(item.category)}</span>
+          <span class="managed-name">${escapeHtml(item.name)}${item.note ? `<small>${escapeHtml(item.note)}</small>` : ""}</span>
+          <span class="managed-price">${formatUsd(item.price)}</span>
+          <button class="button compact danger" type="button" data-delete-group="${escapeHtml(item.id)}" aria-label="删除 ${escapeHtml(item.name)}">删除</button>
+        </div>
+      `).join("") : '<p class="dialog-caption" style="padding:18px 10px">当前没有分组，可新增或恢复内置分组。</p>';
+    }
+
+    function updateExportSelectionState() {
+      const checkboxes = [...document.querySelectorAll("[data-export-group-id]")];
+      const selectedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+      document.querySelector("#export-group-count").textContent = `已选择 ${selectedCount} / ${checkboxes.length} 个分组`;
+      document.querySelector("#confirm-price-export").disabled = selectedCount === 0;
+    }
+
+    function renderExportGroupSelector() {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      document.querySelector("#export-groups-date").textContent = `${day.date} · 每次打开默认全选`;
+      document.querySelector("#export-group-list").innerHTML = day.groups.length ? day.groups.map((item) => `
+        <label class="export-group-row">
+          <input type="checkbox" data-export-group-id="${escapeHtml(item.id)}" checked>
+          <span class="export-category">${escapeHtml(item.category)}</span>
+          <span class="export-name">${escapeHtml(item.name)}</span>
+          <span class="export-price">${formatUsd(item.price)}</span>
+        </label>
+      `).join("") : '<p class="dialog-caption" style="padding:18px 10px">当前没有可导出的分组。</p>';
+      updateExportSelectionState();
+    }
+
+    function renderStripe() {
+      const amount = Number(state.stripe.customAmount) > 0 ? Number(state.stripe.customAmount) : 1;
+      const custom = core.calculateStripe(amount, state.stripe.rate, state.stripe.fixedFee);
+      document.querySelector("#stripe-custom-amount").value = amount;
+      document.querySelector("#stripe-custom-results").innerHTML = `
+        <div class="metric"><span>理应收款</span><strong>${formatUsd(custom.amount, 2)}</strong></div>
+        <div class="metric"><span>实际收款</span><strong>${formatUsd(custom.net, 3)}</strong></div>
+        <div class="metric"><span>损耗率</span><strong class="negative">${formatPercent(custom.lossRate)}</strong></div>
+        <div class="metric"><span>收款率</span><strong>${formatPercent(custom.collectionRate)}</strong></div>
+      `;
+      const rows = core.buildStripeRows(1, 50, state.stripe);
+      document.querySelector("#stripe-table-body").innerHTML = rows.map((row) => `<tr>
+        <td class="number">${formatUsd(row.amount, 2)}</td>
+        <td class="number" style="color:var(--red)">${formatUsd(row.fee, 3)}</td>
+        <td class="number"><strong>${formatUsd(row.net, 3)}</strong></td>
+        <td class="number">${formatPercent(row.lossRate)}</td>
+        <td class="number">${formatPercent(row.collectionRate)}</td>
+      </tr>`).join("");
+    }
+
+    function marginClass(value) {
+      if (value === null || value < 0) return "margin-negative";
+      if (value < 0.15) return "margin-low";
+      return "margin-healthy";
+    }
+
+    function renderProfit() {
+      let template = state.templates.find((item) => item.id === state.selectedTemplateId);
+      if (!template) {
+        template = state.templates[0];
+        state.selectedTemplateId = template.id;
+      }
+      document.querySelector("#profit-template-select").innerHTML = state.templates.map((item) => (
+        `<option value="${escapeHtml(item.id)}" ${item.id === template.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`
+      )).join("");
+      document.querySelector("#profit-template-name").value = template.name;
+      document.querySelector("#profit-cost-price").value = template.costPrice;
+      document.querySelector("#profit-sale-price").value = template.salePrice;
+      document.querySelector("#profit-cost-cny").textContent = `≈ ¥${core.usdToCny(template.costPrice, state.exchangeRate).toFixed(4)} / 单位`;
+      document.querySelector("#profit-sale-cny").textContent = `≈ ¥${core.usdToCny(template.salePrice, state.exchangeRate).toFixed(4)} / 单位`;
+      const perDollar = core.calculateProfitability(1, {
+        costPrice: template.costPrice,
+        salePrice: template.salePrice,
+        rate: state.stripe.rate,
+        fixedFee: state.stripe.fixedFee,
+      });
+      document.querySelector("#profit-summary").innerHTML = `
+        <div class="metric"><span>每 $1 实际额度</span><strong>${perDollar.quotaPerDollar.toFixed(4)}</strong></div>
+        <div class="metric"><span>每 $1 实际成本</span><strong>${formatUsd(perDollar.costPerDollar, 4)}</strong></div>
+        <div class="metric"><span>表面盈利率</span><strong>${formatPercent(perDollar.surfaceMargin)}</strong></div>
+        <div class="metric"><span>$1 实际盈利率</span><strong class="${perDollar.actualMargin !== null && perDollar.actualMargin < 0 ? "negative" : ""}">${formatPercent(perDollar.actualMargin)}</strong></div>
+      `;
+      const rows = core.buildProfitRows(1, 50, template, state.stripe);
+      document.querySelector("#profit-table-body").innerHTML = rows.map((row) => `<tr>
+        <td class="number">${formatUsd(row.amount, 2)}</td>
+        <td class="number">${formatUsd(row.net, 3)}</td>
+        <td class="number">${row.quotaPerDollar.toFixed(4)}</td>
+        <td class="number">${formatUsd(row.totalCost, 4)}</td>
+        <td class="number">${formatPercent(row.surfaceMargin)}</td>
+        <td class="number ${row.actualProfit < 0 ? "margin-negative" : ""}">${formatUsd(row.actualProfit, 4)}</td>
+        <td class="number ${marginClass(row.actualMargin)}">${formatPercent(row.actualMargin)}</td>
+      </tr>`).join("");
+    }
+
+    function updateGlobalNumber(path, rawValue) {
+      const value = Number(rawValue);
+      if (!Number.isFinite(value) || value < 0 || (path === "exchangeRate" && value === 0)) {
+        renderShell();
+        showStatus("请输入有效的非负数值", "error");
+        return;
+      }
+      if (path === "exchangeRate") state.exchangeRate = value;
+      if (path === "stripeRate") state.stripe.rate = value / 100;
+      if (path === "stripeFixed") state.stripe.fixedFee = value;
+      persist();
+      window.dispatchEvent(new CustomEvent("pricing-state-change"));
+    }
+
+    function download(name, blob) {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    function canvasWrapLines(context, text, maxWidth) {
+      const lines = [];
+      String(text ?? "").split("\n").forEach((paragraph) => {
+        if (!paragraph) {
+          lines.push("");
+          return;
+        }
+        let line = "";
+        for (const character of paragraph) {
+          const next = line + character;
+          if (line && context.measureText(next).width > maxWidth) {
+            lines.push(line);
+            line = character;
+          } else {
+            line = next;
+          }
+        }
+        if (line) lines.push(line);
+      });
+      return lines;
+    }
+
+    function drawCanvasLines(context, lines, x, y, lineHeight) {
+      lines.forEach((line, index) => context.fillText(line, x, y + index * lineHeight));
+    }
+
+    async function exportPriceImage(selectedIds) {
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      const model = core.filterPriceComparison(core.buildPriceComparison(day, state.days), selectedIds);
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      const width = 1400;
+      const padding = 64;
+      const tableTop = 208;
+      const headerHeight = 52;
+      const rowHeight = 60;
+      const columns = [padding, 260, 735, 930, 1125, width - padding];
+
+      context.font = '24px "PingFang SC", sans-serif';
+      const footerWidth = width - padding * 2 - 32;
+      const marketLines = canvasWrapLines(context, `今日行情：${day.market}`, footerWidth);
+      const noteLines = canvasWrapLines(context, `每日备注：${day.note}`, footerWidth);
+      const downstreamLines = canvasWrapLines(context, `下游配置：${day.downstream.replaceAll("\n", "  ")}`, footerWidth);
+      const footerLineCount = marketLines.length + noteLines.length + downstreamLines.length;
+      const footerHeight = 132 + footerLineCount * 34;
+      canvas.width = width;
+      canvas.height = tableTop + headerHeight + rowHeight * model.rows.length + footerHeight;
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#171916";
+      context.fillRect(0, 0, canvas.width, 12);
+      context.fillStyle = "#171916";
+      context.font = '700 52px "Songti SC", serif';
+      context.fillText(`${day.date} 价格公布`, padding, 93);
+      context.font = '22px "PingFang SC", sans-serif';
+      context.fillStyle = "#6b6e67";
+      context.fillText(`美元定价 · 汇率 1 USD = ${state.exchangeRate} CNY`, padding, 137);
+
+      const legend = [
+        ["涨价", "#f4dfda"], ["降价", "#dfeee3"], ["持平", "#e8ecea"], ["新增", "#f4e8c8"],
+      ];
+      let legendX = width - padding;
+      context.font = '20px "PingFang SC", sans-serif';
+      context.textAlign = "right";
+      for (let index = legend.length - 1; index >= 0; index -= 1) {
+        const [label, color] = legend[index];
+        context.fillStyle = "#6b6e67";
+        context.fillText(label, legendX, 132);
+        legendX -= context.measureText(label).width + 38;
+        context.fillStyle = color;
+        context.fillRect(legendX, 111, 22, 22);
+        legendX -= 28;
+      }
+      context.textAlign = "left";
+
+      context.fillStyle = "#242721";
+      context.fillRect(padding, tableTop, width - padding * 2, headerHeight);
+      const headers = ["类型", "分组", "美元价格", "人民币换算", "较上一日"];
+      context.fillStyle = "#ffffff";
+      context.font = '700 21px "PingFang SC", sans-serif';
+      headers.forEach((header, index) => context.fillText(header, columns[index] + 16, tableTop + 34));
+
+      const statusFill = { up: "#f4dfda", down: "#dfeee3", same: "#e8ecea", new: "#f4e8c8" };
+      const statusColor = { up: "#a63e32", down: "#246a49", same: "#6b6e67", new: "#8a6419" };
+      const statusLabel = { up: "↑ 涨价", down: "↓ 降价", same: "— 持平", new: "+ 新增" };
+      model.rows.forEach(({ group: item, comparison }, index) => {
+        const y = tableTop + headerHeight + index * rowHeight;
+        context.fillStyle = index % 2 ? "#f6f8f7" : "#ffffff";
+        context.fillRect(padding, y, width - padding * 2, rowHeight);
+        context.fillStyle = statusFill[comparison.status];
+        context.fillRect(columns[4], y, columns[5] - columns[4], rowHeight);
+        context.strokeStyle = "#c7cdca";
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(padding, y + rowHeight);
+        context.lineTo(width - padding, y + rowHeight);
+        context.stroke();
+        context.fillStyle = "#6b6e67";
+        context.font = '19px "PingFang SC", sans-serif';
+        context.fillText(item.category, columns[0] + 16, y + 37);
+        context.fillStyle = "#171916";
+        context.font = '600 21px "PingFang SC", sans-serif';
+        context.fillText(item.name, columns[1] + 16, y + (item.note ? 27 : 37));
+        if (item.note) {
+          context.fillStyle = "#6b6e67";
+          context.font = '16px "PingFang SC", sans-serif';
+          context.fillText(item.note, columns[1] + 16, y + 49);
+        }
+        context.fillStyle = "#171916";
+        context.font = '700 22px ui-monospace, monospace';
+        context.fillText(formatUsd(item.price), columns[2] + 16, y + 38);
+        context.fillText(`¥${core.usdToCny(item.price, state.exchangeRate).toFixed(4)}`, columns[3] + 16, y + 38);
+        context.fillStyle = statusColor[comparison.status];
+        context.font = '700 20px "PingFang SC", sans-serif';
+        const deltaText = comparison.delta === null || comparison.delta === 0 ? "" : ` ${formatUsd(Math.abs(comparison.delta))}`;
+        context.fillText(`${statusLabel[comparison.status]}${deltaText}`, columns[4] + 16, y + 38);
+      });
+
+      columns.slice(1, -1).forEach((x) => {
+        context.strokeStyle = "#c7cdca";
+        context.beginPath();
+        context.moveTo(x, tableTop);
+        context.lineTo(x, tableTop + headerHeight + rowHeight * model.rows.length);
+        context.stroke();
+      });
+
+      let footerY = tableTop + headerHeight + rowHeight * model.rows.length + 58;
+      context.fillStyle = "#171916";
+      context.font = '700 23px "PingFang SC", sans-serif';
+      context.fillText(`官网地址：${day.website}`, padding, footerY);
+      footerY += 50;
+      context.font = '21px "PingFang SC", sans-serif';
+      drawCanvasLines(context, marketLines, padding, footerY, 34);
+      footerY += marketLines.length * 34 + 12;
+      drawCanvasLines(context, noteLines, padding, footerY, 34);
+      footerY += noteLines.length * 34 + 12;
+      context.fillStyle = "#6b6e67";
+      context.font = '19px "PingFang SC", sans-serif';
+      drawCanvasLines(context, downstreamLines, padding, footerY, 32);
+
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((result) => result ? resolve(result) : reject(new Error("Canvas export failed")), "image/png");
+      });
+      download(core.makePriceImageFilename(day), blob);
+      return blob;
+    }
+
+    document.addEventListener("click", async (event) => {
+      const tab = event.target.closest("[data-view-target]");
+      if (tab) {
+        state.activeView = tab.dataset.viewTarget;
+        persist();
+        renderShell();
+        return;
+      }
+      if (event.target.closest("#backup-export")) {
+        download("中转站价格工作台备份.json", new Blob([core.serializeState(state)], { type: "application/json" }));
+        showStatus("备份已导出");
+      }
+      if (event.target.closest("#backup-import")) document.querySelector("#backup-file").click();
+      if (event.target.closest("#manage-price-groups")) {
+        renderGroupManager();
+        document.querySelector("#group-manager-dialog").showModal();
+      }
+      if (event.target.closest("#close-export-groups") || event.target.closest("#cancel-price-export")) {
+        document.querySelector("#export-groups-dialog").close();
+      }
+      if (event.target.closest("#select-all-export-groups")) {
+        document.querySelectorAll("[data-export-group-id]").forEach((checkbox) => { checkbox.checked = true; });
+        updateExportSelectionState();
+      }
+      if (event.target.closest("#clear-export-groups")) {
+        document.querySelectorAll("[data-export-group-id]").forEach((checkbox) => { checkbox.checked = false; });
+        updateExportSelectionState();
+      }
+      if (event.target.closest("#close-group-manager") || event.target.closest("#done-group-manager")) {
+        document.querySelector("#group-manager-dialog").close();
+      }
+      const deleteGroupButton = event.target.closest("[data-delete-group]");
+      if (deleteGroupButton) {
+        const day = state.days.find((item) => item.id === state.selectedDayId);
+        const target = day?.groups.find((item) => item.id === deleteGroupButton.dataset.deleteGroup);
+        if (target && window.confirm(`删除分组“${target.name}”？`)) {
+          core.removePriceGroup(day, target.id);
+          persist();
+          renderDailyPrices();
+          renderGroupManager();
+          showStatus("分组已删除并保存");
+        }
+      }
+      if (event.target.closest("#restore-default-groups") && window.confirm("恢复内置 12 个分组？自定义分组将被移除。")) {
+        const day = state.days.find((item) => item.id === state.selectedDayId);
+        core.restoreDefaultGroups(day);
+        persist();
+        renderDailyPrices();
+        renderGroupManager();
+        showStatus("已恢复内置分组");
+      }
+      if (event.target.closest("#create-profit-template")) {
+        const template = core.createProfitTemplate(state.templates);
+        state.templates.push(template);
+        state.selectedTemplateId = template.id;
+        persist();
+        renderProfit();
+        showStatus("已新建盈利模板");
+      }
+      if (event.target.closest("#duplicate-profit-template")) {
+        const source = state.templates.find((item) => item.id === state.selectedTemplateId);
+        const copy = core.cloneProfitTemplate(source, state.templates);
+        state.templates.push(copy);
+        state.selectedTemplateId = copy.id;
+        persist();
+        renderProfit();
+        showStatus("模板副本已创建");
+      }
+      if (event.target.closest("#delete-profit-template")) {
+        const selected = state.templates.find((item) => item.id === state.selectedTemplateId);
+        if (selected && window.confirm(`删除盈利模板“${selected.name}”？`)) {
+          try {
+            core.removeProfitTemplate(state, selected.id);
+            persist();
+            renderProfit();
+            showStatus("盈利模板已删除");
+          } catch {
+            showStatus("至少需要保留一个盈利模板", "error");
+          }
+        }
+      }
+      if (event.target.closest("#duplicate-day")) {
+        const source = state.days.find((day) => day.id === state.selectedDayId);
+        const copy = core.clonePriceDay(source, state.days);
+        state.days.push(copy);
+        state.selectedDayId = copy.id;
+        persist();
+        renderShell();
+        showStatus(`已创建 ${copy.date} 价格副本`);
+      }
+      const exportButton = event.target.closest("#export-price-image");
+      if (exportButton) {
+        renderExportGroupSelector();
+        document.querySelector("#export-groups-dialog").showModal();
+      }
+      const confirmExportButton = event.target.closest("#confirm-price-export");
+      if (confirmExportButton) {
+        const selectedIds = new Set([...document.querySelectorAll("[data-export-group-id]:checked")]
+          .map((checkbox) => checkbox.dataset.exportGroupId));
+        confirmExportButton.disabled = true;
+        confirmExportButton.textContent = "正在生成…";
+        try {
+          await exportPriceImage(selectedIds);
+          document.querySelector("#export-groups-dialog").close();
+          showStatus("价格公告图片已导出");
+        } catch {
+          showStatus("图片导出失败，请重试", "error");
+        } finally {
+          confirmExportButton.textContent = "导出选中分组";
+          updateExportSelectionState();
+        }
+      }
+      if (event.target.closest("#delete-day")) {
+        const selected = state.days.find((day) => day.id === state.selectedDayId);
+        if (selected && window.confirm(`删除 ${selected.date} 的价格记录？`)) {
+          try {
+            core.removePriceDay(state, selected.id);
+            persist();
+            renderShell();
+            showStatus("价格记录已删除");
+          } catch {
+            showStatus("至少需要保留一天价格", "error");
+          }
+        }
+      }
+      if (event.target.closest("#reset-state") && window.confirm("恢复 Excel 初始数据？当前本地修改将被覆盖。")) {
+        state = core.createDefaultState();
+        persist();
+        renderShell();
+        window.dispatchEvent(new CustomEvent("pricing-state-change"));
+        showStatus("已恢复初始数据");
+      }
+    });
+
+    document.addEventListener("change", (event) => {
+      if (event.target.matches("[data-export-group-id]")) {
+        updateExportSelectionState();
+        return;
+      }
+      if (event.target.matches("#price-day-select")) {
+        state.selectedDayId = event.target.value;
+        persist();
+        renderDailyPrices();
+        return;
+      }
+      if (event.target.matches("#profit-template-select")) {
+        state.selectedTemplateId = event.target.value;
+        persist();
+        renderProfit();
+        return;
+      }
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      if (!day) return;
+      const field = event.target.dataset.dayField;
+      if (field) {
+        if (field === "date") {
+          const nextDate = event.target.value;
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate) || state.days.some((item) => item !== day && item.date === nextDate)) {
+            showStatus("日期无效或已存在", "error");
+            renderDailyPrices();
+            return;
+          }
+          day.date = nextDate;
+          day.id = `day-${nextDate}`;
+          state.selectedDayId = day.id;
+        } else {
+          day[field] = event.target.value;
+        }
+        persist();
+        renderDailyPrices();
+        return;
+      }
+      const groupId = event.target.dataset.groupId;
+      if (groupId) {
+        const value = Number(event.target.value);
+        const priceGroup = day.groups.find((item) => item.id === groupId);
+        if (!priceGroup || !Number.isFinite(value) || value < 0) {
+          showStatus("请输入有效的美元价格", "error");
+          renderDailyPrices();
+          return;
+        }
+        priceGroup.price = value;
+        persist();
+        renderDailyPrices();
+      }
+      if (event.target.matches("#stripe-custom-amount")) {
+        const amount = Number(event.target.value);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showStatus("充值金额必须大于 0", "error");
+          renderStripe();
+          return;
+        }
+        state.stripe.customAmount = amount;
+        persist();
+        renderStripe();
+      }
+      const templateField = event.target.dataset.templateField;
+      if (templateField) {
+        const template = state.templates.find((item) => item.id === state.selectedTemplateId);
+        if (!template) return;
+        if (templateField === "name") {
+          const name = event.target.value.trim();
+          if (!name) {
+            showStatus("模板名称不能为空", "error");
+            renderProfit();
+            return;
+          }
+          template.name = name;
+        } else {
+          const value = Number(event.target.value);
+          const valid = Number.isFinite(value) && value >= 0 && (templateField !== "salePrice" || value > 0);
+          if (!valid) {
+            showStatus("请输入有效的美元单价", "error");
+            renderProfit();
+            return;
+          }
+          template[templateField] = value;
+        }
+        persist();
+        renderProfit();
+      }
+    });
+
+    document.querySelector("#global-exchange-rate").addEventListener("change", (event) => updateGlobalNumber("exchangeRate", event.target.value));
+    document.querySelector("#global-stripe-rate").addEventListener("change", (event) => updateGlobalNumber("stripeRate", event.target.value));
+    document.querySelector("#global-stripe-fixed").addEventListener("change", (event) => updateGlobalNumber("stripeFixed", event.target.value));
+    document.querySelector("#backup-file").addEventListener("change", async (event) => {
+      const [file] = event.target.files;
+      if (!file) return;
+      try {
+        state = core.normalizeImportedState(JSON.parse(await file.text()));
+        persist();
+        renderShell();
+        window.dispatchEvent(new CustomEvent("pricing-state-change"));
+        showStatus("备份已导入");
+      } catch {
+        showStatus("备份无效，未修改现有数据", "error");
+      } finally {
+        event.target.value = "";
+      }
+    });
+
+    document.querySelector("#add-group-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const day = state.days.find((item) => item.id === state.selectedDayId);
+      try {
+        const created = core.createPriceGroup({
+          category: document.querySelector("#new-group-category").value,
+          name: document.querySelector("#new-group-name").value,
+          price: Number(document.querySelector("#new-group-price").value),
+          note: document.querySelector("#new-group-note").value,
+        }, state.days);
+        day.groups.push(created);
+        persist();
+        event.target.reset();
+        document.querySelector("#new-group-price").value = "0";
+        renderDailyPrices();
+        renderGroupManager();
+        showStatus("分组已新增并保存");
+      } catch (error) {
+        showStatus(error.message || "无法新增分组", "error");
+      }
+    });
+
+    window.addEventListener("pricing-state-change", () => {
+      renderDailyPrices();
+      renderStripe();
+      renderProfit();
+    });
+
+    window.PricingCalculatorApp = {
+      getState: () => state,
+      setState: (nextState) => { state = nextState; persist(); renderShell(); },
+      persist,
+      showStatus,
+    };
+    renderShell();
+    document.documentElement.dataset.appReady = "true";
+  })();
+  </script>
+</body>
+</html>

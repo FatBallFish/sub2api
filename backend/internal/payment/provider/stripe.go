@@ -16,7 +16,18 @@ import (
 const (
 	stripeEventPaymentSuccess = "payment_intent.succeeded"
 	stripeEventPaymentFailed  = "payment_intent.payment_failed"
+
+	stripeConfigApplePay  = "applePay"
+	stripeConfigGooglePay = "googlePay"
+	stripeWalletAuto      = "auto"
+	stripeWalletNever     = "never"
 )
+
+// StripeWalletPreferences controls wallet visibility in Stripe Payment Element.
+type StripeWalletPreferences struct {
+	ApplePay  string
+	GooglePay string
+}
 
 // Stripe implements the payment.CancelableProvider interface for Stripe payments.
 type Stripe struct {
@@ -39,10 +50,40 @@ func NewStripe(instanceID string, config map[string]string) (*Stripe, error) {
 		return nil, fmt.Errorf("stripe config currency: %w", err)
 	}
 	cfg["currency"] = currency
+	wallets, err := ResolveStripeWalletPreferences(cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfg[stripeConfigApplePay] = wallets.ApplePay
+	cfg[stripeConfigGooglePay] = wallets.GooglePay
 	return &Stripe{
 		instanceID: instanceID,
 		config:     cfg,
 	}, nil
+}
+
+// ResolveStripeWalletPreferences normalizes the Payment Element wallet enums.
+func ResolveStripeWalletPreferences(config map[string]string) (StripeWalletPreferences, error) {
+	applePay, err := normalizeStripeWalletPreference(stripeConfigApplePay, config[stripeConfigApplePay])
+	if err != nil {
+		return StripeWalletPreferences{}, err
+	}
+	googlePay, err := normalizeStripeWalletPreference(stripeConfigGooglePay, config[stripeConfigGooglePay])
+	if err != nil {
+		return StripeWalletPreferences{}, err
+	}
+	return StripeWalletPreferences{ApplePay: applePay, GooglePay: googlePay}, nil
+}
+
+func normalizeStripeWalletPreference(configKey, raw string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", stripeWalletAuto:
+		return stripeWalletAuto, nil
+	case stripeWalletNever:
+		return stripeWalletNever, nil
+	default:
+		return "", fmt.Errorf("stripe config %s must be auto or never", configKey)
+	}
 }
 
 func (s *Stripe) ensureInit() {

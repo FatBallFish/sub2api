@@ -177,6 +177,14 @@ type UpdateSettingsRequest struct {
 	AffiliateRebateDurationDays               *int                              `json:"affiliate_rebate_duration_days"`
 	AffiliateRebatePerInviteeCap              *float64                          `json:"affiliate_rebate_per_invitee_cap"`
 	AdminRechargeRebateEnabled                *bool                             `json:"affiliate_admin_recharge_enabled"`
+	AffiliateInviterSignupReward              *float64                          `json:"affiliate_inviter_signup_reward"`
+	AffiliateInviterSignupRewardCap           *float64                          `json:"affiliate_inviter_signup_reward_cap"`
+	AffiliateInviteeSignupReward              *float64                          `json:"affiliate_invitee_signup_reward"`
+	RegionBlockEnabled                        *bool                             `json:"region_block_enabled"`
+	RegionBlockFrontendEnabled                *bool                             `json:"region_block_frontend_enabled"`
+	RegionBlockAPIEnabled                     *bool                             `json:"region_block_api_enabled"`
+	RegionBlockCodes                          *string                           `json:"region_block_codes"`
+	RegionBlockHeaders                        *string                           `json:"region_block_headers"`
 	DefaultUserRPMLimit                       int                               `json:"default_user_rpm_limit"`
 	DefaultSubscriptions                      []dto.DefaultSubscriptionSetting  `json:"default_subscriptions"`
 	AuthSourceDefaultEmailBalance             *float64                          `json:"auth_source_default_email_balance"`
@@ -313,14 +321,15 @@ type UpdateSettingsRequest struct {
 	PaymentSubscriptionUSDToCNYRate  *float64 `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           *float64 `json:"payment_recharge_fee_rate"`
 	// nil 表示不更新；空数组表示清空阶梯
-	PaymentRechargeBonusTiers  *[]dto.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
-	PaymentRechargeBonusMode   *string                  `json:"payment_recharge_bonus_mode"`
-	PaymentRechargeBonusNotice *string                  `json:"payment_recharge_bonus_notice"`
-	PaymentLoadBalanceStrat    *string                  `json:"payment_load_balance_strategy"`
-	PaymentProductNamePrefix   *string                  `json:"payment_product_name_prefix"`
-	PaymentProductNameSuffix   *string                  `json:"payment_product_name_suffix"`
-	PaymentHelpImageURL        *string                  `json:"payment_help_image_url"`
-	PaymentHelpText            *string                  `json:"payment_help_text"`
+	PaymentRechargeBonusTiers    *[]dto.RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
+	PaymentRechargeBonusMode     *string                  `json:"payment_recharge_bonus_mode"`
+	PaymentRechargeBonusNotice   *string                  `json:"payment_recharge_bonus_notice"`
+	PaymentCurrencyExchangeRates *string                  `json:"payment_currency_exchange_rates"`
+	PaymentLoadBalanceStrat      *string                  `json:"payment_load_balance_strategy"`
+	PaymentProductNamePrefix     *string                  `json:"payment_product_name_prefix"`
+	PaymentProductNameSuffix     *string                  `json:"payment_product_name_suffix"`
+	PaymentHelpImageURL          *string                  `json:"payment_help_image_url"`
+	PaymentHelpText              *string                  `json:"payment_help_text"`
 
 	// Cancel rate limit
 	PaymentCancelRateLimitEnabled *bool   `json:"payment_cancel_rate_limit_enabled"`
@@ -609,6 +618,47 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	adminRechargeRebateEnabled := previousSettings.AdminRechargeRebateEnabled
 	if req.AdminRechargeRebateEnabled != nil {
 		adminRechargeRebateEnabled = *req.AdminRechargeRebateEnabled
+	}
+	affiliateInviterSignupReward := previousSettings.AffiliateInviterSignupReward
+	if req.AffiliateInviterSignupReward != nil {
+		affiliateInviterSignupReward = *req.AffiliateInviterSignupReward
+	}
+	if affiliateInviterSignupReward < 0 {
+		affiliateInviterSignupReward = service.AffiliateInviterSignupRewardDefault
+	}
+	affiliateInviterSignupRewardCap := previousSettings.AffiliateInviterSignupRewardCap
+	if req.AffiliateInviterSignupRewardCap != nil {
+		affiliateInviterSignupRewardCap = *req.AffiliateInviterSignupRewardCap
+	}
+	if affiliateInviterSignupRewardCap < 0 {
+		affiliateInviterSignupRewardCap = service.AffiliateInviterSignupRewardCapDefault
+	}
+	affiliateInviteeSignupReward := previousSettings.AffiliateInviteeSignupReward
+	if req.AffiliateInviteeSignupReward != nil {
+		affiliateInviteeSignupReward = *req.AffiliateInviteeSignupReward
+	}
+	if affiliateInviteeSignupReward < 0 {
+		affiliateInviteeSignupReward = service.AffiliateInviteeSignupRewardDefault
+	}
+	regionBlockEnabled := previousSettings.RegionBlockEnabled
+	if req.RegionBlockEnabled != nil {
+		regionBlockEnabled = *req.RegionBlockEnabled
+	}
+	regionBlockFrontendEnabled := previousSettings.RegionBlockFrontendEnabled
+	if req.RegionBlockFrontendEnabled != nil {
+		regionBlockFrontendEnabled = *req.RegionBlockFrontendEnabled
+	}
+	regionBlockAPIEnabled := previousSettings.RegionBlockAPIEnabled
+	if req.RegionBlockAPIEnabled != nil {
+		regionBlockAPIEnabled = *req.RegionBlockAPIEnabled
+	}
+	regionBlockCodes := previousSettings.RegionBlockCodes
+	if req.RegionBlockCodes != nil {
+		regionBlockCodes = *req.RegionBlockCodes
+	}
+	regionBlockHeaders := previousSettings.RegionBlockHeaders
+	if req.RegionBlockHeaders != nil {
+		regionBlockHeaders = *req.RegionBlockHeaders
 	}
 	// 通用表格配置：兼容旧客户端未传字段时保留当前值。
 	if req.TableDefaultPageSize <= 0 {
@@ -1662,6 +1712,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateRebateDurationDays:            affiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:           affiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:             adminRechargeRebateEnabled,
+		AffiliateInviterSignupReward:           affiliateInviterSignupReward,
+		AffiliateInviterSignupRewardCap:        affiliateInviterSignupRewardCap,
+		AffiliateInviteeSignupReward:           affiliateInviteeSignupReward,
+		RegionBlockEnabled:                     regionBlockEnabled,
+		RegionBlockFrontendEnabled:             regionBlockFrontendEnabled,
+		RegionBlockAPIEnabled:                  regionBlockAPIEnabled,
+		RegionBlockCodes:                       regionBlockCodes,
+		RegionBlockHeaders:                     regionBlockHeaders,
 		DefaultUserRPMLimit:                    req.DefaultUserRPMLimit,
 		DefaultSubscriptions:                   defaultSubscriptions,
 		EnableModelFallback:                    req.EnableModelFallback,
@@ -2135,6 +2193,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			RechargeBonusTiers:            rechargeBonusTiersFromDTO(req.PaymentRechargeBonusTiers),
 			RechargeBonusMode:             req.PaymentRechargeBonusMode,
 			RechargeBonusNotice:           req.PaymentRechargeBonusNotice,
+			CurrencyExchangeRates:         req.PaymentCurrencyExchangeRates,
 			LoadBalanceStrategy:           req.PaymentLoadBalanceStrat,
 			ProductNamePrefix:             req.PaymentProductNamePrefix,
 			ProductNameSuffix:             req.PaymentProductNameSuffix,
@@ -2326,6 +2385,14 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateRebateDurationDays:                            updatedSettings.AffiliateRebateDurationDays,
 		AffiliateRebatePerInviteeCap:                           updatedSettings.AffiliateRebatePerInviteeCap,
 		AdminRechargeRebateEnabled:                             updatedSettings.AdminRechargeRebateEnabled,
+		AffiliateInviterSignupReward:                           updatedSettings.AffiliateInviterSignupReward,
+		AffiliateInviterSignupRewardCap:                        updatedSettings.AffiliateInviterSignupRewardCap,
+		AffiliateInviteeSignupReward:                           updatedSettings.AffiliateInviteeSignupReward,
+		RegionBlockEnabled:                                     updatedSettings.RegionBlockEnabled,
+		RegionBlockFrontendEnabled:                             updatedSettings.RegionBlockFrontendEnabled,
+		RegionBlockAPIEnabled:                                  updatedSettings.RegionBlockAPIEnabled,
+		RegionBlockCodes:                                       updatedSettings.RegionBlockCodes,
+		RegionBlockHeaders:                                     updatedSettings.RegionBlockHeaders,
 		DefaultUserRPMLimit:                                    updatedSettings.DefaultUserRPMLimit,
 		DefaultSubscriptions:                                   updatedDefaultSubscriptions,
 		EnableModelFallback:                                    updatedSettings.EnableModelFallback,
@@ -2417,6 +2484,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentRechargeBonusTiers:                              rechargeBonusTiersToDTO(updatedPaymentCfg.RechargeBonusTiers),
 		PaymentRechargeBonusMode:                               rechargeBonusModeToDTO(updatedPaymentCfg.RechargeBonusMode),
 		PaymentRechargeBonusNotice:                             updatedPaymentCfg.RechargeBonusNotice,
+		PaymentCurrencyExchangeRates:                           updatedPaymentCfg.CurrencyExchangeRates,
 		PaymentLoadBalanceStrat:                                updatedPaymentCfg.LoadBalanceStrategy,
 		PaymentProductNamePrefix:                               updatedPaymentCfg.ProductNamePrefix,
 		PaymentProductNameSuffix:                               updatedPaymentCfg.ProductNameSuffix,
@@ -2494,6 +2562,7 @@ func hasPaymentFields(req UpdateSettingsRequest) bool {
 		req.PaymentBalanceRechargeMultiplier != nil || req.PaymentSubscriptionUSDToCNYRate != nil ||
 		req.PaymentRechargeFeeRate != nil ||
 		req.PaymentRechargeBonusTiers != nil || req.PaymentRechargeBonusMode != nil || req.PaymentRechargeBonusNotice != nil ||
+		req.PaymentCurrencyExchangeRates != nil ||
 		req.PaymentLoadBalanceStrat != nil || req.PaymentProductNamePrefix != nil ||
 		req.PaymentProductNameSuffix != nil || req.PaymentHelpImageURL != nil ||
 		req.PaymentHelpText != nil || req.PaymentCancelRateLimitEnabled != nil ||

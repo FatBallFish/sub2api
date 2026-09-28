@@ -378,6 +378,9 @@ func (r *usageLogRepository) GetAccountWindowStatsBatch(ctx context.Context, acc
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
 
 	for _, accountID := range accountIDs {
 		if _, ok := result[accountID]; !ok {
@@ -819,10 +822,103 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 	sortEndpointStats(stats.UpstreamEndpoints)
 	sortEndpointStats(stats.EndpointPaths)
 
+	inventory, err := r.getRemainingCreditInventory(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	stats.TotalAccountCost = &totalAccountCost
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
+	stats.RemainingBalanceCredits = inventory.remainingBalanceCredits
+	stats.RemainingSubscriptionCredits = inventory.remainingSubscriptionCredits
 
 	return stats, nil
+}
+
+type remainingCreditInventory struct {
+	remainingBalanceCredits      float64
+	remainingSubscriptionCredits float64
+}
+
+func (r *usageLogRepository) getRemainingCreditInventory(ctx context.Context) (remainingCreditInventory, error) {
+	var inventory remainingCreditInventory
+
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(balance, 0)), 0)
+		FROM users
+		WHERE deleted_at IS NULL
+	`, nil, &inventory.remainingBalanceCredits); err != nil {
+		return inventory, err
+	}
+
+	var remainingGlobalPlan float64
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(
+			CASE
+				WHEN current_period_end <= NOW() THEN quota_limit_usd
+				ELSE quota_limit_usd - quota_used_usd
+			END,
+			0
+		)), 0)
+		FROM user_global_plan_subscriptions
+		WHERE deleted_at IS NULL
+			AND status = 'active'
+			AND expires_at > NOW()
+	`, nil, &remainingGlobalPlan); err != nil {
+		return inventory, err
+	}
+
+	var remainingGroupSubscription float64
+	if err := scanSingleRow(ctx, r.sql, `
+		SELECT COALESCE(SUM(GREATEST(
+			CASE
+				WHEN us.expires_at > NOW()
+					AND (
+						g.daily_limit_usd IS NOT NULL
+						OR g.weekly_limit_usd IS NOT NULL
+						OR g.monthly_limit_usd IS NOT NULL
+					) THEN LEAST(
+					COALESCE(
+						CASE
+							WHEN g.daily_limit_usd IS NULL THEN NULL
+							WHEN us.daily_window_start IS NULL OR us.daily_window_start + INTERVAL '1 day' <= NOW() THEN g.daily_limit_usd
+							ELSE g.daily_limit_usd - us.daily_usage_usd
+						END,
+						1e18
+					),
+					COALESCE(
+						CASE
+							WHEN g.weekly_limit_usd IS NULL THEN NULL
+							WHEN us.weekly_window_start IS NULL OR us.weekly_window_start + INTERVAL '7 days' <= NOW() THEN g.weekly_limit_usd
+							ELSE g.weekly_limit_usd - us.weekly_usage_usd
+						END,
+						1e18
+					),
+					COALESCE(
+						CASE
+							WHEN g.monthly_limit_usd IS NULL THEN NULL
+							WHEN us.monthly_window_start IS NULL OR us.monthly_window_start + INTERVAL '1 month' <= NOW() THEN g.monthly_limit_usd
+							ELSE g.monthly_limit_usd - us.monthly_usage_usd
+						END,
+						1e18
+					)
+				)
+				ELSE 0
+			END,
+			0
+		)), 0)
+		FROM user_subscriptions us
+		JOIN groups g ON g.id = us.group_id
+		WHERE us.deleted_at IS NULL
+			AND g.deleted_at IS NULL
+			AND us.status = 'active'
+			AND us.expires_at > NOW()
+	`, nil, &remainingGroupSubscription); err != nil {
+		return inventory, err
+	}
+
+	inventory.remainingSubscriptionCredits = remainingGlobalPlan + remainingGroupSubscription
+	return inventory, nil
 }
 
 // AccountUsageHistory represents daily usage history for an account

@@ -73,6 +73,21 @@ func TestPaymentDashboardBreakdownsGroupAmountsAndRankingsByCurrency(t *testing.
 	}, users)
 }
 
+func TestBuildDailySeriesSkipsUnpaidOrdersAndFillsMissingDates(t *testing.T) {
+	t.Parallel()
+
+	firstDay := time.Date(2026, time.July, 24, 12, 0, 0, 0, time.UTC)
+	orders := []*dbent.PaymentOrder{
+		paymentStatsTestOrder(1, "alice@example.com", "USD", 10, &firstDay),
+		paymentStatsTestOrder(2, "bob@example.com", "CNY", 20, nil),
+	}
+
+	require.Equal(t, []DailyStats{
+		{Date: "2026-07-24", Amount: CurrencyAmounts{"USD": 10}, Count: 1},
+		{Date: "2026-07-25", Amount: CurrencyAmounts{}, Count: 0},
+	}, buildDailySeries(orders, firstDay.AddDate(0, 0, -1), 2))
+}
+
 func paymentStatsTestOrder(userID int64, email, currency string, amount float64, paidAt *time.Time) *dbent.PaymentOrder {
 	return &dbent.PaymentOrder{
 		UserID:           userID,
