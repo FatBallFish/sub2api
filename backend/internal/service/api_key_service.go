@@ -288,6 +288,7 @@ type APIKeyService struct {
 	groupRepo                 GroupRepository
 	userSubRepo               UserSubscriptionRepository
 	userGroupRateRepo         UserGroupRateRepository
+	globalPlanEligibility     GlobalPlanEligibilityChecker
 	cache                     APIKeyCache
 	rateLimitCacheInvalid     RateLimitCacheInvalidator // optional: invalidate Redis rate limit cache
 	concurrencyService        *ConcurrencyService
@@ -309,6 +310,19 @@ type APIKeyService struct {
 	authInvalidationFailures  atomic.Uint64
 	lastUsedTouchL1           sync.Map // keyID -> nextAllowedAt(time.Time)
 	lastUsedTouchSF           singleflight.Group
+}
+
+func (s *APIKeyService) SetGlobalPlanEligibilityChecker(checker GlobalPlanEligibilityChecker) {
+	if s != nil {
+		s.globalPlanEligibility = checker
+	}
+}
+
+func (s *APIKeyService) HasApplicableGlobalPlanRemaining(ctx context.Context, userID, groupID int64) (bool, error) {
+	if s == nil || s.globalPlanEligibility == nil {
+		return false, nil
+	}
+	return s.globalPlanEligibility.HasApplicableRemaining(ctx, userID, groupID, time.Now())
 }
 
 type APIKeyAuthLookupMetrics struct {
@@ -698,6 +712,18 @@ func (s *APIKeyService) GetByID(ctx context.Context, id int64) (*APIKey, error) 
 		apiKey.CurrentConcurrency = s.currentConcurrencyForAPIKey(ctx, apiKey.ID)
 	}
 	return apiKey, nil
+}
+
+// Reveal returns the full API key value after verifying ownership.
+func (s *APIKeyService) Reveal(ctx context.Context, id int64, userID int64) (string, error) {
+	apiKey, err := s.apiKeyRepo.GetByID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("get api key: %w", err)
+	}
+	if apiKey.UserID != userID {
+		return "", ErrInsufficientPerms
+	}
+	return apiKey.Key, nil
 }
 
 // GetByKey 根据Key字符串获取API Key（用于认证）

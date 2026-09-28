@@ -44,18 +44,30 @@ const (
 	FieldQrCodeImg = "qr_code_img"
 	// FieldOrderType holds the string denoting the order_type field in the database.
 	FieldOrderType = "order_type"
+	// FieldPlanScope holds the string denoting the plan_scope field in the database.
+	FieldPlanScope = "plan_scope"
 	// FieldPlanID holds the string denoting the plan_id field in the database.
 	FieldPlanID = "plan_id"
 	// FieldSubscriptionGroupID holds the string denoting the subscription_group_id field in the database.
 	FieldSubscriptionGroupID = "subscription_group_id"
 	// FieldSubscriptionDays holds the string denoting the subscription_days field in the database.
 	FieldSubscriptionDays = "subscription_days"
+	// FieldPlanSnapshot holds the string denoting the plan_snapshot field in the database.
+	FieldPlanSnapshot = "plan_snapshot"
+	// FieldGlobalPlanSubscriptionID holds the string denoting the global_plan_subscription_id field in the database.
+	FieldGlobalPlanSubscriptionID = "global_plan_subscription_id"
+	// FieldUpgradeFromSubscriptionID holds the string denoting the upgrade_from_subscription_id field in the database.
+	FieldUpgradeFromSubscriptionID = "upgrade_from_subscription_id"
+	// FieldUpgradeProration holds the string denoting the upgrade_proration field in the database.
+	FieldUpgradeProration = "upgrade_proration"
 	// FieldProviderInstanceID holds the string denoting the provider_instance_id field in the database.
 	FieldProviderInstanceID = "provider_instance_id"
 	// FieldProviderKey holds the string denoting the provider_key field in the database.
 	FieldProviderKey = "provider_key"
 	// FieldProviderSnapshot holds the string denoting the provider_snapshot field in the database.
 	FieldProviderSnapshot = "provider_snapshot"
+	// FieldRefundSnapshot holds the string denoting the refund_snapshot field in the database.
+	FieldRefundSnapshot = "refund_snapshot"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldRefundAmount holds the string denoting the refund_amount field in the database.
@@ -94,6 +106,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
+	// EdgeGlobalPlanSubscriptions holds the string denoting the global_plan_subscriptions edge name in mutations.
+	EdgeGlobalPlanSubscriptions = "global_plan_subscriptions"
 	// Table holds the table name of the paymentorder in the database.
 	Table = "payment_orders"
 	// UserTable is the table that holds the user relation/edge.
@@ -103,6 +117,13 @@ const (
 	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_id"
+	// GlobalPlanSubscriptionsTable is the table that holds the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsInverseTable is the table name for the UserGlobalPlanSubscription entity.
+	// It exists in this package in order to avoid circular dependency with the "userglobalplansubscription" package.
+	GlobalPlanSubscriptionsInverseTable = "user_global_plan_subscriptions"
+	// GlobalPlanSubscriptionsColumn is the table column denoting the global_plan_subscriptions relation/edge.
+	GlobalPlanSubscriptionsColumn = "source_order_id"
 )
 
 // Columns holds all SQL columns for paymentorder fields.
@@ -123,12 +144,18 @@ var Columns = []string{
 	FieldQrCode,
 	FieldQrCodeImg,
 	FieldOrderType,
+	FieldPlanScope,
 	FieldPlanID,
 	FieldSubscriptionGroupID,
 	FieldSubscriptionDays,
+	FieldPlanSnapshot,
+	FieldGlobalPlanSubscriptionID,
+	FieldUpgradeFromSubscriptionID,
+	FieldUpgradeProration,
 	FieldProviderInstanceID,
 	FieldProviderKey,
 	FieldProviderSnapshot,
+	FieldRefundSnapshot,
 	FieldStatus,
 	FieldRefundAmount,
 	FieldRefundReason,
@@ -180,6 +207,8 @@ var (
 	DefaultOrderType string
 	// OrderTypeValidator is a validator for the "order_type" field. It is called by the builders before save.
 	OrderTypeValidator func(string) error
+	// PlanScopeValidator is a validator for the "plan_scope" field. It is called by the builders before save.
+	PlanScopeValidator func(string) error
 	// ProviderInstanceIDValidator is a validator for the "provider_instance_id" field. It is called by the builders before save.
 	ProviderInstanceIDValidator func(string) error
 	// ProviderKeyValidator is a validator for the "provider_key" field. It is called by the builders before save.
@@ -289,6 +318,11 @@ func ByOrderType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderType, opts...).ToFunc()
 }
 
+// ByPlanScope orders the results by the plan_scope field.
+func ByPlanScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlanScope, opts...).ToFunc()
+}
+
 // ByPlanID orders the results by the plan_id field.
 func ByPlanID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlanID, opts...).ToFunc()
@@ -302,6 +336,16 @@ func BySubscriptionGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionDays orders the results by the subscription_days field.
 func BySubscriptionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionDays, opts...).ToFunc()
+}
+
+// ByGlobalPlanSubscriptionID orders the results by the global_plan_subscription_id field.
+func ByGlobalPlanSubscriptionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalPlanSubscriptionID, opts...).ToFunc()
+}
+
+// ByUpgradeFromSubscriptionID orders the results by the upgrade_from_subscription_id field.
+func ByUpgradeFromSubscriptionID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpgradeFromSubscriptionID, opts...).ToFunc()
 }
 
 // ByProviderInstanceID orders the results by the provider_instance_id field.
@@ -410,10 +454,31 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newUserStep(), sql.OrderByField(field, opts...))
 	}
 }
+
+// ByGlobalPlanSubscriptionsCount orders the results by global_plan_subscriptions count.
+func ByGlobalPlanSubscriptionsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newGlobalPlanSubscriptionsStep(), opts...)
+	}
+}
+
+// ByGlobalPlanSubscriptions orders the results by global_plan_subscriptions terms.
+func ByGlobalPlanSubscriptions(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newGlobalPlanSubscriptionsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
 func newUserStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UserInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
+}
+func newGlobalPlanSubscriptionsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(GlobalPlanSubscriptionsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, GlobalPlanSubscriptionsTable, GlobalPlanSubscriptionsColumn),
 	)
 }

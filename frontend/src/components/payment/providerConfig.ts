@@ -42,13 +42,15 @@ export const PROVIDER_SUPPORTED_TYPES: Record<string, string[]> = {
   wxpay: ['wxpay'],
   stripe: ['card', 'alipay', 'wxpay', 'link'],
   airwallex: ['airwallex'],
+  jeepay: ['alipay', 'wxpay', 'paypal'],
+  creem: ['creem'],
 }
 
 /** Available payment modes for EasyPay providers. */
 export const EASYPAY_PAYMENT_MODES = ['qrcode', 'popup'] as const
 
 /** Fixed display order for user-facing payment methods */
-export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex'] as const
+export const METHOD_ORDER = ['alipay', 'alipay_direct', 'wxpay', 'wxpay_direct', 'stripe', 'airwallex', 'paypal', 'creem'] as const
 
 export function isBuiltInAlipayMethod(type: string): boolean {
   return type === 'alipay' || type === 'alipay_direct'
@@ -81,6 +83,11 @@ export const PAYMENT_CURRENCY_OPTIONS: TypeOption[] = [
   { value: 'NZD', label: 'NZD' },
 ]
 
+export const STRIPE_WALLET_DISPLAY_OPTIONS: TypeOption[] = [
+  { value: 'auto', label: 'auto' },
+  { value: 'never', label: 'never' },
+]
+
 // 与后端当前集成的 stripe-go v85.0.0 的 stripe.APIVersion 保持一致。
 export const STRIPE_SDK_API_VERSION = '2026-03-25.dahlia'
 
@@ -110,6 +117,8 @@ export const WEBHOOK_PATHS: Record<string, string> = {
   wxpay: '/api/v1/payment/webhook/wxpay',
   stripe: '/api/v1/payment/webhook/stripe',
   airwallex: '/api/v1/payment/webhook/airwallex',
+  jeepay: '/api/v1/payment/webhook/jeepay',
+  creem: '/api/v1/payment/webhook/creem',
 }
 
 export const RETURN_PATH = '/payment/result'
@@ -119,6 +128,8 @@ export const PROVIDER_CALLBACK_PATHS: Record<string, CallbackPaths> = {
   easypay: { notifyUrl: WEBHOOK_PATHS.easypay, returnUrl: RETURN_PATH },
   alipay: { notifyUrl: WEBHOOK_PATHS.alipay, returnUrl: RETURN_PATH },
   wxpay: { notifyUrl: WEBHOOK_PATHS.wxpay },
+  jeepay: { notifyUrl: WEBHOOK_PATHS.jeepay, returnUrl: RETURN_PATH },
+  creem: { notifyUrl: WEBHOOK_PATHS.creem, returnUrl: RETURN_PATH },
   // stripe: 不需要回调 URL 配置，Webhook 单独配置。
   // airwallex: 不需要回调 URL 配置，Webhook 在空中云汇后台配置。
 }
@@ -151,6 +162,8 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'publishableKey', label: '', sensitive: false },
     { key: 'webhookSecret', label: '', sensitive: true },
     { key: 'currency', label: '', sensitive: false, defaultValue: 'CNY', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
+    { key: 'applePay', label: '', sensitive: false, defaultValue: 'auto', hintKey: 'admin.settings.payment.field_stripeWalletHint', options: STRIPE_WALLET_DISPLAY_OPTIONS },
+    { key: 'googlePay', label: '', sensitive: false, defaultValue: 'auto', hintKey: 'admin.settings.payment.field_stripeWalletHint', options: STRIPE_WALLET_DISPLAY_OPTIONS },
   ],
   airwallex: [
     { key: 'clientId', label: '', sensitive: false },
@@ -160,6 +173,24 @@ export const PROVIDER_CONFIG_FIELDS: Record<string, ConfigFieldDef[]> = {
     { key: 'countryCode', label: '', sensitive: false, defaultValue: 'CN' },
     { key: 'currency', label: '', sensitive: false, defaultValue: 'CNY', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
     { key: 'accountId', label: '', sensitive: false, optional: true, clearable: true, hintKey: 'admin.settings.payment.field_accountIdHint' },
+  ],
+  jeepay: [
+    { key: 'mchNo', label: '', sensitive: false },
+    { key: 'appId', label: 'App ID', sensitive: false },
+    { key: 'apiKey', label: '', sensitive: true },
+    { key: 'apiBase', label: '', sensitive: false, hintKey: 'admin.settings.payment.field_jeepayApiBaseHint' },
+    { key: 'currency', label: '', sensitive: false, defaultValue: 'USD', hintKey: 'admin.settings.payment.field_paymentCurrencyHint', options: PAYMENT_CURRENCY_OPTIONS },
+    { key: 'alipayWayCode', label: '', sensitive: false, optional: true, defaultValue: 'ALI_PC', hintKey: 'admin.settings.payment.field_jeepayAlipayWayCodeHint' },
+    { key: 'wxpayWayCode', label: '', sensitive: false, optional: true, defaultValue: 'WX_NATIVE', hintKey: 'admin.settings.payment.field_jeepayWxpayWayCodeHint' },
+    { key: 'paypalWayCode', label: '', sensitive: false, optional: true, defaultValue: 'PP_PC', hintKey: 'admin.settings.payment.field_jeepayPaypalWayCodeHint' },
+  ],
+  creem: [
+    { key: 'apiKey', label: 'API Key', sensitive: true },
+    { key: 'webhookSecret', label: 'Webhook Secret', sensitive: true },
+    { key: 'environment', label: 'Environment', sensitive: false, defaultValue: 'test', options: [
+      { value: 'test', label: 'Test' },
+      { value: 'prod', label: 'Production' },
+    ] },
   ],
 }
 

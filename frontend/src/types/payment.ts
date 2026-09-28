@@ -19,9 +19,16 @@ export type OrderStatus =
   | 'REFUNDED'
   | 'REFUND_FAILED'
 
-export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex'
+export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'jeepay' | 'paypal' | 'creem'
 
-export type OrderType = 'balance' | 'subscription'
+export type StripeWalletDisplayPreference = 'auto' | 'never'
+
+export interface StripeWalletDisplayPreferences {
+  apple_pay: StripeWalletDisplayPreference
+  google_pay: StripeWalletDisplayPreference
+}
+
+export type OrderType = 'balance' | 'subscription' | 'global_plan' | 'global_plan_upgrade'
 
 // ==================== Configuration ====================
 
@@ -71,6 +78,8 @@ export interface CheckoutInfoResponse {
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
+  billing_currency?: string
+  currency_exchange_rates?: string
   help_text: string
   help_image_url: string
   stripe_publishable_key: string
@@ -78,6 +87,20 @@ export interface CheckoutInfoResponse {
   alipay_force_qrcode?: boolean
   /** When true, official Alipay mobile orders use precreate plus an Alipay app deep link */
   alipay_mobile_precreate_deep_link?: boolean
+  fixed_offers?: FixedPaymentOffer[]
+}
+
+export interface FixedPaymentOffer {
+  offer_id: number
+  payment_type: 'creem'
+  target_type: 'balance' | 'group_plan' | 'global_plan'
+  plan_id?: number
+  title: string
+  pay_amount: number
+  payment_currency: string
+  credited_amount?: number
+  tax_mode: 'inclusive' | 'exclusive'
+  sort_order: number
 }
 
 // ==================== Orders ====================
@@ -103,14 +126,20 @@ export interface PaymentOrder {
   refund_requested_by?: number
   refund_request_reason?: string
   plan_id?: number
+  offer_id?: number
   provider_instance_id?: string
+  stripe_wallets?: StripeWalletDisplayPreferences
 }
 
 // ==================== Plans & Channels ====================
 
 export interface SubscriptionPlan {
   id: number
-  group_id: number
+  group_id: number | null
+  plan_scope?: 'group' | 'global'
+  plan_category?: string
+  applicable_group_mode?: 'all' | 'whitelist' | 'blacklist' | string
+  applicable_group_ids?: number[]
   group_platform?: string
   group_name?: string
   rate_multiplier?: number
@@ -128,6 +157,11 @@ export interface SubscriptionPlan {
   original_price?: number
   /** Display-only ISO 4217 currency label (e.g. "NZD"); empty means no label */
   currency?: string
+  quota_period?: string
+  quota_per_period_usd?: number
+  monthly_max_usd?: number
+  tier_rank?: number
+  public_badge?: string
   validity_days: number
   validity_unit: string
   /** Stored as JSON string in backend; API layer should parse before use */
@@ -164,13 +198,36 @@ export interface ProviderInstance {
   sort_order: number
 }
 
+export interface CreemProductBinding {
+	id: number
+	provider_instance_id: number
+	external_product_id: string
+	target_type: 'balance' | 'group_plan' | 'global_plan'
+	plan_id?: number
+	credited_balance?: number
+	product_name: string
+	price_minor: number
+	currency: string
+	billing_type: 'onetime'
+	product_status: string
+	tax_mode: string
+	environment: 'test' | 'prod'
+	enabled: boolean
+	health_status: string
+	health_reason: string
+	sort_order: number
+	last_synced_at?: string
+}
+
 // ==================== Request / Response ====================
 
 export interface CreateOrderRequest {
   amount: number
+  amount_currency?: string
   payment_type: string
   order_type: string
   plan_id?: number
+	offer_id?: number
   return_url?: string
   payment_source?: string
   openid?: string

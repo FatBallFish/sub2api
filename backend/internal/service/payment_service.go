@@ -71,20 +71,27 @@ func generateRandomString(n int) string {
 }
 
 type CreateOrderRequest struct {
-	UserID          int64
-	Amount          float64
-	PaymentType     string
-	OpenID          string
-	ClientIP        string
-	IsMobile        bool
-	IsWeChatBrowser bool
-	SrcHost         string
-	SrcURL          string
-	ReturnURL       string
-	PaymentSource   string
-	OrderType       string
-	PlanID          int64
-	Locale          string
+	UserID               int64
+	Amount               float64
+	AmountCurrency       string
+	PaymentCurrency      string
+	CurrencyExchangeRate float64
+	PaymentType          string
+	OpenID               string
+	ClientIP             string
+	IsMobile             bool
+	IsWeChatBrowser      bool
+	SrcHost              string
+	SrcURL               string
+	ReturnURL            string
+	PaymentSource        string
+	OrderType            string
+	PlanID               int64
+	OfferID              int64
+	CreemProductID       string
+	CreemBindingID       int64
+	Locale               string
+	UpgradeQuote         *GlobalPlanUpgradeQuote
 }
 
 type CreateOrderResponse struct {
@@ -101,6 +108,8 @@ type CreateOrderResponse struct {
 	ClientSecret                  string                          `json:"client_secret,omitempty"`
 	IntentID                      string                          `json:"intent_id,omitempty"`
 	Currency                      string                          `json:"currency,omitempty"`
+	AmountCurrency                string                          `json:"amount_currency,omitempty"`
+	PaymentCurrency               string                          `json:"payment_currency,omitempty"`
 	CountryCode                   string                          `json:"country_code,omitempty"`
 	PaymentEnv                    string                          `json:"payment_env,omitempty"`
 	OAuth                         *payment.WechatOAuthInfo        `json:"oauth,omitempty"`
@@ -192,6 +201,7 @@ type PaymentService struct {
 	loadBalancer             payment.LoadBalancer
 	redeemService            *RedeemService
 	subscriptionSvc          *SubscriptionService
+	globalPlanService        *GlobalPlanService
 	configService            *PaymentConfigService
 	userRepo                 UserRepository
 	groupRepo                GroupRepository
@@ -208,6 +218,10 @@ func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, load
 
 func (s *PaymentService) SetNotificationEmailService(notificationEmailService *NotificationEmailService) {
 	s.notificationEmailService = notificationEmailService
+}
+
+func (s *PaymentService) SetGlobalPlanService(globalPlanService *GlobalPlanService) {
+	s.globalPlanService = globalPlanService
 }
 
 // --- Provider Registry ---
