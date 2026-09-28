@@ -165,15 +165,23 @@ type SystemSettings struct {
 	CustomMenuItems             []CustomMenuItem `json:"custom_menu_items"`
 	CustomEndpoints             []CustomEndpoint `json:"custom_endpoints"`
 
-	DefaultConcurrency           int                          `json:"default_concurrency"`
-	DefaultBalance               float64                      `json:"default_balance"`
-	AffiliateRebateRate          float64                      `json:"affiliate_rebate_rate"`
-	AffiliateRebateFreezeHours   int                          `json:"affiliate_rebate_freeze_hours"`
-	AffiliateRebateDurationDays  int                          `json:"affiliate_rebate_duration_days"`
-	AffiliateRebatePerInviteeCap float64                      `json:"affiliate_rebate_per_invitee_cap"`
-	AdminRechargeRebateEnabled   bool                         `json:"affiliate_admin_recharge_enabled"`
-	DefaultUserRPMLimit          int                          `json:"default_user_rpm_limit"`
-	DefaultSubscriptions         []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	DefaultConcurrency              int                          `json:"default_concurrency"`
+	DefaultBalance                  float64                      `json:"default_balance"`
+	AffiliateRebateRate             float64                      `json:"affiliate_rebate_rate"`
+	AffiliateRebateFreezeHours      int                          `json:"affiliate_rebate_freeze_hours"`
+	AffiliateRebateDurationDays     int                          `json:"affiliate_rebate_duration_days"`
+	AffiliateRebatePerInviteeCap    float64                      `json:"affiliate_rebate_per_invitee_cap"`
+	AdminRechargeRebateEnabled      bool                         `json:"affiliate_admin_recharge_enabled"`
+	AffiliateInviterSignupReward    float64                      `json:"affiliate_inviter_signup_reward"`
+	AffiliateInviterSignupRewardCap float64                      `json:"affiliate_inviter_signup_reward_cap"`
+	AffiliateInviteeSignupReward    float64                      `json:"affiliate_invitee_signup_reward"`
+	RegionBlockEnabled              bool                         `json:"region_block_enabled"`
+	RegionBlockFrontendEnabled      bool                         `json:"region_block_frontend_enabled"`
+	RegionBlockAPIEnabled           bool                         `json:"region_block_api_enabled"`
+	RegionBlockCodes                string                       `json:"region_block_codes"`
+	RegionBlockHeaders              string                       `json:"region_block_headers"`
+	DefaultUserRPMLimit             int                          `json:"default_user_rpm_limit"`
+	DefaultSubscriptions            []DefaultSubscriptionSetting `json:"default_subscriptions"`
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -280,14 +288,15 @@ type SystemSettings struct {
 	PaymentSubscriptionUSDToCNYRate  float64  `json:"payment_subscription_usd_to_cny_rate"`
 	PaymentRechargeFeeRate           float64  `json:"payment_recharge_fee_rate"`
 	// 充值赠送阶梯与活动文案
-	PaymentRechargeBonusTiers  []RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
-	PaymentRechargeBonusMode   string              `json:"payment_recharge_bonus_mode"`
-	PaymentRechargeBonusNotice string              `json:"payment_recharge_bonus_notice"`
-	PaymentLoadBalanceStrat    string              `json:"payment_load_balance_strategy"`
-	PaymentProductNamePrefix   string              `json:"payment_product_name_prefix"`
-	PaymentProductNameSuffix   string              `json:"payment_product_name_suffix"`
-	PaymentHelpImageURL        string              `json:"payment_help_image_url"`
-	PaymentHelpText            string              `json:"payment_help_text"`
+	PaymentRechargeBonusTiers    []RechargeBonusTier `json:"payment_recharge_bonus_tiers"`
+	PaymentRechargeBonusMode     string              `json:"payment_recharge_bonus_mode"`
+	PaymentRechargeBonusNotice   string              `json:"payment_recharge_bonus_notice"`
+	PaymentCurrencyExchangeRates string              `json:"payment_currency_exchange_rates"`
+	PaymentLoadBalanceStrat      string              `json:"payment_load_balance_strategy"`
+	PaymentProductNamePrefix     string              `json:"payment_product_name_prefix"`
+	PaymentProductNameSuffix     string              `json:"payment_product_name_suffix"`
+	PaymentHelpImageURL          string              `json:"payment_help_image_url"`
+	PaymentHelpText              string              `json:"payment_help_text"`
 
 	// Cancel rate limit
 	PaymentCancelRateLimitEnabled bool   `json:"payment_cancel_rate_limit_enabled"`
@@ -450,6 +459,10 @@ type PublicSettings struct {
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+
+	RegionBlockFrontendEnabled bool   `json:"region_block_frontend_enabled"`
+	RegionBlockFrontendBlocked bool   `json:"region_block_frontend_blocked"`
+	RegionBlockCurrentRegion   string `json:"region_block_current_region"`
 }
 
 type LoginAgreementDocument struct {

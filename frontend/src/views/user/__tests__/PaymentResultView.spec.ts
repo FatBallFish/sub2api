@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+
+enableAutoUnmount(afterEach)
 
 const routeState = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,

@@ -31,8 +31,10 @@ const (
 
 	VisibleMethodSourceOfficialAlipay = "official_alipay"
 	VisibleMethodSourceEasyPayAlipay  = "easypay_alipay"
+	VisibleMethodSourceJeepayAlipay   = "jeepay_alipay"
 	VisibleMethodSourceOfficialWechat = "official_wxpay"
 	VisibleMethodSourceEasyPayWechat  = "easypay_wxpay"
+	VisibleMethodSourceJeepayWechat   = "jeepay_wxpay"
 
 	wechatPaymentResumeTokenType = "wechat_payment_resume"
 
@@ -55,16 +57,17 @@ type ResumeTokenClaims struct {
 }
 
 type WeChatPaymentResumeClaims struct {
-	TokenType   string `json:"tk,omitempty"`
-	OpenID      string `json:"openid"`
-	PaymentType string `json:"pt,omitempty"`
-	Amount      string `json:"amt,omitempty"`
-	OrderType   string `json:"ot,omitempty"`
-	PlanID      int64  `json:"pid,omitempty"`
-	RedirectTo  string `json:"rd,omitempty"`
-	Scope       string `json:"scp,omitempty"`
-	IssuedAt    int64  `json:"iat"`
-	ExpiresAt   int64  `json:"exp,omitempty"`
+	TokenType      string `json:"tk,omitempty"`
+	OpenID         string `json:"openid"`
+	PaymentType    string `json:"pt,omitempty"`
+	Amount         string `json:"amt,omitempty"`
+	AmountCurrency string `json:"cur,omitempty"`
+	OrderType      string `json:"ot,omitempty"`
+	PlanID         int64  `json:"pid,omitempty"`
+	RedirectTo     string `json:"rd,omitempty"`
+	Scope          string `json:"scp,omitempty"`
+	IssuedAt       int64  `json:"iat"`
+	ExpiresAt      int64  `json:"exp,omitempty"`
 }
 
 type PaymentResumeService struct {
@@ -156,6 +159,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialAlipay
 		case VisibleMethodSourceEasyPayAlipay, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayAlipay
+		case VisibleMethodSourceJeepayAlipay, payment.TypeJeepay:
+			return VisibleMethodSourceJeepayAlipay
 		}
 	case payment.TypeWxpay:
 		switch strings.TrimSpace(strings.ToLower(source)) {
@@ -163,6 +168,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialWechat
 		case VisibleMethodSourceEasyPayWechat, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayWechat
+		case VisibleMethodSourceJeepayWechat, payment.TypeJeepay:
+			return VisibleMethodSourceJeepayWechat
 		}
 	}
 	return ""
@@ -174,10 +181,14 @@ func VisibleMethodProviderKeyForSource(method, source string) (string, bool) {
 		return payment.TypeAlipay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceEasyPayAlipay:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeAlipay
+	case VisibleMethodSourceJeepayAlipay:
+		return payment.TypeJeepay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceOfficialWechat:
 		return payment.TypeWxpay, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	case VisibleMethodSourceEasyPayWechat:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeWxpay
+	case VisibleMethodSourceJeepayWechat:
+		return payment.TypeJeepay, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	default:
 		return "", false
 	}
