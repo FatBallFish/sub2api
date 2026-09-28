@@ -1,0 +1,22 @@
+[Unit]
+Description=Authenticated IPv6 rotating SOCKS5/HTTP proxy pool
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/ipv6-pool-proxy/ipv6-pool-proxy.env
+RuntimeDirectory=ipv6-pool-proxy
+ExecStartPre=/usr/local/sbin/ipv6-pool-prepare
+ExecStart=/usr/local/bin/ipv6-pool-proxy
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run/ipv6-pool-proxy
+
+[Install]
+WantedBy=multi-user.target

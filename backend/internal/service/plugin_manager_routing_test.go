@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/tlsfingerprint"
+	pluginv1 "github.com/Wei-Shaw/sub2api/pkg/pluginapi/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -133,3 +134,30 @@ func TestPluginManagerStatusReportsNotRunningWithoutRuntime(t *testing.T) {
 	assert.Equal(t, "插件未运行", resp.Message)
 	assert.Empty(t, resp.StatusJson)
 }
+
+func TestPluginManagerRunActionUsesRunningRuntime(t *testing.T) {
+	tc := dispenseTransportClient(t, &actionProbePlugin{})
+	manager := &PluginManager{
+		repo:     &statusStubRepository{},
+		runtimes: map[int64]*pluginRuntime{7: {api: tc.TransportPluginClient}},
+	}
+
+	resp, err := manager.RunAction(context.Background(), 7, []byte(`{"kind":"probe"}`))
+	require.NoError(t, err)
+	require.True(t, resp.Accepted)
+	assert.Equal(t, "accepted", resp.Message)
+}
+
+func TestPluginManagerRunActionRejectsMissingRuntimeAndOversizedPayload(t *testing.T) {
+	manager := &PluginManager{repo: &statusStubRepository{}, runtimes: map[int64]*pluginRuntime{}}
+
+	_, err := manager.RunAction(context.Background(), 7, []byte(`{"kind":"probe"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "启用插件")
+
+	_, err = manager.RunAction(context.Background(), 7, make([]byte, pluginActionMaxBytes+1))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "过大")
+}
+
+var _ pluginv1.TransportPluginServer = (*actionProbePlugin)(nil)

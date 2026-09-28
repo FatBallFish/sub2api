@@ -179,6 +179,26 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 	return h
 }
 
+// ProvideAdminSubscriptionHandler creates admin.SubscriptionHandler with global plan support.
+func ProvideAdminSubscriptionHandler(subscriptionService *service.SubscriptionService, globalPlanService *service.GlobalPlanService) *admin.SubscriptionHandler {
+	return admin.NewSubscriptionHandler(subscriptionService, globalPlanService)
+}
+
+// ProvidePaymentHandler creates user-facing PaymentHandler with optional dependencies.
+func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, channelService *service.ChannelService, billingService *service.BillingService, modelPricingDisplay *service.ModelPricingDisplayService) *PaymentHandler {
+	return NewPaymentHandler(paymentService, configService, channelService, billingService, modelPricingDisplay)
+}
+
+// ProvideAdminChannelHandler creates admin.ChannelHandler with optional display pricing support.
+func ProvideAdminChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService, modelPricingDisplay *service.ModelPricingDisplayService) *admin.ChannelHandler {
+	return admin.NewChannelHandler(channelService, billingService, pricingService, modelPricingDisplay)
+}
+
+// ProvideConsoleHandler creates ConsoleHandler with optional console dependencies wired explicitly.
+func ProvideConsoleHandler(userService *service.UserService, paymentConfig *service.PaymentConfigService, affiliateService *service.AffiliateService, usageService *service.UsageService, apiKeyService *service.APIKeyService, announcementService *service.AnnouncementService, globalPlanService *service.GlobalPlanService, paymentService *service.PaymentService, settingService *service.SettingService) *ConsoleHandler {
+	return NewConsoleHandler(userService, paymentConfig, affiliateService, usageService, apiKeyService, announcementService, globalPlanService, paymentService, settingService)
+}
+
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
 	authHandler *AuthHandler,
@@ -199,10 +219,12 @@ func ProvideHandlers(
 	passkeyHandler *PasskeyHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
+	modelPricingHandler *ModelPricingHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
 	batchImageHandler *BatchImageHandler,
+	consoleHandler *ConsoleHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 	_ *service.OpenAIQuotaAutoResetService,
@@ -226,10 +248,12 @@ func ProvideHandlers(
 		Passkey:          passkeyHandler,
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
+		ModelPricing:     modelPricingHandler,
 		AvailableChannel: availableChannelHandler,
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
 		BatchImage:       batchImageHandler,
+		Console:          consoleHandler,
 	}
 }
 
@@ -251,12 +275,14 @@ var ProviderSet = wire.NewSet(
 	NewTotpHandler,
 	NewPasskeyHandler,
 	ProvideSettingHandler,
-	NewPaymentHandler,
+	ProvidePaymentHandler,
 	NewPaymentWebhookHandler,
+	NewModelPricingHandler,
 	NewAvailableChannelHandler,
 	NewModelPlazaHandler,
 	NewAsyncImageHandler,
 	ProvideBatchImageHandler,
+	ProvideConsoleHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -278,7 +304,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAdminSettingHandler,
 	admin.NewOpsHandler,
 	ProvideSystemHandler,
-	admin.NewSubscriptionHandler,
+	ProvideAdminSubscriptionHandler,
 	admin.NewUsageHandler,
 	admin.NewUserAttributeHandler,
 	admin.NewErrorPassthroughHandler,
@@ -286,7 +312,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewPluginHandler,
 	admin.NewAdminAPIKeyHandler,
 	admin.NewScheduledTestHandler,
-	admin.NewChannelHandler,
+	ProvideAdminChannelHandler,
 	admin.NewChannelMonitorHandler,
 	admin.NewChannelMonitorRequestTemplateHandler,
 	admin.NewContentModerationHandler,

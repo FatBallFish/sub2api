@@ -19,8 +19,11 @@ const (
 	TypeStripe       PaymentType = "stripe"
 	TypeCard         PaymentType = "card"
 	TypeLink         PaymentType = "link"
+	TypePaypal       PaymentType = "paypal"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeJeepay       PaymentType = "jeepay"
+	TypeCreem        PaymentType = "creem"
 )
 
 // Order status constants shared across payment and service layers.
@@ -42,8 +45,10 @@ const (
 
 // Order types distinguish balance recharges from subscription purchases.
 const (
-	OrderTypeBalance      = "balance"
-	OrderTypeSubscription = "subscription"
+	OrderTypeBalance           = "balance"
+	OrderTypeSubscription      = "subscription"
+	OrderTypeGlobalPlan        = "global_plan"
+	OrderTypeGlobalPlanUpgrade = "global_plan_upgrade"
 )
 
 // Entity statuses shared across users, groups, etc.
@@ -62,6 +67,11 @@ const (
 const (
 	NotificationStatusSuccess = "success"
 	NotificationStatusPaid    = "paid"
+)
+
+const (
+	NotificationTypePayment = "payment"
+	NotificationTypeRefund  = "refund"
 )
 
 // Provider-level status constants returned by provider implementations
@@ -89,8 +99,14 @@ func GetBasePaymentType(t string) string {
 		return TypeEasyPay
 	case t == TypeAirwallex:
 		return TypeAirwallex
+	case t == TypeJeepay:
+		return TypeJeepay
+	case t == TypeCreem:
+		return TypeCreem
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
+	case t == TypePaypal:
+		return TypePaypal
 	case len(t) >= len(TypeAlipay) && t[:len(TypeAlipay)] == TypeAlipay:
 		return TypeAlipay
 	case len(t) >= len(TypeWxpay) && t[:len(TypeWxpay)] == TypeWxpay:
@@ -115,6 +131,9 @@ type CreatePaymentRequest struct {
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool
 	InstanceSubMethods    string // Comma-separated sub-methods from instance supported_types (for Stripe)
+	ProductID             string // Fixed upstream product ID (Creem)
+	CustomerEmail         string // Customer email to pre-fill hosted checkout
+	Metadata              map[string]string
 }
 
 // CreatePaymentResultType describes the shape of the create-payment result.
@@ -172,20 +191,28 @@ type QueryOrderResponse struct {
 
 // PaymentNotification is the parsed result of a webhook/notify callback.
 type PaymentNotification struct {
-	TradeNo  string
-	OrderID  string
-	Amount   float64
-	Status   string // "success" or "failed"
-	RawData  string // Raw notification body for audit
-	Metadata map[string]string
+	Type                       string
+	EventID                    string
+	TradeNo                    string
+	OrderID                    string
+	Amount                     float64
+	Status                     string // "success" or "failed"
+	RawData                    string // Raw notification body for audit
+	Metadata                   map[string]string
+	RefundID                   string
+	RefundAmountMinor          int64
+	CumulativeRefundedMinor    int64
+	TransactionAmountPaidMinor int64
 }
 
 // RefundRequest contains the parameters for requesting a refund.
 type RefundRequest struct {
-	TradeNo string
-	OrderID string
-	Amount  string // Refund amount formatted to 2 decimal places
-	Reason  string
+	TradeNo  string
+	OrderID  string
+	RefundID string // Merchant-generated refund order number.
+	Amount   string // Refund amount formatted to 2 decimal places
+	Reason   string
+	ClientIP string
 }
 
 // RefundQueryRequest contains identifiers needed to query a previously

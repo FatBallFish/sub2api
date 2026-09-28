@@ -1136,6 +1136,52 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
+  it("exposes Creem in the enabled payment type controls", async () => {
+    let receivedPaymentTypes: Array<Record<string, unknown>> = [];
+    const PaymentProviderListCapture = defineComponent({
+      props: {
+        allPaymentTypes: {
+          type: Array,
+          default: () => [],
+        },
+      },
+      setup(props) {
+        receivedPaymentTypes = props.allPaymentTypes as Array<
+          Record<string, unknown>
+        >;
+        return () => h("div", { class: "provider-list-capture" });
+      },
+    });
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          Select: SelectStub,
+          Toggle: ToggleStub,
+          Icon: true,
+          ConfirmDialog: true,
+          PaymentProviderList: PaymentProviderListCapture,
+          PaymentProviderDialog: true,
+          GroupBadge: true,
+          GroupOptionItem: true,
+          ProxySelector: true,
+          ImageUpload: ImageUploadStub,
+          BackupSettings: true,
+        },
+      },
+    });
+
+    await flushPromises();
+    await openPaymentTab(wrapper);
+
+    expect(receivedPaymentTypes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "creem" }),
+      ]),
+    );
+  });
+
   it("drops incomplete recharge bonus rows and submits an empty list when cleared", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

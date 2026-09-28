@@ -1427,6 +1427,84 @@ func TestAPIKeyAuthRejectsExhaustedBalance(t *testing.T) {
 	requireAPIKeyAuthError(t, w, "INSUFFICIENT_BALANCE", "Insufficient account balance")
 }
 
+func TestAPIKeyAuthAllowsExhaustedBalanceWithApplicableGlobalPlan(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	group := &service.Group{
+		ID:               42,
+		Status:           service.StatusActive,
+		Hydrated:         true,
+		SubscriptionType: service.SubscriptionTypeStandard,
+	}
+	user := &service.User{
+		ID:          10,
+		Role:        service.RoleUser,
+		Status:      service.StatusActive,
+		Balance:     0,
+		Concurrency: 3,
+	}
+	apiKey := &service.APIKey{
+		ID:      104,
+		UserID:  user.ID,
+		Key:     "global-plan-balance-zero",
+		Status:  service.StatusActive,
+		User:    user,
+		Group:   group,
+		GroupID: &group.ID,
+	}
+	apiKeyRepo := &stubApiKeyRepo{getByKey: func(ctx context.Context, key string) (*service.APIKey, error) {
+		if key != apiKey.Key {
+			return nil, service.ErrAPIKeyNotFound
+		}
+		clone := *apiKey
+		userClone := *user
+		clone.User = &userClone
+		return &clone, nil
+	}}
+
+	cfg := &config.Config{RunMode: config.RunModeStandard}
+	apiKeyService := service.NewAPIKeyService(apiKeyRepo, nil, nil, nil, nil, nil, cfg)
+	apiKeyService.SetGlobalPlanEligibilityChecker(middlewareGlobalPlanEligibilityStub{available: true})
+	router := newAuthTestRouter(apiKeyService, nil, cfg)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/t", nil)
+	req.Header.Set("x-api-key", apiKey.Key)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAPIKeyHasApplicableGlobalPlanGuardsAndErrors(t *testing.T) {
+	ctx := context.Background()
+	standardGroup := &service.Group{ID: 42, SubscriptionType: service.SubscriptionTypeStandard}
+	subscriptionGroup := &service.Group{ID: 43, SubscriptionType: service.SubscriptionTypeSubscription}
+	user := &service.User{ID: 10}
+
+	for _, apiKey := range []*service.APIKey{
+		nil,
+		{},
+		{User: user},
+		{User: user, Group: subscriptionGroup},
+	} {
+		available, err := apiKeyHasApplicableGlobalPlan(ctx, nil, apiKey)
+		require.NoError(t, err)
+		require.False(t, available)
+	}
+
+	cfg := &config.Config{}
+	apiKeyService := service.NewAPIKeyService(nil, nil, nil, nil, nil, nil, cfg)
+	available, err := apiKeyHasApplicableGlobalPlan(ctx, apiKeyService, &service.APIKey{User: user, Group: standardGroup})
+	require.NoError(t, err)
+	require.False(t, available)
+
+	wantErr := errors.New("global plan unavailable")
+	apiKeyService.SetGlobalPlanEligibilityChecker(middlewareGlobalPlanEligibilityStub{err: wantErr})
+	available, err = apiKeyHasApplicableGlobalPlan(ctx, apiKeyService, &service.APIKey{User: user, Group: standardGroup})
+	require.ErrorIs(t, err, wantErr)
+	require.False(t, available)
+}
+
 func TestAPIKeyAuthOpenAIQuotaErrorFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

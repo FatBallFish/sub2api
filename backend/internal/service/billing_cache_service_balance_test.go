@@ -23,6 +23,15 @@ type balanceEligibilityCacheStub struct {
 	invalidateCalls          atomic.Int64
 }
 
+type globalPlanEligibilityStub struct {
+	available bool
+	err       error
+}
+
+func (s globalPlanEligibilityStub) HasApplicableRemaining(context.Context, int64, int64, time.Time) (bool, error) {
+	return s.available, s.err
+}
+
 func (s *balanceEligibilityCacheStub) GetUserBalance(context.Context, int64) (float64, error) {
 	if s.cacheMissAfterInvalidate && s.invalidated.Load() {
 		return 0, errors.New("cache miss")
@@ -61,6 +70,63 @@ func TestCheckBillingEligibility_AllowsBalanceAtMinimumReserve(t *testing.T) {
 
 	err := svc.CheckBillingEligibility(context.Background(), &User{ID: 1}, nil, nil, nil, "")
 	require.NoError(t, err)
+}
+
+func TestCheckBillingEligibility_AllowsZeroBalanceWithApplicableGlobalPlan(t *testing.T) {
+	cache := &balanceEligibilityCacheStub{balance: 0}
+	cfg := &config.Config{}
+	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, cfg, nil)
+	svc.SetGlobalPlanEligibilityChecker(globalPlanEligibilityStub{available: true})
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(
+		context.Background(),
+		&User{ID: 1},
+		nil,
+		&Group{ID: 42, SubscriptionType: SubscriptionTypeStandard},
+		nil,
+		PlatformOpenAI,
+	)
+
+	require.NoError(t, err)
+}
+
+func TestCheckBillingEligibility_RejectsZeroBalanceWithoutApplicableGlobalPlan(t *testing.T) {
+	cache := &balanceEligibilityCacheStub{balance: 0}
+	cfg := &config.Config{}
+	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, cfg, nil)
+	svc.SetGlobalPlanEligibilityChecker(globalPlanEligibilityStub{available: false})
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(
+		context.Background(),
+		&User{ID: 1},
+		nil,
+		&Group{ID: 42, SubscriptionType: SubscriptionTypeStandard},
+		nil,
+		PlatformOpenAI,
+	)
+
+	require.ErrorIs(t, err, ErrInsufficientBalance)
+}
+
+func TestCheckBillingEligibility_FailsClosedWhenGlobalPlanLookupFails(t *testing.T) {
+	cache := &balanceEligibilityCacheStub{balance: 0}
+	cfg := &config.Config{}
+	svc := NewBillingCacheService(cache, nil, nil, nil, nil, nil, cfg, nil)
+	svc.SetGlobalPlanEligibilityChecker(globalPlanEligibilityStub{err: errors.New("database unavailable")})
+	t.Cleanup(svc.Stop)
+
+	err := svc.CheckBillingEligibility(
+		context.Background(),
+		&User{ID: 1},
+		nil,
+		&Group{ID: 42, SubscriptionType: SubscriptionTypeStandard},
+		nil,
+		PlatformOpenAI,
+	)
+
+	require.ErrorIs(t, err, ErrBillingServiceUnavailable)
 }
 
 func TestSyncBalanceCacheAfterDeduction_InvalidatesExhaustedBalance(t *testing.T) {
