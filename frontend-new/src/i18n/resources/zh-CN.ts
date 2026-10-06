@@ -261,6 +261,7 @@ const zhCN = {
       modelPricing: "模型价格",
       usageHistory: "使用记录",
       announcements: "公告",
+      downloadApp: "下载Mikiko App",
       installGuide: "安装指南",
     },
     shell: {
