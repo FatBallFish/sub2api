@@ -180,6 +180,32 @@ describe("ConsoleLayout", () => {
     expect(screen.getByRole("link", { name: "概覽" })).not.toHaveAttribute("aria-current");
   });
 
+  it("renders the app download menu as a localized external link", async () => {
+    render(
+      <MemoryRouter initialEntries={["/console"]}>
+        <Routes>
+          <Route path="/console" element={<ConsoleLayout bootstrap={bootstrap} />}>
+            <Route index element={<div>Overview content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = screen.getByRole("link", { name: "Download Mikiko App" });
+    expect(link).toHaveAttribute("href", "https://agent.mikiko.ai/");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+
+    await act(async () => {
+      await i18n.changeLanguage("zh-CN");
+    });
+
+    expect(screen.getByRole("link", { name: "下载Mikiko App" })).toHaveAttribute(
+      "href",
+      "https://agent.mikiko.ai/",
+    );
+  });
+
   it("provides an accessible mobile navigation drawer while keeping top controls available", async () => {
     render(
       <MemoryRouter initialEntries={["/console"]}>

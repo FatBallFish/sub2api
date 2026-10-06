@@ -261,6 +261,7 @@ const ja = {
       modelPricing: "モデル料金",
       usageHistory: "利用履歴",
       announcements: "お知らせ",
+      downloadApp: "Mikiko Appをダウンロード",
       installGuide: "インストールガイド",
     },
     shell: {

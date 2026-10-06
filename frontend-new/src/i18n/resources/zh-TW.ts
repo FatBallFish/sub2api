@@ -261,6 +261,7 @@ const zhTW = {
       modelPricing: "模型價格",
       usageHistory: "使用記錄",
       announcements: "公告",
+      downloadApp: "下載Mikiko App",
       installGuide: "安裝指南",
     },
     shell: {
