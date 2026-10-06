@@ -264,6 +264,7 @@ const en = {
       modelPricing: "Model Pricing",
       usageHistory: "Usage History",
       announcements: "Announcements",
+      downloadApp: "Download Mikiko App",
       installGuide: "Install Guide",
     },
     shell: {

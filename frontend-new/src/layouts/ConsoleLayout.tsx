@@ -18,6 +18,7 @@ import {
   List,
   X,
   Ticket,
+  DownloadSimple,
 } from "@phosphor-icons/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -37,6 +38,7 @@ type ConsoleTheme = "light" | "dark";
 
 const CONSOLE_THEME_STORAGE_KEY = "mikiko.console.theme.v1";
 const MOBILE_NAVIGATION_ID = "console-mobile-navigation";
+const APP_DOWNLOAD_URL = "https://agent.mikiko.ai/";
 
 function readConsoleTheme(): ConsoleTheme {
   if (typeof window === "undefined") return "light";
@@ -175,6 +177,16 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
             </NavLink>
           );
         })}
+        <a
+          href={APP_DOWNLOAD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onNavigate}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-500 transition-all duration-200 hover:text-zinc-900 hover:bg-zinc-50"
+        >
+          <DownloadSimple size={20} weight="regular" />
+          <span>{t("nav.downloadApp")}</span>
+        </a>
       </nav>
 
       <div className="absolute bottom-0 left-0 right-0 z-10 border-t border-zinc-100 bg-white p-4">
