@@ -171,8 +171,9 @@ describe("OAuthCallback", () => {
       .mockResolvedValueOnce(response({
         step: "choose_account_action_required",
         provider: "oidc",
-        email: "newcomer@example.com",
-        resolved_email: "newcomer@example.com",
+        email: "oidc-31de71a3e1b0077e46ca29a2597d8bf9@oidc-connect.invalid",
+        resolved_email: "oidc-31de71a3e1b0077e46ca29a2597d8bf9@oidc-connect.invalid",
+        compat_email: "newcomer@example.com",
         email_verification_required: true,
         create_account_allowed: true,
       }))
