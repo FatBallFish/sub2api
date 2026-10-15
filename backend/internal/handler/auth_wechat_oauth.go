@@ -669,7 +669,7 @@ func (h *AuthHandler) createWeChatChoicePendingSession(
 		"resolved_email":            canonicalEmail,
 		"existing_account_email":    "",
 		"existing_account_bindable": false,
-		"create_account_allowed":    true,
+		"create_account_allowed":    h.oauthCreateAccountAllowed(c.Request.Context()),
 		"force_email_on_signup":     forceEmailOnSignup,
 		"choice_reason":             "third_party_signup",
 	}

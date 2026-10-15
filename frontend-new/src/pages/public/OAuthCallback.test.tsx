@@ -205,6 +205,23 @@ describe("OAuthCallback", () => {
     );
   });
 
+  it("hides the create-account option when the backend disallows new account creation", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({
+      step: "choose_account_action_required",
+      provider: "oidc",
+      email: "newcomer@example.com",
+      resolved_email: "newcomer@example.com",
+      create_account_allowed: false,
+    }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    expect(await screen.findByText("Choose how to continue")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bind an existing account" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create a new account" })).not.toBeInTheDocument();
+  });
+
   it("routes chooser signup into the pending create-account form with a locked email and code field", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(response({

@@ -24,6 +24,16 @@ func (s *SettingService) IsRegistrationEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsOAuthSignupBypassRegistrationEnabled 检查是否在关闭开放注册时仍允许
+// 第三方授权登录创建账号（登录页不展示注册入口，但 OAuth 建号链路放行）。
+func (s *SettingService) IsOAuthSignupBypassRegistrationEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyOAuthSignupBypassRegistration)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 // IsEmailVerifyEnabled 检查是否开启邮件验证
 func (s *SettingService) IsEmailVerifyEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyEmailVerifyEnabled)
