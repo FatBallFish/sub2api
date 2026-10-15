@@ -406,6 +406,33 @@ export default {
         frontendRedirectUrl: '前端回调路径',
         frontendRedirectUrlPlaceholder: '/auth/oidc/callback',
         frontendRedirectUrlHint: '后端回调完成后重定向到此前端路径',
+
+        console: {
+          title: '新前端（console）独立 OIDC 登录',
+          description:
+            '为新前端域名单独提供 OIDC 登录入口；issuer、scopes 等协议参数继承上方主配置',
+          enable: '启用新前端独立 OIDC 登录',
+          enableHint: '在新前端登录页显示 OIDC 登录入口（使用独立回调地址与 cookie）',
+          providerName: 'Provider 名称',
+          providerNamePlaceholder: '留空则沿用主配置名称',
+          providerNameHint: '展示在新前端登录按钮上的名称',
+          clientId: 'Client ID',
+          clientIdPlaceholder: '留空则沿用主配置',
+          clientIdHint: '仅当新前端使用独立的 OIDC client 时填写',
+          clientSecret: 'Client Secret',
+          clientSecretPlaceholder: '********',
+          clientSecretHint: '留空且未配置过时沿用主配置密钥',
+          clientSecretConfiguredPlaceholder: '********',
+          clientSecretConfiguredHint: '密钥已配置，留空以保留当前值。',
+          redirectUrl: '新前端后端回调地址（Redirect URL）',
+          redirectUrlPlaceholder:
+            'https://console.example.com/api/v1/auth/oauth/oidc-console/callback',
+          redirectUrlHint:
+            '必须与 OIDC Provider 中注册的新前端回调地址一致（/api/v1/auth/oauth/oidc-console/callback）',
+          frontendRedirectUrl: '新前端回调路径',
+          frontendRedirectUrlPlaceholder: '/auth/oauth/callback',
+          frontendRedirectUrlHint: '回调完成后重定向到新前端的页面路径',
+        },
         tokenAuthMethod: 'Token 鉴权方式',
         clockSkewSeconds: '时钟偏移（秒）',
         allowedSigningAlgs: '允许的签名算法',

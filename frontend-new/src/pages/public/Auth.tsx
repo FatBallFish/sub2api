@@ -81,7 +81,10 @@ export default function Auth() {
   const invitationCodeRequired = settings?.invitation_code_enabled === true;
   const googleOAuthEnabled = settings?.google_oauth_enabled === true;
   const githubOAuthEnabled = settings?.github_oauth_enabled === true;
-  const showOAuth = googleOAuthEnabled || githubOAuthEnabled;
+  const oidcConsoleOAuthEnabled = settings?.oidc_console_oauth_enabled === true;
+  const oidcConsoleProviderName = settings?.oidc_console_oauth_provider_name?.trim() || "OIDC";
+  const oauthButtonCount = [googleOAuthEnabled, githubOAuthEnabled, oidcConsoleOAuthEnabled].filter(Boolean).length;
+  const showOAuth = oauthButtonCount > 0;
   const loginAgreementDocuments = agreementDocuments(settings);
   const loginAgreementEnabled = settings?.login_agreement_enabled === true && loginAgreementDocuments.length > 0;
   const loginAgreementMode = settings?.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
@@ -314,7 +317,7 @@ export default function Auth() {
     }
   };
 
-  const handleOAuthStart = async (provider: "google" | "github") => {
+  const handleOAuthStart = async (provider: "google" | "github" | "oidc-console") => {
     if (requestInFlightRef.current || !requireReadySettings() || !requireAgreement() || captchaConfigurationInvalid) return;
     if (!actionCaptchaRequired) {
       startOAuth(provider, redirectTo, initialAffiliateCode);
@@ -631,7 +634,7 @@ export default function Auth() {
                   </div>
                 </div>
 
-                <div className={`grid gap-4 ${googleOAuthEnabled && githubOAuthEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
+                <div className={`grid gap-4 ${oauthButtonCount > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                   {googleOAuthEnabled ? (
                     <button
                       type="button"
@@ -652,6 +655,17 @@ export default function Auth() {
                     >
                       <GithubLogo size={20} weight="bold" />
                       GitHub
+                    </button>
+                  ) : null}
+                  {oidcConsoleOAuthEnabled ? (
+                    <button
+                      type="button"
+                      disabled={loading || agreementRequired}
+                      onClick={() => void handleOAuthStart("oidc-console")}
+                      className={`flex items-center justify-center gap-2 rounded-xl border border-zinc-200 py-3 text-sm font-medium transition-all hover:bg-zinc-50 disabled:cursor-not-allowed ${oauthButtonCount % 2 === 1 ? "col-span-2" : ""}`}
+                    >
+                      <ShieldCheck size={20} weight="bold" />
+                      {oidcConsoleProviderName}
                     </button>
                   ) : null}
                 </div>

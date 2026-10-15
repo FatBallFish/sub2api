@@ -26,6 +26,8 @@ export interface PublicSettings {
   api_base_url?: string;
   contact_info?: string;
   hide_ccs_import_button?: boolean;
+  oidc_console_oauth_enabled?: boolean;
+  oidc_console_oauth_provider_name?: string;
   login_agreement_enabled?: boolean;
   login_agreement_mode?: "modal" | "checkbox" | string;
   login_agreement_updated_at?: string;

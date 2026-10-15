@@ -138,6 +138,13 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath   string `json:"oidc_connect_userinfo_username_path"`
 
+	OIDCConnectConsoleEnabled                bool   `json:"oidc_connect_console_enabled"`
+	OIDCConnectConsoleProviderName           string `json:"oidc_connect_console_provider_name"`
+	OIDCConnectConsoleClientID               string `json:"oidc_connect_console_client_id"`
+	OIDCConnectConsoleClientSecretConfigured bool   `json:"oidc_connect_console_client_secret_configured"`
+	OIDCConnectConsoleRedirectURL            string `json:"oidc_connect_console_redirect_url"`
+	OIDCConnectConsoleFrontendRedirectURL    string `json:"oidc_connect_console_frontend_redirect_url"`
+
 	GitHubOAuthEnabled                bool   `json:"github_oauth_enabled"`
 	GitHubOAuthClientID               string `json:"github_oauth_client_id"`
 	GitHubOAuthClientSecretConfigured bool   `json:"github_oauth_client_secret_configured"`
@@ -421,6 +428,8 @@ type PublicSettings struct {
 	WeChatOAuthMobileEnabled            bool                     `json:"wechat_oauth_mobile_enabled"`
 	OIDCOAuthEnabled                    bool                     `json:"oidc_oauth_enabled"`
 	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
+	OIDCConsoleOAuthEnabled             bool                     `json:"oidc_console_oauth_enabled"`
+	OIDCConsoleOAuthProviderName        string                   `json:"oidc_console_oauth_provider_name"`
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`

@@ -381,6 +381,15 @@ const (
 	SettingKeyOIDCConnectUserInfoIDPath       = "oidc_connect_userinfo_id_path"
 	SettingKeyOIDCConnectUserInfoUsernamePath = "oidc_connect_userinfo_username_path"
 
+	// 新前端（console）独立 OIDC 登录配置：issuer/scopes 等协议参数继承主配置，
+	// 这里只覆盖入口展示与回调相关字段，实现新老前端各自域名下的独立登录。
+	SettingKeyOIDCConnectConsoleEnabled             = "oidc_connect_console_enabled"
+	SettingKeyOIDCConnectConsoleProviderName        = "oidc_connect_console_provider_name"
+	SettingKeyOIDCConnectConsoleClientID            = "oidc_connect_console_client_id"
+	SettingKeyOIDCConnectConsoleClientSecret        = "oidc_connect_console_client_secret"
+	SettingKeyOIDCConnectConsoleRedirectURL         = "oidc_connect_console_redirect_url"
+	SettingKeyOIDCConnectConsoleFrontendRedirectURL = "oidc_connect_console_frontend_redirect_url"
+
 	// GitHub / Google 邮箱快捷登录设置
 	SettingKeyGitHubOAuthEnabled             = "github_oauth_enabled"
 	SettingKeyGitHubOAuthClientID            = "github_oauth_client_id"

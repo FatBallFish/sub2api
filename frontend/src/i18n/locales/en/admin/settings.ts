@@ -409,6 +409,34 @@ export default {
         frontendRedirectUrl: 'Frontend Callback Path',
         frontendRedirectUrlPlaceholder: '/auth/oidc/callback',
         frontendRedirectUrlHint: 'Frontend route used after backend callback',
+
+        console: {
+          title: 'Console (new frontend) standalone OIDC login',
+          description:
+            'Serves an independent OIDC entry for the new frontend domain; issuer/scopes are inherited from the main config above',
+          enable: 'Enable console OIDC login',
+          enableHint:
+            'Show the OIDC entry on the new frontend login page (separate callback URL and cookies)',
+          providerName: 'Provider Name',
+          providerNamePlaceholder: 'Leave empty to reuse the main config',
+          providerNameHint: 'Name displayed on the new frontend login button',
+          clientId: 'Client ID',
+          clientIdPlaceholder: 'Leave empty to reuse the main config',
+          clientIdHint: 'Only set when the new frontend uses a separate OIDC client',
+          clientSecret: 'Client Secret',
+          clientSecretPlaceholder: '********',
+          clientSecretHint: 'Leave empty to reuse the main secret',
+          clientSecretConfiguredPlaceholder: '********',
+          clientSecretConfiguredHint: 'Secret configured. Leave empty to keep the current value.',
+          redirectUrl: 'Console Backend Callback (Redirect URL)',
+          redirectUrlPlaceholder:
+            'https://console.example.com/api/v1/auth/oauth/oidc-console/callback',
+          redirectUrlHint:
+            'Must match the console callback registered in the OIDC provider (/api/v1/auth/oauth/oidc-console/callback)',
+          frontendRedirectUrl: 'Console Frontend Callback Path',
+          frontendRedirectUrlPlaceholder: '/auth/oauth/callback',
+          frontendRedirectUrlHint: 'New-frontend route used after the backend callback',
+        },
         tokenAuthMethod: 'Token Auth Method',
         clockSkewSeconds: 'Clock Skew (seconds)',
         allowedSigningAlgs: 'Allowed Signing Algs',
