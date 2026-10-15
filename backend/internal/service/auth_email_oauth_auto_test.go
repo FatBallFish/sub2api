@@ -87,3 +87,54 @@ func TestEmailOAuthAuto_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 	require.NotNil(t, geminiRecord.MonthlyLimitUSD)
 	require.InDelta(t, 100.0, *geminiRecord.MonthlyLimitUSD, 0.0001)
 }
+
+func TestCreateEmailOAuthUser_RegistrationDisabledButBypassEnabled(t *testing.T) {
+	userRepo := &userRepoStub{nextID: 90}
+	quotaRepo := &userPlatformQuotaRepoStub{}
+
+	svc := newEmailOAuthAutoAuthService(
+		userRepo,
+		map[string]string{
+			SettingKeyRegistrationEnabled:            "false",
+			SettingKeyOAuthSignupBypassRegistration: "true",
+		},
+		quotaRepo,
+	)
+
+	user, err := svc.createEmailOAuthUser(
+		context.Background(),
+		"verified-newcomer@example.com",
+		"verified-newcomer",
+		"oidc",
+		"",
+		"",
+	)
+	require.NoError(t, err, "the verified-email fast path must honor the OAuth signup bypass switch")
+	require.NotNil(t, user)
+	require.Equal(t, int64(90), user.ID)
+}
+
+func TestCreateEmailOAuthUser_RegistrationDisabledWithoutBypass(t *testing.T) {
+	userRepo := &userRepoStub{nextID: 91}
+	quotaRepo := &userPlatformQuotaRepoStub{}
+
+	svc := newEmailOAuthAutoAuthService(
+		userRepo,
+		map[string]string{
+			SettingKeyRegistrationEnabled:            "false",
+			SettingKeyOAuthSignupBypassRegistration: "false",
+		},
+		quotaRepo,
+	)
+
+	_, err := svc.createEmailOAuthUser(
+		context.Background(),
+		"closed-signup@example.com",
+		"closed-signup",
+		"oidc",
+		"",
+		"",
+	)
+	require.ErrorIs(t, err, ErrRegDisabled)
+	require.Empty(t, quotaRepo.bulkInsertCalls, "no user may be created when both switches are off")
+}
