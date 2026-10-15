@@ -413,6 +413,11 @@ func buildLegacyCompleteRegistrationPendingResponse(
 			completionResponse["choice_reason"] = "third_party_signup"
 		}
 	}
+	// 显式标志：OAuth 建号链路的验证码要求独立于全局 email_verify_enabled 开关，
+	// 前端凭该字段渲染验证码输入，避免与全局开关的显示不一致。
+	if _, exists := completionResponse["email_verification_required"]; !exists && emailVerificationRequired {
+		completionResponse["email_verification_required"] = true
+	}
 	return completionResponse
 }
 

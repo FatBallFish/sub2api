@@ -301,6 +301,19 @@ func TestGetOIDCConnectConsoleOAuthConfig(t *testing.T) {
 		require.Equal(t, "console-secret", got.ClientSecret)
 	})
 
+	t.Run("console frontend redirect defaults to the console SPA route instead of inheriting the main config", func(t *testing.T) {
+		values := baseValues()
+		values[SettingKeyOIDCConnectConsoleEnabled] = "true"
+		values[SettingKeyOIDCConnectConsoleRedirectURL] = "https://console.example.com/api/v1/auth/oauth/oidc-console/callback"
+		// console_frontend_redirect_url intentionally absent.
+
+		svc := NewSettingService(&settingOIDCRepoStub{values: values}, cfg)
+		got, err := svc.GetOIDCConnectConsoleOAuthConfig(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, "/auth/oauth/callback", got.FrontendRedirectURL)
+		require.NotEqual(t, baseValues()[SettingKeyOIDCConnectFrontendRedirectURL], got.FrontendRedirectURL)
+	})
+
 	t.Run("disabled when console flag missing or false", func(t *testing.T) {
 		svc := NewSettingService(&settingOIDCRepoStub{values: baseValues()}, cfg)
 		_, err := svc.GetOIDCConnectConsoleOAuthConfig(context.Background())

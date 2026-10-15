@@ -639,6 +639,9 @@ func (h *AuthHandler) createOIDCOAuthChoicePendingSession(
 		"create_account_allowed":    true,
 		"force_email_on_signup":     forceEmailOnSignup,
 		"choice_reason":             "third_party_signup",
+		// pending 建号端点（RegisterOAuthEmailAccount）恒要求本地邮箱验证码，
+		// 与全局 email_verify_enabled 无关；显式告知前端渲染验证码输入。
+		"email_verification_required": true,
 	}
 	if strings.TrimSpace(compatEmail) != "" {
 		completionResponse["compat_email"] = strings.TrimSpace(compatEmail)

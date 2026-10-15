@@ -169,7 +169,7 @@ describe('PendingOAuthCreateAccountForm', () => {
     expect(wrapper.text()).toContain('auth.alreadyHaveAccount')
   })
 
-  it('hides email verification controls when public settings disable email verification', async () => {
+  it('always shows email verification controls regardless of the global email verification switch', async () => {
     getPublicSettings.mockResolvedValue({
       email_verify_enabled: false,
       turnstile_enabled: false,
@@ -188,8 +188,10 @@ describe('PendingOAuthCreateAccountForm', () => {
     await wrapper.get('[data-testid="linuxdo-create-account-password"]').setValue('secret-123')
     await wrapper.get('form').trigger('submit.prevent')
 
-    expect(wrapper.find('[data-testid="linuxdo-create-account-verify-code"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="linuxdo-create-account-send-code"]').exists()).toBe(false)
+    // The pending create-account endpoint always requires a local email code,
+    // independent from the global email_verify_enabled switch.
+    expect(wrapper.find('[data-testid="linuxdo-create-account-verify-code"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="linuxdo-create-account-send-code"]').exists()).toBe(true)
     expect(wrapper.emitted('submit')).toEqual([
       [
         {

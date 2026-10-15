@@ -203,6 +203,19 @@ export interface PendingOAuthCompletion extends Partial<AuthResponse> {
   email?: string;
   resolved_email?: string;
   invitation_required?: boolean;
+  step?: string;
+  email_verification_required?: boolean;
+  create_account_allowed?: boolean;
+  existing_account_email?: string;
+  existing_account_bindable?: boolean;
+  requires_2fa?: boolean;
+  temp_token?: string;
+  user_email_masked?: string;
+}
+
+export interface PendingOAuthBindLoginRequest {
+  email: string;
+  password: string;
 }
 
 export interface CompleteOAuthRegistrationRequest {
@@ -213,6 +226,13 @@ export interface CompleteOAuthRegistrationRequest {
 
 export function exchangePendingOAuthCompletion() {
   return postJSON<PendingOAuthCompletion>("/auth/oauth/pending/exchange", {});
+}
+
+// Binds the pending OAuth identity to an existing local account by signing in
+// with its email + password. Provider-agnostic: the pending browser session
+// cookie carries the OAuth context.
+export function pendingOAuthBindLogin(request: PendingOAuthBindLoginRequest) {
+  return postJSON<PendingOAuthCompletion>("/auth/oauth/pending/bind-login", request);
 }
 
 export function completeOAuthRegistration(request: CompleteOAuthRegistrationRequest) {

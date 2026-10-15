@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -163,6 +164,69 @@ describe("OAuthCallback", () => {
     expect(localStorage.getItem("refresh_token")).toBe("refresh-token");
     expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("renders the account chooser for a pending choice step and binds an existing account", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({
+        step: "choose_account_action_required",
+        provider: "oidc",
+        email: "newcomer@example.com",
+        resolved_email: "newcomer@example.com",
+        email_verification_required: true,
+        create_account_allowed: true,
+      }))
+      .mockResolvedValueOnce(response({
+        access_token: "bound-access",
+        refresh_token: "bound-refresh",
+        expires_in: 3600,
+        redirect: "/console",
+      }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    expect(await screen.findByText("Choose how to continue")).toBeInTheDocument();
+    expect(screen.getByText("Suggested email: newcomer@example.com")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Bind an existing account" }));
+    fireEvent.change(screen.getByLabelText("Email Address"), { target: { value: "owner@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret123" } });
+    await userEvent.click(screen.getByRole("button", { name: "Sign in and bind" }));
+
+    expect(await screen.findByText("Console landed")).toBeInTheDocument();
+    expect(localStorage.getItem("auth_token")).toBe("bound-access");
+    expect(fetchMock).toHaveBeenNthCalledWith(2,
+      "/api/v1/auth/oauth/pending/bind-login",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ email: "owner@example.com", password: "secret123" }),
+      }),
+    );
+  });
+
+  it("routes chooser signup into the pending create-account form with a locked email and code field", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({
+        step: "choose_account_action_required",
+        provider: "oidc",
+        email: "newcomer@example.com",
+        resolved_email: "newcomer@example.com",
+        email_verification_required: true,
+      }))
+      .mockResolvedValue(response({ success: true, data: {} }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Create a new account" }));
+
+    const emailInput = await screen.findByLabelText("Email Address");
+    expect((emailInput as HTMLInputElement).readOnly).toBe(true);
+    expect((emailInput as HTMLInputElement).value).toBe("newcomer@example.com");
+    // OIDC signup always goes through the pending create-account endpoint, so the
+    // verification-code block must render even when the global switch is off.
+    expect(screen.getAllByText("Verification Code").length).toBeGreaterThan(0);
   });
 
   it("completes an existing-user exchange without loading settings and sanitizes the redirect", async () => {

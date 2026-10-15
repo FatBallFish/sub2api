@@ -7,6 +7,7 @@ import {
   completeOAuthRegistration,
   createPendingOAuthAccount,
   exchangePendingOAuthCompletion,
+  pendingOAuthBindLogin,
   isAuthResponse,
   persistAuth,
   readOAuthAffiliateCode,
@@ -34,7 +35,7 @@ import {
   type CaptchaProof,
 } from "../../components/auth/captcha";
 
-type CallbackState = "processing" | "registration" | "error";
+type CallbackState = "processing" | "choice" | "bind" | "registration" | "error";
 
 function parseFragmentParams() {
   const raw = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
@@ -90,6 +91,20 @@ function isPendingSession(
   return "auth_result" in response && response.auth_result === "pending_session";
 }
 
+const pendingChoiceSteps = new Set([
+  "choose_account_action_required",
+  "choose_account_action",
+  "choose_account",
+  "choice",
+  "choose",
+  "email_required",
+]);
+
+function isPendingChoiceStep(completion: PendingOAuthCompletion): boolean {
+  const step = (completion.step || completion.error || "").trim().toLowerCase();
+  return pendingChoiceSteps.has(step);
+}
+
 function providerLabel(provider: OAuthProvider) {
   if (provider === "google") return "Google";
   if (provider === "github") return "GitHub";
@@ -115,10 +130,20 @@ export default function OAuthCallback() {
   const [submitting, setSubmitting] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
+  const [choiceEmail, setChoiceEmail] = useState("");
+  const [pendingRequiresEmailVerification, setPendingRequiresEmailVerification] = useState(false);
+  const [bindEmail, setBindEmail] = useState("");
+  const [bindPassword, setBindPassword] = useState("");
   const captchaRef = useRef<CaptchaChallengeHandle>(null);
   const requestInFlightRef = useRef(false);
 
-  const emailVerifyEnabled = settings?.email_verify_enabled !== false;
+  // Pending OAuth account creation always requires a local email code (independent
+  // of the global email verification switch); GitHub/Google signup keeps following
+  // the global setting.
+  const emailVerifyEnabled = pendingRequiresEmailVerification
+    || (provider === "github" || provider === "google"
+      ? settings?.email_verify_enabled === true
+      : true);
   let captchaProvider: ReturnType<typeof resolveCaptchaProvider> = null;
   let captchaConfigurationInvalid = false;
   if (emailVerifyEnabled) {
@@ -190,6 +215,19 @@ export default function OAuthCallback() {
         const registrationRequired = completion.error === "invitation_required"
           || completion.error === "registration_completion_required";
         if (!active) return;
+
+        if (isPendingChoiceStep(completion)) {
+          // Upstream identity is new (or its email is unverified): ask whether to
+          // bind an existing local account or create a new one, mirroring the
+          // classic frontend chooser.
+          setChoiceEmail(resolvedEmail || (completion.existing_account_email || "").trim());
+          setBindEmail(resolvedEmail || "");
+          setPendingRequiresEmailVerification(completion.email_verification_required === true
+            || (pendingProvider !== "github" && pendingProvider !== "google"));
+          setState("choice");
+          return;
+        }
+
         if (registrationRequired && !resolvedEmail) {
           setMessage(translationMessage("auth:oauth.emailUnavailable"));
           setState("error");
@@ -282,6 +320,49 @@ export default function OAuthCallback() {
     }
   }
 
+  function enterCreateAccountMode() {
+    setMessage(null);
+    if (choiceEmail) setEmail(choiceEmail);
+    setState("registration");
+  }
+
+  function enterBindMode() {
+    setMessage(null);
+    setBindPassword("");
+    setState("bind");
+  }
+
+  async function handleBindLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (requestInFlightRef.current) return;
+    const email = bindEmail.trim();
+    if (!email || !bindPassword) return;
+    requestInFlightRef.current = true;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const completion = await pendingOAuthBindLogin({ email, password: bindPassword });
+      if (completion.requires_2fa === true || completion.temp_token) {
+        setMessage(translationMessage("auth:twoFactorClassic"));
+        return;
+      }
+      if (isTokenCompletion(completion)) {
+        persistAuth(completion);
+        clearOAuthAffiliateCode();
+        navigate(sanitizeRedirectPath(completion.redirect || "/console"), { replace: true });
+        return;
+      }
+      // Bind-only completion carries no tokens; follow its redirect.
+      clearOAuthAffiliateCode();
+      navigate(sanitizeRedirectPath(completion.redirect || "/console"), { replace: true });
+    } catch (error) {
+      setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
+    } finally {
+      requestInFlightRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (requestInFlightRef.current || !canSubmit) return;
@@ -297,8 +378,9 @@ export default function OAuthCallback() {
     setSubmitting(true);
     setMessage(null);
     setStatus(null);
+    const usesEmailPasswordSignup = provider === "github" || provider === "google";
     try {
-      if (!emailVerifyEnabled) {
+      if (usesEmailPasswordSignup && !emailVerifyEnabled) {
         const response = await completeOAuthRegistration({
           provider,
           password,
@@ -365,6 +447,78 @@ export default function OAuthCallback() {
               {t("oauth.backToSignIn")}
             </Link>
           </div>
+        ) : null}
+
+        {state === "choice" ? (
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-zinc-950">{t("oauth.chooseHowToContinue")}</h1>
+            <p className="mt-2 text-sm leading-6 text-zinc-500">{t("oauth.chooseAccountActionHint")}</p>
+            {choiceEmail ? (
+              <p className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">
+                {t("oauth.suggestedEmail", { email: choiceEmail })}
+              </p>
+            ) : null}
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={enterBindMode}
+                className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                {t("oauth.bindExistingAccount")}
+              </button>
+              <button
+                type="button"
+                onClick={enterCreateAccountMode}
+                className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+              >
+                {t("oauth.createNewAccount")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {state === "bind" ? (
+          <form className="space-y-4" onSubmit={handleBindLogin}>
+            <div>
+              <h1 className="text-xl font-semibold text-zinc-950">{t("oauth.bindExistingAccount")}</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">{t("oauth.bindLoginHint")}</p>
+            </div>
+            <label className="block text-sm font-medium text-zinc-700">
+              {t("email")}
+              <input
+                autoComplete="username"
+                className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                onChange={(event) => setBindEmail(event.target.value)}
+                type="email"
+                value={bindEmail}
+              />
+            </label>
+            <label className="block text-sm font-medium text-zinc-700">
+              {t("password")}
+              <input
+                autoComplete="current-password"
+                className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                onChange={(event) => setBindPassword(event.target.value)}
+                type="password"
+                value={bindPassword}
+              />
+            </label>
+            {message ? <p role="alert" className="text-sm text-red-600">{resolveLocalizedMessage(message)}</p> : null}
+            <button
+              className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
+              disabled={submitting || !bindEmail.trim() || !bindPassword}
+              type="submit"
+            >
+              {submitting ? t("oauth.completing") : t("oauth.logInAndBind")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setState("choice")}
+              className="h-11 w-full rounded-md border border-zinc-200 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-50"
+            >
+              {t("oauth.backToOptions")}
+            </button>
+          </form>
         ) : null}
 
         {state === "registration" ? (
@@ -472,6 +626,13 @@ export default function OAuthCallback() {
               type="submit"
             >
               {submitting ? t("oauth.completingSignup") : t("oauth.completeSignupButton")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setState("choice")}
+              className="h-11 w-full rounded-md border border-zinc-200 text-sm font-semibold text-zinc-500 transition hover:bg-zinc-50"
+            >
+              {t("oauth.backToOptions")}
             </button>
           </form>
         ) : null}
