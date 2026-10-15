@@ -172,6 +172,8 @@ export default {
         title: '注册设置',
         description: '控制用户注册和验证',
         enableRegistration: '开放注册',
+        oauthSignupBypass: '允许授权登录注册',
+        oauthSignupBypassHint: '关闭开放注册时，仍允许通过第三方授权登录创建账号（登录页不展示注册入口）',
         enableRegistrationHint: '允许新用户注册',
         emailVerification: '邮箱验证',
         emailVerificationHint: '新用户注册时需要验证邮箱',

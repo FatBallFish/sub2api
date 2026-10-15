@@ -254,6 +254,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OIDCConnectEnabled != after.OIDCConnectEnabled {
 		changed = append(changed, "oidc_connect_enabled")
 	}
+	if before.OAuthSignupBypassRegistration != after.OAuthSignupBypassRegistration {
+		changed = append(changed, "oauth_signup_bypass_registration")
+	}
 	if before.OIDCConnectProviderName != after.OIDCConnectProviderName {
 		changed = append(changed, "oidc_connect_provider_name")
 	}

@@ -13,6 +13,7 @@ func firstNonEmpty(values ...string) string {
 
 type SystemSettings struct {
 	RegistrationEnabled                 bool
+	OAuthSignupBypassRegistration       bool
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
 	RegistrationEmailDomainQuotaEnabled bool // 白名单非空时放行非白名单域名限量注册（默认关闭）

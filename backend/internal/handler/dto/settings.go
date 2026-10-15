@@ -116,6 +116,7 @@ type SystemSettings struct {
 	WeChatConnectFrontendRedirectURL       string `json:"wechat_connect_frontend_redirect_url"`
 
 	OIDCConnectEnabled                bool   `json:"oidc_connect_enabled"`
+	OAuthSignupBypassRegistration     bool   `json:"oauth_signup_bypass_registration"`
 	OIDCConnectProviderName           string `json:"oidc_connect_provider_name"`
 	OIDCConnectClientID               string `json:"oidc_connect_client_id"`
 	OIDCConnectClientSecretConfigured bool   `json:"oidc_connect_client_secret_configured"`

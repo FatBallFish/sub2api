@@ -1411,6 +1411,23 @@
                 <Toggle v-model="form.registration_enabled" />
               </div>
 
+              <!-- OAuth signup bypass -->
+              <div
+                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.registration.oauthSignupBypass")
+                  }}</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{
+                      t("admin.settings.registration.oauthSignupBypassHint")
+                    }}
+                  </p>
+                </div>
+                <Toggle v-model="form.oauth_signup_bypass_registration" />
+              </div>
+
               <!-- Email Verification -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -10076,6 +10093,7 @@ function platformQuotaRows(map: DefaultPlatformQuotasMap | undefined): string[] 
 
 const form = reactive<SettingsForm>({
   registration_enabled: true,
+  oauth_signup_bypass_registration: false,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   registration_email_domain_quota_enabled: false,
@@ -11794,6 +11812,7 @@ async function saveSettings() {
 
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
+      oauth_signup_bypass_registration: form.oauth_signup_bypass_registration,
       email_verify_enabled: form.email_verify_enabled,
       registration_email_suffix_whitelist:
         registrationEmailSuffixWhitelistTags.value.map((suffix) =>
