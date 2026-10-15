@@ -312,7 +312,7 @@ func (h *AuthHandler) createEmailOAuthRegistrationPendingSession(
 		"error":                     pendingError,
 		"choice_reason":             choiceReason,
 		"adoption_required":         false,
-		"create_account_allowed":    true,
+		"create_account_allowed":    h.oauthCreateAccountAllowed(c.Request.Context()),
 		"existing_account_bindable": false,
 		"force_email_on_signup":     true,
 		"invitation_required":       invitationRequired,

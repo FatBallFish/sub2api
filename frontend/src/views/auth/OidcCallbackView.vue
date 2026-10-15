@@ -138,6 +138,7 @@
                     {{ t('auth.oauthFlow.bindExistingAccount') }}
                   </button>
                   <button
+                    v-if="createAccountAllowed"
                     class="btn btn-primary w-full"
                     :disabled="isSubmitting"
                     @click="switchToCreateAccountMode"
@@ -293,6 +294,7 @@ const adoptAvatar = ref(true)
 const needsAdoptionConfirmation = ref(false)
 const pendingAccountAction = ref<'none' | 'choose_account_action' | 'create_account' | 'bind_login'>('none')
 const pendingAccountEmail = ref('')
+const createAccountAllowed = ref(true)
 const bindLoginEmail = ref('')
 const bindLoginPassword = ref('')
 const legacyPendingOAuthToken = ref('')
@@ -341,6 +343,7 @@ type PendingOidcCompletion = PendingOAuthExchangeResponse & {
   compat_email?: string
   email?: string
   suggested_email?: string
+  create_account_allowed?: boolean
   provider_fallback?: string
   intent?: string
   requires_2fa?: boolean
@@ -513,7 +516,8 @@ function applyPendingAccountAction(completion: PendingOidcCompletion) {
     pendingAccountEmail.value = email
     bindLoginEmail.value = email
     bindLoginPassword.value = ''
-    canReturnToCreateAccount.value = false
+    createAccountAllowed.value = completion.create_account_allowed !== false
+    canReturnToCreateAccount.value = createAccountAllowed.value
     return
   }
 

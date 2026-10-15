@@ -1113,6 +1113,24 @@ func TestCanBypassRegistrationDisabledForOAuth(t *testing.T) {
 			want:         false,
 		},
 		{
+			name:         "generic oauth signup bypass switch on → true for any oauth source",
+			signupSource: "oidc",
+			settings: map[string]string{
+				SettingKeyOAuthSignupBypassRegistration: "true",
+			},
+			dtCfg: minDingTalkURLs(),
+			want:  true,
+		},
+		{
+			name:         "generic oauth signup bypass switch off → false for non-dingtalk",
+			signupSource: "oidc",
+			settings: map[string]string{
+				SettingKeyOAuthSignupBypassRegistration: "false",
+			},
+			dtCfg: minDingTalkURLs(),
+			want:  false,
+		},
+		{
 			name:         "dingtalk but cfg.Enabled=false → false",
 			signupSource: "dingtalk",
 			settings: map[string]string{

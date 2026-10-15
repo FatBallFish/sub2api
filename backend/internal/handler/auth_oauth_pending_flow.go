@@ -383,7 +383,20 @@ func ensurePendingOAuthCompleteRegistrationSession(session *dbent.PendingAuthSes
 	return nil
 }
 
-func buildLegacyCompleteRegistrationPendingResponse(
+// oauthCreateAccountAllowed reports whether the pending OAuth flow may create a
+// new local account: either open registration is enabled, or the dedicated
+// "OAuth signup bypass" switch lets authorized signups through while the public
+// registration entry stays hidden.
+func (h *AuthHandler) oauthCreateAccountAllowed(ctx context.Context) bool {
+	if h == nil || h.settingSvc == nil {
+		return true
+	}
+	return h.settingSvc.IsRegistrationEnabled(ctx) ||
+		h.settingSvc.IsOAuthSignupBypassRegistrationEnabled(ctx)
+}
+
+func (h *AuthHandler) buildLegacyCompleteRegistrationPendingResponse(
+	ctx context.Context,
 	session *dbent.PendingAuthSession,
 	forceEmailOnSignup bool,
 	emailVerificationRequired bool,
@@ -391,7 +404,7 @@ func buildLegacyCompleteRegistrationPendingResponse(
 	completionResponse := normalizePendingOAuthCompletionResponse(mergePendingCompletionResponse(session, map[string]any{
 		"step":                   oauthPendingChoiceStep,
 		"adoption_required":      true,
-		"create_account_allowed": true,
+		"create_account_allowed": h.oauthCreateAccountAllowed(ctx),
 		"force_email_on_signup":  forceEmailOnSignup,
 	}))
 
@@ -452,7 +465,7 @@ func (h *AuthHandler) legacyCompleteRegistrationSessionStatus(
 		strings.TrimSpace(session.Intent),
 		strings.TrimSpace(session.ResolvedEmail),
 		nil,
-		buildLegacyCompleteRegistrationPendingResponse(session, forceEmailOnSignup, emailVerificationRequired),
+		h.buildLegacyCompleteRegistrationPendingResponse(c.Request.Context(), session, forceEmailOnSignup, emailVerificationRequired),
 	)
 	if err != nil {
 		return nil, false, infraerrors.InternalServer("PENDING_AUTH_SESSION_UPDATE_FAILED", "failed to update pending oauth session").WithCause(err)

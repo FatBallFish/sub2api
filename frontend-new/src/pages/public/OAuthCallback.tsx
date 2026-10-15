@@ -131,6 +131,7 @@ export default function OAuthCallback() {
   const [countdown, setCountdown] = useState(0);
   const [captchaProof, setCaptchaProof] = useState<CaptchaProof | null>(null);
   const [choiceEmail, setChoiceEmail] = useState("");
+  const [createAccountAllowed, setCreateAccountAllowed] = useState(true);
   const [pendingRequiresEmailVerification, setPendingRequiresEmailVerification] = useState(false);
   const [bindEmail, setBindEmail] = useState("");
   const [bindPassword, setBindPassword] = useState("");
@@ -221,6 +222,7 @@ export default function OAuthCallback() {
           // bind an existing local account or create a new one, mirroring the
           // classic frontend chooser.
           setChoiceEmail(resolvedEmail || (completion.existing_account_email || "").trim());
+          setCreateAccountAllowed(completion.create_account_allowed !== false);
           setBindEmail(resolvedEmail || "");
           setPendingRequiresEmailVerification(completion.email_verification_required === true
             || (pendingProvider !== "github" && pendingProvider !== "google"));
@@ -466,13 +468,15 @@ export default function OAuthCallback() {
               >
                 {t("oauth.bindExistingAccount")}
               </button>
-              <button
-                type="button"
-                onClick={enterCreateAccountMode}
-                className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-              >
-                {t("oauth.createNewAccount")}
-              </button>
+              {createAccountAllowed ? (
+                <button
+                  type="button"
+                  onClick={enterCreateAccountMode}
+                  className="h-11 w-full rounded-md border border-zinc-300 bg-white text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
+                >
+                  {t("oauth.createNewAccount")}
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}

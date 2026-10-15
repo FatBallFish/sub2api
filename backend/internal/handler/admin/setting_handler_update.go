@@ -119,6 +119,7 @@ type UpdateSettingsRequest struct {
 
 	// Generic OIDC OAuth 登录
 	OIDCConnectEnabled              bool   `json:"oidc_connect_enabled"`
+	OAuthSignupBypassRegistration   bool   `json:"oauth_signup_bypass_registration"`
 	OIDCConnectProviderName         string `json:"oidc_connect_provider_name"`
 	OIDCConnectClientID             string `json:"oidc_connect_client_id"`
 	OIDCConnectClientSecret         string `json:"oidc_connect_client_secret"`
@@ -1717,6 +1718,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		WeChatConnectRedirectURL:               req.WeChatConnectRedirectURL,
 		WeChatConnectFrontendRedirectURL:       req.WeChatConnectFrontendRedirectURL,
 		OIDCConnectEnabled:                     req.OIDCConnectEnabled,
+		OAuthSignupBypassRegistration:          req.OAuthSignupBypassRegistration,
 		OIDCConnectProviderName:                req.OIDCConnectProviderName,
 		OIDCConnectClientID:                    req.OIDCConnectClientID,
 		OIDCConnectClientSecret:                req.OIDCConnectClientSecret,
@@ -2396,6 +2398,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		WeChatConnectRedirectURL:                               updatedSettings.WeChatConnectRedirectURL,
 		WeChatConnectFrontendRedirectURL:                       updatedSettings.WeChatConnectFrontendRedirectURL,
 		OIDCConnectEnabled:                                     updatedSettings.OIDCConnectEnabled,
+		OAuthSignupBypassRegistration:                          updatedSettings.OAuthSignupBypassRegistration,
 		OIDCConnectProviderName:                                updatedSettings.OIDCConnectProviderName,
 		OIDCConnectClientID:                                    updatedSettings.OIDCConnectClientID,
 		OIDCConnectClientSecretConfigured:                      updatedSettings.OIDCConnectClientSecretConfigured,

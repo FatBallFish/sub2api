@@ -682,6 +682,13 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 // canBypassRegistrationDisabledForOAuth 在钉钉企业模式（internal_only）且
 // dingtalk_connect_bypass_registration=true 时，允许跳过全局 registration_enabled 检查。
 func (s *AuthService) canBypassRegistrationDisabledForOAuth(ctx context.Context, signupSource string) bool {
+	if s == nil || s.settingService == nil {
+		return false
+	}
+	// 通用开关：关闭开放注册时仍允许第三方授权登录创建账号。
+	if s.settingService.IsOAuthSignupBypassRegistrationEnabled(ctx) {
+		return true
+	}
 	if signupSource != "dingtalk" {
 		return false
 	}

@@ -172,6 +172,8 @@ export default {
         title: 'Registration Settings',
         description: 'Control user registration and verification',
         enableRegistration: 'Enable Registration',
+        oauthSignupBypass: 'Allow OAuth signup',
+        oauthSignupBypassHint: 'Let third-party authorized signups create accounts even when open registration is disabled (the public signup entry stays hidden)',
         enableRegistrationHint: 'Allow new users to register',
         emailVerification: 'Email Verification',
         emailVerificationHint: 'Require email verification for new registrations',
