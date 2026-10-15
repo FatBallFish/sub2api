@@ -53853,6 +53853,10 @@ type UserMutation struct {
 	totp_enabled                              *bool
 	totp_enabled_at                           *time.Time
 	signup_source                             *string
+	oidc_synced_at                            *time.Time
+	oidc_password_cred_at                     *int64
+	addoidc_password_cred_at                  *int64
+	oidc_password_drift                       *bool
 	last_login_at                             *time.Time
 	last_active_at                            *time.Time
 	restrict_public_groups                    *bool
@@ -54687,6 +54691,161 @@ func (m *UserMutation) OldSignupSource(ctx context.Context) (v string, err error
 // ResetSignupSource resets all changes to the "signup_source" field.
 func (m *UserMutation) ResetSignupSource() {
 	m.signup_source = nil
+}
+
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (m *UserMutation) SetOidcSyncedAt(t time.Time) {
+	m.oidc_synced_at = &t
+}
+
+// OidcSyncedAt returns the value of the "oidc_synced_at" field in the mutation.
+func (m *UserMutation) OidcSyncedAt() (r time.Time, exists bool) {
+	v := m.oidc_synced_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOidcSyncedAt returns the old "oidc_synced_at" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldOidcSyncedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOidcSyncedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOidcSyncedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOidcSyncedAt: %w", err)
+	}
+	return oldValue.OidcSyncedAt, nil
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (m *UserMutation) ClearOidcSyncedAt() {
+	m.oidc_synced_at = nil
+	m.clearedFields[user.FieldOidcSyncedAt] = struct{}{}
+}
+
+// OidcSyncedAtCleared returns if the "oidc_synced_at" field was cleared in this mutation.
+func (m *UserMutation) OidcSyncedAtCleared() bool {
+	_, ok := m.clearedFields[user.FieldOidcSyncedAt]
+	return ok
+}
+
+// ResetOidcSyncedAt resets all changes to the "oidc_synced_at" field.
+func (m *UserMutation) ResetOidcSyncedAt() {
+	m.oidc_synced_at = nil
+	delete(m.clearedFields, user.FieldOidcSyncedAt)
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (m *UserMutation) SetOidcPasswordCredAt(i int64) {
+	m.oidc_password_cred_at = &i
+	m.addoidc_password_cred_at = nil
+}
+
+// OidcPasswordCredAt returns the value of the "oidc_password_cred_at" field in the mutation.
+func (m *UserMutation) OidcPasswordCredAt() (r int64, exists bool) {
+	v := m.oidc_password_cred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOidcPasswordCredAt returns the old "oidc_password_cred_at" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldOidcPasswordCredAt(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOidcPasswordCredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOidcPasswordCredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOidcPasswordCredAt: %w", err)
+	}
+	return oldValue.OidcPasswordCredAt, nil
+}
+
+// AddOidcPasswordCredAt adds i to the "oidc_password_cred_at" field.
+func (m *UserMutation) AddOidcPasswordCredAt(i int64) {
+	if m.addoidc_password_cred_at != nil {
+		*m.addoidc_password_cred_at += i
+	} else {
+		m.addoidc_password_cred_at = &i
+	}
+}
+
+// AddedOidcPasswordCredAt returns the value that was added to the "oidc_password_cred_at" field in this mutation.
+func (m *UserMutation) AddedOidcPasswordCredAt() (r int64, exists bool) {
+	v := m.addoidc_password_cred_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (m *UserMutation) ClearOidcPasswordCredAt() {
+	m.oidc_password_cred_at = nil
+	m.addoidc_password_cred_at = nil
+	m.clearedFields[user.FieldOidcPasswordCredAt] = struct{}{}
+}
+
+// OidcPasswordCredAtCleared returns if the "oidc_password_cred_at" field was cleared in this mutation.
+func (m *UserMutation) OidcPasswordCredAtCleared() bool {
+	_, ok := m.clearedFields[user.FieldOidcPasswordCredAt]
+	return ok
+}
+
+// ResetOidcPasswordCredAt resets all changes to the "oidc_password_cred_at" field.
+func (m *UserMutation) ResetOidcPasswordCredAt() {
+	m.oidc_password_cred_at = nil
+	m.addoidc_password_cred_at = nil
+	delete(m.clearedFields, user.FieldOidcPasswordCredAt)
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (m *UserMutation) SetOidcPasswordDrift(b bool) {
+	m.oidc_password_drift = &b
+}
+
+// OidcPasswordDrift returns the value of the "oidc_password_drift" field in the mutation.
+func (m *UserMutation) OidcPasswordDrift() (r bool, exists bool) {
+	v := m.oidc_password_drift
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOidcPasswordDrift returns the old "oidc_password_drift" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldOidcPasswordDrift(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOidcPasswordDrift is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOidcPasswordDrift requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOidcPasswordDrift: %w", err)
+	}
+	return oldValue.OidcPasswordDrift, nil
+}
+
+// ResetOidcPasswordDrift resets all changes to the "oidc_password_drift" field.
+func (m *UserMutation) ResetOidcPasswordDrift() {
+	m.oidc_password_drift = nil
 }
 
 // SetLastLoginAt sets the "last_login_at" field.
@@ -55957,7 +56116,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 25)
+	fields := make([]string, 0, 28)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -56005,6 +56164,15 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.signup_source != nil {
 		fields = append(fields, user.FieldSignupSource)
+	}
+	if m.oidc_synced_at != nil {
+		fields = append(fields, user.FieldOidcSyncedAt)
+	}
+	if m.oidc_password_cred_at != nil {
+		fields = append(fields, user.FieldOidcPasswordCredAt)
+	}
+	if m.oidc_password_drift != nil {
+		fields = append(fields, user.FieldOidcPasswordDrift)
 	}
 	if m.last_login_at != nil {
 		fields = append(fields, user.FieldLastLoginAt)
@@ -56073,6 +56241,12 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.TotpEnabledAt()
 	case user.FieldSignupSource:
 		return m.SignupSource()
+	case user.FieldOidcSyncedAt:
+		return m.OidcSyncedAt()
+	case user.FieldOidcPasswordCredAt:
+		return m.OidcPasswordCredAt()
+	case user.FieldOidcPasswordDrift:
+		return m.OidcPasswordDrift()
 	case user.FieldLastLoginAt:
 		return m.LastLoginAt()
 	case user.FieldLastActiveAt:
@@ -56132,6 +56306,12 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldTotpEnabledAt(ctx)
 	case user.FieldSignupSource:
 		return m.OldSignupSource(ctx)
+	case user.FieldOidcSyncedAt:
+		return m.OldOidcSyncedAt(ctx)
+	case user.FieldOidcPasswordCredAt:
+		return m.OldOidcPasswordCredAt(ctx)
+	case user.FieldOidcPasswordDrift:
+		return m.OldOidcPasswordDrift(ctx)
 	case user.FieldLastLoginAt:
 		return m.OldLastLoginAt(ctx)
 	case user.FieldLastActiveAt:
@@ -56271,6 +56451,27 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSignupSource(v)
 		return nil
+	case user.FieldOidcSyncedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOidcSyncedAt(v)
+		return nil
+	case user.FieldOidcPasswordCredAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOidcPasswordCredAt(v)
+		return nil
+	case user.FieldOidcPasswordDrift:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOidcPasswordDrift(v)
+		return nil
 	case user.FieldLastLoginAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -56351,6 +56552,9 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addconcurrency != nil {
 		fields = append(fields, user.FieldConcurrency)
 	}
+	if m.addoidc_password_cred_at != nil {
+		fields = append(fields, user.FieldOidcPasswordCredAt)
+	}
 	if m.addbalance_notify_threshold != nil {
 		fields = append(fields, user.FieldBalanceNotifyThreshold)
 	}
@@ -56374,6 +56578,8 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFrozenBalance()
 	case user.FieldConcurrency:
 		return m.AddedConcurrency()
+	case user.FieldOidcPasswordCredAt:
+		return m.AddedOidcPasswordCredAt()
 	case user.FieldBalanceNotifyThreshold:
 		return m.AddedBalanceNotifyThreshold()
 	case user.FieldTotalRecharged:
@@ -56409,6 +56615,13 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddConcurrency(v)
+		return nil
+	case user.FieldOidcPasswordCredAt:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOidcPasswordCredAt(v)
 		return nil
 	case user.FieldBalanceNotifyThreshold:
 		v, ok := value.(float64)
@@ -56448,6 +56661,12 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldTotpEnabledAt) {
 		fields = append(fields, user.FieldTotpEnabledAt)
 	}
+	if m.FieldCleared(user.FieldOidcSyncedAt) {
+		fields = append(fields, user.FieldOidcSyncedAt)
+	}
+	if m.FieldCleared(user.FieldOidcPasswordCredAt) {
+		fields = append(fields, user.FieldOidcPasswordCredAt)
+	}
 	if m.FieldCleared(user.FieldLastLoginAt) {
 		fields = append(fields, user.FieldLastLoginAt)
 	}
@@ -56479,6 +56698,12 @@ func (m *UserMutation) ClearField(name string) error {
 		return nil
 	case user.FieldTotpEnabledAt:
 		m.ClearTotpEnabledAt()
+		return nil
+	case user.FieldOidcSyncedAt:
+		m.ClearOidcSyncedAt()
+		return nil
+	case user.FieldOidcPasswordCredAt:
+		m.ClearOidcPasswordCredAt()
 		return nil
 	case user.FieldLastLoginAt:
 		m.ClearLastLoginAt()
@@ -56544,6 +56769,15 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldSignupSource:
 		m.ResetSignupSource()
+		return nil
+	case user.FieldOidcSyncedAt:
+		m.ResetOidcSyncedAt()
+		return nil
+	case user.FieldOidcPasswordCredAt:
+		m.ResetOidcPasswordCredAt()
+		return nil
+	case user.FieldOidcPasswordDrift:
+		m.ResetOidcPasswordDrift()
 		return nil
 	case user.FieldLastLoginAt:
 		m.ResetLastLoginAt()

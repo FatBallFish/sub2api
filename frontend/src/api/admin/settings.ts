@@ -421,6 +421,12 @@ export function deriveWeChatConnectStoredMode(
 export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean;
+  password_login_disabled: boolean;
+  oidc_user_sync_enabled: boolean;
+  oidc_user_sync_admin_url: string;
+  oidc_user_sync_realm: string;
+  oidc_user_sync_client_id: string;
+  oidc_user_sync_client_secret_configured: boolean;
   oauth_signup_bypass_registration: boolean;
   email_verify_enabled: boolean;
   registration_email_suffix_whitelist: string[];
@@ -797,6 +803,12 @@ export interface SystemSettings {
 export interface UpdateSettingsRequest {
   registration_enabled?: boolean;
   email_verify_enabled?: boolean;
+  password_login_disabled?: boolean;
+  oidc_user_sync_enabled?: boolean;
+  oidc_user_sync_admin_url?: string;
+  oidc_user_sync_realm?: string;
+  oidc_user_sync_client_id?: string;
+  oidc_user_sync_client_secret?: string;
   oauth_signup_bypass_registration?: boolean;
   registration_email_suffix_whitelist?: string[];
   registration_email_domain_quota_enabled?: boolean;
@@ -1636,6 +1648,12 @@ export async function resetWebSearchUsage(payload: {
 }
 
 export const settingsAPI = {
+  invalidateAllSessions(): Promise<{ message: string; affected_users: number }> {
+    return apiClient.post('/admin/settings/invalidate-all-sessions') as Promise<{
+      message: string;
+      affected_users: number;
+    }>;
+  },
   getSettings,
   updateSettings,
   testSmtpConnection,

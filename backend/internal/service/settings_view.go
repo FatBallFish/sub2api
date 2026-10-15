@@ -12,8 +12,17 @@ func firstNonEmpty(values ...string) string {
 }
 
 type SystemSettings struct {
-	RegistrationEnabled                 bool
-	OAuthSignupBypassRegistration       bool
+	RegistrationEnabled           bool
+	OAuthSignupBypassRegistration bool
+	PasswordLoginDisabled         bool
+
+	// OIDC 账号同步（Keycloak）配置
+	OIDCUserSyncEnabled                 bool
+	OIDCUserSyncAdminURL                string
+	OIDCUserSyncRealm                   string
+	OIDCUserSyncClientID                string
+	OIDCUserSyncClientSecret            string
+	OIDCUserSyncClientSecretConfigured  bool
 	EmailVerifyEnabled                  bool
 	RegistrationEmailSuffixWhitelist    []string
 	RegistrationEmailDomainQuotaEnabled bool // 白名单非空时放行非白名单域名限量注册（默认关闭）
@@ -400,6 +409,7 @@ type PublicSettings struct {
 	OIDCOAuthProviderName        string
 	OIDCConsoleOAuthEnabled      bool
 	OIDCConsoleOAuthProviderName string
+	PasswordLoginDisabled        bool
 	GitHubOAuthEnabled           bool
 	GoogleOAuthEnabled           bool
 	Version                      string

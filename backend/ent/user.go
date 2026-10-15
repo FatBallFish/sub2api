@@ -49,6 +49,12 @@ type User struct {
 	TotpEnabledAt *time.Time `json:"totp_enabled_at,omitempty"`
 	// SignupSource holds the value of the "signup_source" field.
 	SignupSource string `json:"signup_source,omitempty"`
+	// OidcSyncedAt holds the value of the "oidc_synced_at" field.
+	OidcSyncedAt *time.Time `json:"oidc_synced_at,omitempty"`
+	// OidcPasswordCredAt holds the value of the "oidc_password_cred_at" field.
+	OidcPasswordCredAt *int64 `json:"oidc_password_cred_at,omitempty"`
+	// OidcPasswordDrift holds the value of the "oidc_password_drift" field.
+	OidcPasswordDrift bool `json:"oidc_password_drift,omitempty"`
 	// LastLoginAt holds the value of the "last_login_at" field.
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	// LastActiveAt holds the value of the "last_active_at" field.
@@ -261,15 +267,15 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldTotpEnabled, user.FieldRestrictPublicGroups, user.FieldBalanceNotifyEnabled:
+		case user.FieldTotpEnabled, user.FieldOidcPasswordDrift, user.FieldRestrictPublicGroups, user.FieldBalanceNotifyEnabled:
 			values[i] = new(sql.NullBool)
 		case user.FieldBalance, user.FieldFrozenBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
 			values[i] = new(sql.NullFloat64)
-		case user.FieldID, user.FieldConcurrency, user.FieldRpmLimit:
+		case user.FieldID, user.FieldConcurrency, user.FieldOidcPasswordCredAt, user.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
 		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldTotpSecretEncrypted, user.FieldSignupSource, user.FieldBalanceNotifyThresholdType, user.FieldBalanceNotifyExtraEmails:
 			values[i] = new(sql.NullString)
-		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt, user.FieldLastLoginAt, user.FieldLastActiveAt:
+		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt, user.FieldOidcSyncedAt, user.FieldLastLoginAt, user.FieldLastActiveAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -390,6 +396,26 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field signup_source", values[i])
 			} else if value.Valid {
 				_m.SignupSource = value.String
+			}
+		case user.FieldOidcSyncedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field oidc_synced_at", values[i])
+			} else if value.Valid {
+				_m.OidcSyncedAt = new(time.Time)
+				*_m.OidcSyncedAt = value.Time
+			}
+		case user.FieldOidcPasswordCredAt:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field oidc_password_cred_at", values[i])
+			} else if value.Valid {
+				_m.OidcPasswordCredAt = new(int64)
+				*_m.OidcPasswordCredAt = value.Int64
+			}
+		case user.FieldOidcPasswordDrift:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field oidc_password_drift", values[i])
+			} else if value.Valid {
+				_m.OidcPasswordDrift = value.Bool
 			}
 		case user.FieldLastLoginAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -617,6 +643,19 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("signup_source=")
 	builder.WriteString(_m.SignupSource)
+	builder.WriteString(", ")
+	if v := _m.OidcSyncedAt; v != nil {
+		builder.WriteString("oidc_synced_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.OidcPasswordCredAt; v != nil {
+		builder.WriteString("oidc_password_cred_at=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("oidc_password_drift=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OidcPasswordDrift))
 	builder.WriteString(", ")
 	if v := _m.LastLoginAt; v != nil {
 		builder.WriteString("last_login_at=")

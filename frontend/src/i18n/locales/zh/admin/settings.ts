@@ -173,6 +173,8 @@ export default {
         description: '控制用户注册和验证',
         enableRegistration: '开放注册',
         oauthSignupBypass: '允许授权登录注册',
+        passwordLoginDisabled: '关闭本站账密登录',
+        passwordLoginDisabledHint: '关闭后用户仅能通过 OIDC 登录；管理员账号仍可用账密登录（应急通道）',
         oauthSignupBypassHint: '关闭开放注册时，仍允许通过第三方授权登录创建账号（登录页不展示注册入口）',
         enableRegistrationHint: '允许新用户注册',
         emailVerification: '邮箱验证',
@@ -371,6 +373,14 @@ export default {
         syncDeptTargetHint: '默认 dingtalk_department / 钉钉部门；保存设置时按上述属性键和显示名称自动创建用户属性（已存在则仅同步显示名称）',
         syncAttrDisplayName: '显示名称'
       },
+      sessions: {
+            invalidateTitle: '失效所有账号登录态',
+            invalidateHint: '清空全部用户的登录会话，强制重新登录（常用于促进 OIDC 账号同步）。存量访问令牌将在 1 小时内自然过期；管理员自身也会被登出',
+            invalidateButton: '失效全部登录态',
+            invalidateConfirm: '确定要让所有用户（含管理员）重新登录吗？该操作立即生效且不可撤销。',
+            invalidated: '已失效 {count} 个用户的登录态',
+            invalidateFailed: '失效登录态失败',
+          },
       oidc: {
         title: 'OIDC 登录',
         description: '配置标准 OIDC Provider（例如 Keycloak）',
@@ -409,6 +419,23 @@ export default {
         frontendRedirectUrlPlaceholder: '/auth/oidc/callback',
         frontendRedirectUrlHint: '后端回调完成后重定向到此前端路径',
 
+        userSync: {
+          title: '登录/改密时自动同步到 OIDC',
+          description: '用户账密登录或修改密码时，自动把账号与密码同步到 Keycloak（需 service account client，授予 realm-management 的 manage-users 角色）',
+          enable: '启用自动同步',
+          enableHint: '仅同步：建号（不存在时）、补密（无密码时）；已有密码不覆盖。修改密码则双写覆盖',
+          adminUrl: 'Keycloak 地址（Admin URL）',
+          adminUrlPlaceholder: 'https://oauth.mikiko.ai',
+          adminUrlHint: 'Keycloak 对外根地址，同步走 /realms/{realm}/protocol 与 /admin/realms/{realm}',
+          realm: 'Realm',
+          realmPlaceholder: 'mikiko',
+          clientId: 'Client ID（service account）',
+          clientIdPlaceholder: 'sub2api-sync',
+          clientSecret: 'Client Secret',
+          clientSecretPlaceholder: '********',
+          clientSecretConfiguredPlaceholder: '********',
+          clientSecretHint: '具有 manage-users 权限的 service account client 密钥',
+        },
         console: {
           title: '新前端（console）独立 OIDC 登录',
           description:

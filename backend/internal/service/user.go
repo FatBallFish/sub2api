@@ -32,12 +32,17 @@ type User struct {
 	// value expected in JWT claims and refresh-token state.
 	TokenVersionResolved bool
 	SignupSource         string
-	LastLoginAt          *time.Time
-	LastActiveAt         *time.Time
-	LastUsedAt           *time.Time
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	DeletedAt            *time.Time // 非 nil 表示用户已软删除
+
+	// OIDC 账号同步（Keycloak）状态
+	OidcSyncedAt       *time.Time
+	OidcPasswordCredAt *int64
+	OidcPasswordDrift  bool
+	LastLoginAt        *time.Time
+	LastActiveAt       *time.Time
+	LastUsedAt         *time.Time
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	DeletedAt          *time.Time // 非 nil 表示用户已软删除
 
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier

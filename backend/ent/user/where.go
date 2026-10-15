@@ -135,6 +135,21 @@ func SignupSource(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldSignupSource, v))
 }
 
+// OidcSyncedAt applies equality check predicate on the "oidc_synced_at" field. It's identical to OidcSyncedAtEQ.
+func OidcSyncedAt(v time.Time) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcSyncedAt, v))
+}
+
+// OidcPasswordCredAt applies equality check predicate on the "oidc_password_cred_at" field. It's identical to OidcPasswordCredAtEQ.
+func OidcPasswordCredAt(v int64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordDrift applies equality check predicate on the "oidc_password_drift" field. It's identical to OidcPasswordDriftEQ.
+func OidcPasswordDrift(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcPasswordDrift, v))
+}
+
 // LastLoginAt applies equality check predicate on the "last_login_at" field. It's identical to LastLoginAtEQ.
 func LastLoginAt(v time.Time) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldLastLoginAt, v))
@@ -1018,6 +1033,116 @@ func SignupSourceEqualFold(v string) predicate.User {
 // SignupSourceContainsFold applies the ContainsFold predicate on the "signup_source" field.
 func SignupSourceContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldSignupSource, v))
+}
+
+// OidcSyncedAtEQ applies the EQ predicate on the "oidc_synced_at" field.
+func OidcSyncedAtEQ(v time.Time) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtNEQ applies the NEQ predicate on the "oidc_synced_at" field.
+func OidcSyncedAtNEQ(v time.Time) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtIn applies the In predicate on the "oidc_synced_at" field.
+func OidcSyncedAtIn(vs ...time.Time) predicate.User {
+	return predicate.User(sql.FieldIn(FieldOidcSyncedAt, vs...))
+}
+
+// OidcSyncedAtNotIn applies the NotIn predicate on the "oidc_synced_at" field.
+func OidcSyncedAtNotIn(vs ...time.Time) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldOidcSyncedAt, vs...))
+}
+
+// OidcSyncedAtGT applies the GT predicate on the "oidc_synced_at" field.
+func OidcSyncedAtGT(v time.Time) predicate.User {
+	return predicate.User(sql.FieldGT(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtGTE applies the GTE predicate on the "oidc_synced_at" field.
+func OidcSyncedAtGTE(v time.Time) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtLT applies the LT predicate on the "oidc_synced_at" field.
+func OidcSyncedAtLT(v time.Time) predicate.User {
+	return predicate.User(sql.FieldLT(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtLTE applies the LTE predicate on the "oidc_synced_at" field.
+func OidcSyncedAtLTE(v time.Time) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldOidcSyncedAt, v))
+}
+
+// OidcSyncedAtIsNil applies the IsNil predicate on the "oidc_synced_at" field.
+func OidcSyncedAtIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldOidcSyncedAt))
+}
+
+// OidcSyncedAtNotNil applies the NotNil predicate on the "oidc_synced_at" field.
+func OidcSyncedAtNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldOidcSyncedAt))
+}
+
+// OidcPasswordCredAtEQ applies the EQ predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtEQ(v int64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtNEQ applies the NEQ predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtNEQ(v int64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtIn applies the In predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtIn(vs ...int64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldOidcPasswordCredAt, vs...))
+}
+
+// OidcPasswordCredAtNotIn applies the NotIn predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtNotIn(vs ...int64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldOidcPasswordCredAt, vs...))
+}
+
+// OidcPasswordCredAtGT applies the GT predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtGT(v int64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtGTE applies the GTE predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtGTE(v int64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtLT applies the LT predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtLT(v int64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtLTE applies the LTE predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtLTE(v int64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldOidcPasswordCredAt, v))
+}
+
+// OidcPasswordCredAtIsNil applies the IsNil predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldOidcPasswordCredAt))
+}
+
+// OidcPasswordCredAtNotNil applies the NotNil predicate on the "oidc_password_cred_at" field.
+func OidcPasswordCredAtNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldOidcPasswordCredAt))
+}
+
+// OidcPasswordDriftEQ applies the EQ predicate on the "oidc_password_drift" field.
+func OidcPasswordDriftEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldOidcPasswordDrift, v))
+}
+
+// OidcPasswordDriftNEQ applies the NEQ predicate on the "oidc_password_drift" field.
+func OidcPasswordDriftNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldOidcPasswordDrift, v))
 }
 
 // LastLoginAtEQ applies the EQ predicate on the "last_login_at" field.

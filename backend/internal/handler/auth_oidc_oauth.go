@@ -1356,6 +1356,12 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 		return false
 	}
 
+	if strings.EqualFold(strings.TrimSpace(identity.ProviderType), "oidc") {
+		h.oidcSyncAsync(strings.TrimSpace(strings.ToLower(input.Email)), func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+			svc.CheckDrift(ctx, email)
+		})
+	}
+
 	fragment := url.Values{}
 	fragment.Set("access_token", tokenPair.AccessToken)
 	fragment.Set("refresh_token", tokenPair.RefreshToken)
@@ -1366,4 +1372,138 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 	clearOAuthPendingBrowserCookie(c, isRequestHTTPS(c))
 	redirectWithFragment(c, frontendCallback, fragment)
 	return true
+}
+
+type oidcTokenExchangeRequest struct {
+	IDToken string `json:"id_token" binding:"required"`
+}
+
+// OIDCTokenExchange 用上游 id_token 换取本站会话 token（供 Mikiko App 等原生客户端使用，
+// 客户端本地完成 PKCE 授权码交换后只需把 id_token 交给本站做信任转移）。
+// POST /api/v1/auth/oauth/oidc/token-exchange
+func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
+	var req oidcTokenExchangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	cfg, err := h.getOIDCOAuthConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	// 端点自身强制校验签名；validate_id_token 未开启时 JWKS 可能缺省，按 discovery 补齐。
+	if strings.TrimSpace(cfg.JWKSURL) == "" {
+		jwksURL, metaErr := oidcDiscoveryJWKSURL(c.Request.Context(), strings.TrimSpace(cfg.DiscoveryURL))
+		if metaErr != nil || jwksURL == "" {
+			response.ErrorFrom(c, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth jwks url not configured"))
+			return
+		}
+		cfg.JWKSURL = jwksURL
+	}
+
+	claims, err := oidcParseAndValidateIDToken(c.Request.Context(), cfg, req.IDToken, "")
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.Unauthorized("OAUTH_ID_TOKEN_INVALID", "id_token validation failed"))
+		return
+	}
+	// 受众校验：id_token 必须签发给本站配置的 client（azp 或 aud）。
+	authorizedParty := strings.TrimSpace(claims.Azp)
+	if authorizedParty == "" && len(claims.Audience) > 0 {
+		authorizedParty = claims.Audience[0]
+	}
+	if !strings.EqualFold(authorizedParty, strings.TrimSpace(cfg.ClientID)) {
+		response.ErrorFrom(c, infraerrors.Unauthorized("OAUTH_ID_TOKEN_INVALID", "id_token audience mismatch"))
+		return
+	}
+
+	subject := strings.TrimSpace(claims.Subject)
+	if subject == "" {
+		response.ErrorFrom(c, infraerrors.Unauthorized("OAUTH_ID_TOKEN_INVALID", "missing subject claim"))
+		return
+	}
+	identityRef := service.PendingAuthIdentityKey{
+		ProviderType:    "oidc",
+		ProviderKey:     "oidc",
+		ProviderSubject: subject,
+	}
+
+	identityUser, err := h.findOAuthIdentityUser(c.Request.Context(), identityRef)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	var svcUser *service.User
+	if identityUser != nil {
+		svcUser = &service.User{ID: identityUser.ID, Email: identityUser.Email, Role: identityUser.Role, Status: identityUser.Status}
+	} else {
+		email := strings.TrimSpace(strings.ToLower(claims.Email))
+		emailVerified := claims.EmailVerified != nil && *claims.EmailVerified
+		if email == "" || !emailVerified {
+			// 未验证邮箱的首次登录必须走浏览器完成 choice/验证流程，不能凭 id_token 直接建号。
+			response.ErrorFrom(c, infraerrors.Forbidden("OAUTH_EMAIL_NOT_VERIFIED", "complete the first sign-in in the browser before using token exchange"))
+			return
+		}
+		_, regUser, regErr := h.authService.LoginOrRegisterVerifiedEmailOAuthWithSignupCodes(
+			c.Request.Context(),
+			service.EmailOAuthIdentityInput{
+				ProviderType:    "oidc",
+				ProviderKey:     "oidc",
+				ProviderSubject: subject,
+				Email:           email,
+				EmailVerified:   true,
+				Username:        strings.TrimSpace(claims.PreferredUsername),
+				DisplayName:     strings.TrimSpace(claims.Name),
+			},
+			"", "", "",
+		)
+		if regErr != nil {
+			response.ErrorFrom(c, regErr)
+			return
+		}
+		svcUser = &service.User{ID: regUser.ID, Email: regUser.Email, Role: regUser.Role, Status: regUser.Status}
+	}
+
+	if svcUser.Status != service.StatusActive {
+		response.ErrorFrom(c, infraerrors.Forbidden("USER_NOT_ACTIVE", "user is not active"))
+		return
+	}
+
+	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), svcUser); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	h.authService.RecordSuccessfulLogin(c.Request.Context(), svcUser.ID)
+	h.oidcSyncAsync(svcUser.Email, func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+		svc.CheckDrift(ctx, email)
+	})
+
+	tokenPair, err := h.authService.GenerateTokenPair(c.Request.Context(), svcUser, "")
+	if err != nil {
+		response.InternalError(c, "Failed to generate token pair")
+		return
+	}
+	writeOAuthTokenPairResponse(c, tokenPair)
+}
+
+// oidcDiscoveryJWKSURL 拉取 discovery 文档并返回 jwks_uri。
+func oidcDiscoveryJWKSURL(ctx context.Context, discoveryURL string) (string, error) {
+	type discoveryDoc struct {
+		JWKSURI string `json:"jwks_uri"`
+	}
+	var doc discoveryDoc
+	resp, err := req.C().SetTimeout(15*time.Second).R().SetContext(ctx).
+		SetHeader("Accept", "application/json").
+		SetSuccessResult(&doc).
+		Get(discoveryURL)
+	if err != nil {
+		return "", fmt.Errorf("request discovery document: %w", err)
+	}
+	if !resp.IsSuccessState() {
+		return "", fmt.Errorf("discovery request failed: status=%d", resp.StatusCode)
+	}
+	return strings.TrimSpace(doc.JWKSURI), nil
 }

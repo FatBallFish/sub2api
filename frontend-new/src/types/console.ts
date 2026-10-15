@@ -4,6 +4,7 @@ export interface ConsoleUser {
   name?: string;
   avatar_url?: string;
   role: string;
+  signup_source?: string;
 }
 
 export interface ConsoleWallet {
@@ -29,6 +30,7 @@ export interface ConsoleBootstrap {
   global_plan: ConsoleGlobalPlan;
   unread_announcements: number;
   affiliate_enabled?: boolean;
+  oidc_password_drift?: boolean;
 }
 
 export interface ConsoleOverviewStats {

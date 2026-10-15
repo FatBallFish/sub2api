@@ -257,6 +257,21 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OAuthSignupBypassRegistration != after.OAuthSignupBypassRegistration {
 		changed = append(changed, "oauth_signup_bypass_registration")
 	}
+	if before.PasswordLoginDisabled != after.PasswordLoginDisabled {
+		changed = append(changed, "password_login_disabled")
+	}
+	if before.OIDCUserSyncEnabled != after.OIDCUserSyncEnabled {
+		changed = append(changed, "oidc_user_sync_enabled")
+	}
+	if before.OIDCUserSyncAdminURL != after.OIDCUserSyncAdminURL {
+		changed = append(changed, "oidc_user_sync_admin_url")
+	}
+	if before.OIDCUserSyncRealm != after.OIDCUserSyncRealm {
+		changed = append(changed, "oidc_user_sync_realm")
+	}
+	if before.OIDCUserSyncClientID != after.OIDCUserSyncClientID {
+		changed = append(changed, "oidc_user_sync_client_id")
+	}
 	if before.OIDCConnectProviderName != after.OIDCConnectProviderName {
 		changed = append(changed, "oidc_connect_provider_name")
 	}
