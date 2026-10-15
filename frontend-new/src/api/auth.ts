@@ -204,6 +204,9 @@ export interface PendingOAuthCompletion extends Partial<AuthResponse> {
   resolved_email?: string;
   invitation_required?: boolean;
   step?: string;
+  compat_email?: string;
+  pending_email?: string;
+  suggested_email?: string;
   email_verification_required?: boolean;
   create_account_allowed?: boolean;
   existing_account_email?: string;
