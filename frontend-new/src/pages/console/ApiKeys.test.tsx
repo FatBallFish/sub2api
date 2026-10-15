@@ -154,7 +154,93 @@ describe("ApiKeys", () => {
     expect(params.get("apiKey")).toBe("sk-live-full-value");
   });
 
+  it("paginates the API key list across pages", async () => {
+    const allKeys = Array.from({ length: 12 }, (_, index) => ({
+      id: 300 - index,
+      user_id: 1,
+      key: `sk-key-${index}`,
+      name: `Key ${300 - index}`,
+      group_id: null,
+      status: "active",
+      quota: 0,
+      quota_used: 0,
+      last_used_at: null,
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:00:00Z",
+    }));
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.endsWith("/api/v1/groups/available")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: [] }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/groups/rates")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: {} }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/settings/public")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: {} }), { status: 200 }));
+      }
+      if (url.endsWith("/api/v1/usage/dashboard/api-keys-usage")) {
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: { stats: {} } }), { status: 200 }));
+      }
+      const params = new URLSearchParams(url.split("?")[1] ?? "");
+      const pageNumber = Number(params.get("page") ?? "1");
+      const size = Number(params.get("page_size") ?? "10");
+      const start = (pageNumber - 1) * size;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              items: allKeys.slice(start, start + size),
+              total: allKeys.length,
+              page: pageNumber,
+              page_size: size,
+              pages: Math.ceil(allKeys.length / size),
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    });
+    globalThis.fetch = fetchMock;
+
+    renderApiKeys();
+
+    expect(await screen.findByText("Key 300")).toBeInTheDocument();
+    expect(screen.getByText("Key 291")).toBeInTheDocument();
+    expect(screen.queryByText("Key 290")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing page 1 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /previous page/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /next page/i })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole("button", { name: /next page/i }));
+
+    expect(await screen.findByText("Key 290")).toBeInTheDocument();
+    expect(screen.getByText("Key 289")).toBeInTheDocument();
+    expect(screen.queryByText("Key 300")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing page 2 of 2")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next page/i })).toBeDisabled();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/keys?page=2&page_size=10")),
+    ).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: /previous page/i }));
+
+    expect(await screen.findByText("Key 300")).toBeInTheDocument();
+    expect(screen.getByText("Showing page 1 of 2")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/rows per page/i), { target: { value: "50" } });
+
+    expect(await screen.findByText("Key 289")).toBeInTheDocument();
+    expect(screen.getByText("Key 300")).toBeInTheDocument();
+    expect(screen.getByText("Showing page 1 of 1")).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/keys?page=1&page_size=50")),
+    ).toBe(true);
+  });
+
   it("creates a new API key and adds it to the list", async () => {
+    let createdKey: Record<string, unknown> | null = null;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
       if (url.endsWith("/api/v1/groups/available")) {
@@ -184,23 +270,31 @@ describe("ApiKeys", () => {
         );
       }
       if (url.endsWith("/api/v1/keys") && init?.method === "POST") {
+        createdKey = {
+          id: 101,
+          user_id: 1,
+          key: "sk-local-generated",
+          name: "Local Development",
+          group_id: 11,
+          group: {
+            id: 11,
+            name: "Production",
+            description: "Lower latency Claude subscription pool",
+            platform: "anthropic",
+            rate_multiplier: 0.75,
+          },
+          status: "active",
+          quota: 25,
+          quota_used: 0,
+          last_used_at: null,
+          created_at: "2026-06-18T00:00:00Z",
+          updated_at: "2026-06-18T00:00:00Z",
+        };
         return Promise.resolve(
           new Response(
             JSON.stringify({
               success: true,
-              data: {
-                id: 101,
-                user_id: 1,
-                key: "sk-local-generated",
-                name: "Local Development",
-                group_id: 11,
-                status: "active",
-                quota: 25,
-                quota_used: 0,
-                last_used_at: null,
-                created_at: "2026-06-18T00:00:00Z",
-                updated_at: "2026-06-18T00:00:00Z",
-              },
+              data: createdKey,
             }),
             { status: 200, headers: { "Content-Type": "application/json" } },
           ),
@@ -212,11 +306,11 @@ describe("ApiKeys", () => {
           JSON.stringify({
             success: true,
             data: {
-              items: [],
-              total: 0,
+              items: createdKey ? [createdKey] : [],
+              total: createdKey ? 1 : 0,
               page: 1,
               page_size: 10,
-              pages: 0,
+              pages: createdKey ? 1 : 0,
             },
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
@@ -261,6 +355,7 @@ describe("ApiKeys", () => {
     let currentStatus = "active";
     let currentQuota = 100;
     let currentGroupId: number | null = null;
+    let deleted = false;
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
       if (url.endsWith("/api/v1/groups/available")) {
@@ -311,6 +406,7 @@ describe("ApiKeys", () => {
         );
       }
       if (url.endsWith("/api/v1/keys/100") && init?.method === "DELETE") {
+        deleted = true;
         return Promise.resolve(
           new Response(JSON.stringify({ success: true, data: { message: "deleted" } }), {
             status: 200,
@@ -324,7 +420,7 @@ describe("ApiKeys", () => {
           JSON.stringify({
             success: true,
             data: {
-              items: [
+              items: deleted ? [] : [
                 {
                   id: 100,
                   user_id: 1,
@@ -339,10 +435,10 @@ describe("ApiKeys", () => {
                   updated_at: "2026-06-01T00:00:00Z",
                 },
               ],
-              total: 1,
+              total: deleted ? 0 : 1,
               page: 1,
               page_size: 10,
-              pages: 1,
+              pages: deleted ? 0 : 1,
             },
           }),
           { status: 200, headers: { "Content-Type": "application/json" } },
@@ -473,6 +569,27 @@ describe("ApiKeys", () => {
   it("localizes modal, group selection, validation, and creation success", async () => {
     await i18n.changeLanguage("zh-CN");
     let createAttempts = 0;
+    let createdTokyo = false;
+    const tokyoClientKey = {
+      id: 101,
+      user_id: 1,
+      key: "sk-created",
+      name: "Tokyo Client",
+      group_id: 11,
+      group: {
+        id: 11,
+        name: "Tokyo Premium",
+        description: "Backend configured routing",
+        platform: "anthropic",
+        rate_multiplier: 0.75,
+      },
+      status: "active",
+      quota: 25,
+      quota_used: 0,
+      last_used_at: null,
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:00:00Z",
+    };
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
       if (url.endsWith("/api/v1/groups/available")) {
@@ -499,21 +616,10 @@ describe("ApiKeys", () => {
             message: "Configured mutation detail",
           }), { status: 400, headers: { "Content-Type": "application/json" } }));
         }
-        return Promise.resolve(new Response(JSON.stringify({ success: true, data: {
-          id: 101,
-          user_id: 1,
-          key: "sk-created",
-          name: "Tokyo Client",
-          group_id: 11,
-          status: "active",
-          quota: 25,
-          quota_used: 0,
-          last_used_at: null,
-          created_at: "2026-06-01T00:00:00Z",
-          updated_at: "2026-06-01T00:00:00Z",
-        } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+        createdTokyo = true;
+        return Promise.resolve(new Response(JSON.stringify({ success: true, data: tokyoClientKey }), { status: 200, headers: { "Content-Type": "application/json" } }));
       }
-      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { items: [], total: 0, page: 1, page_size: 10, pages: 0 } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { items: createdTokyo ? [tokyoClientKey] : [], total: createdTokyo ? 1 : 0, page: 1, page_size: 10, pages: createdTokyo ? 1 : 0 } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     });
     globalThis.fetch = fetchMock;
 
