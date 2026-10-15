@@ -167,3 +167,4 @@ issues/
 
 # Mikiko Pool has moved to the standalone account_pool_console repository.
 /mikiko-pool/
+backend/data-backup-*/

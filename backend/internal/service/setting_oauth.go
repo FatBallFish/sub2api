@@ -1016,8 +1016,11 @@ func (s *SettingService) GetOIDCConnectConsoleOAuthConfig(ctx context.Context) (
 	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleRedirectURL]); v != "" {
 		effective.RedirectURL = v
 	}
-	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleFrontendRedirectURL]); v != "" {
-		effective.FrontendRedirectURL = v
+	// 新前端有固定的回调路由；留空时不继承主配置（那指向老前端路径，
+	// 会让新前端 SPA 落到通配路由被重定向回首页）。
+	effective.FrontendRedirectURL = strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleFrontendRedirectURL])
+	if effective.FrontendRedirectURL == "" {
+		effective.FrontendRedirectURL = "/auth/oauth/callback"
 	}
 
 	if err := s.finalizeOIDCConnectConfig(ctx, &effective); err != nil {

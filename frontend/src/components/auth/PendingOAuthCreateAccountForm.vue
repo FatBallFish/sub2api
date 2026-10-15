@@ -6,6 +6,7 @@
       type="email"
       class="input w-full"
       :placeholder="t('auth.emailPlaceholder')"
+      :readonly="Boolean(initialEmail)"
       :disabled="isSubmitting || isSendingCode"
     />
     <input
@@ -349,7 +350,8 @@ onMounted(async () => {
   try {
     const settings = await getPublicSettings()
     invitationCodeEnabled.value = settings.invitation_code_enabled === true
-    emailVerifyEnabled.value = settings.email_verify_enabled !== false
+    // pending 建号端点恒要求本地邮箱验证码（与全局 email_verify_enabled 无关）。
+    emailVerifyEnabled.value = true
     turnstileEnabled.value = settings.turnstile_enabled === true
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     tencentCaptchaEnabled.value = settings.tencent_captcha_enabled === true
