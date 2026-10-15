@@ -293,6 +293,16 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 		updates[SettingKeyOIDCConnectClientSecret] = settings.OIDCConnectClientSecret
 	}
 
+	// 新前端（console）独立 OIDC 登录配置
+	updates[SettingKeyOIDCConnectConsoleEnabled] = strconv.FormatBool(settings.OIDCConnectConsoleEnabled)
+	updates[SettingKeyOIDCConnectConsoleProviderName] = settings.OIDCConnectConsoleProviderName
+	updates[SettingKeyOIDCConnectConsoleClientID] = settings.OIDCConnectConsoleClientID
+	updates[SettingKeyOIDCConnectConsoleRedirectURL] = settings.OIDCConnectConsoleRedirectURL
+	updates[SettingKeyOIDCConnectConsoleFrontendRedirectURL] = settings.OIDCConnectConsoleFrontendRedirectURL
+	if settings.OIDCConnectConsoleClientSecret != "" {
+		updates[SettingKeyOIDCConnectConsoleClientSecret] = settings.OIDCConnectConsoleClientSecret
+	}
+
 	// GitHub / Google 邮箱快捷登录
 	updates[SettingKeyGitHubOAuthEnabled] = strconv.FormatBool(settings.GitHubOAuthEnabled)
 	updates[SettingKeyGitHubOAuthClientID] = strings.TrimSpace(settings.GitHubOAuthClientID)

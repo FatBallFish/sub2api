@@ -189,6 +189,13 @@ func RegisterAuthRoutes(
 			h.Auth.OIDCOAuthStart(c)
 		})
 		auth.GET("/oauth/oidc/callback", h.Auth.OIDCOAuthCallback)
+		// 新前端（console）独立 OIDC 入口：独立 cookie 命名空间与回调地址，
+		// 让新老前端在各自域名下互不干扰地完成 OAuth 登录。
+		auth.GET("/oauth/oidc-console/start", h.Auth.OIDCOAuthConsoleStart)
+		auth.POST("/oauth/oidc-console/start", rateLimiter.LimitWithOptions("oauth-oidc-console-start", 20, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.OIDCOAuthConsoleStart)
+		auth.GET("/oauth/oidc-console/callback", h.Auth.OIDCOAuthConsoleCallback)
 		auth.POST("/oauth/oidc/complete-registration",
 			rateLimiter.LimitWithOptions("oauth-oidc-complete", 10, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,

@@ -317,6 +317,21 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.OIDCConnectUserInfoUsernamePath != after.OIDCConnectUserInfoUsernamePath {
 		changed = append(changed, "oidc_connect_userinfo_username_path")
 	}
+	if before.OIDCConnectConsoleEnabled != after.OIDCConnectConsoleEnabled {
+		changed = append(changed, "oidc_connect_console_enabled")
+	}
+	if before.OIDCConnectConsoleProviderName != after.OIDCConnectConsoleProviderName {
+		changed = append(changed, "oidc_connect_console_provider_name")
+	}
+	if before.OIDCConnectConsoleClientID != after.OIDCConnectConsoleClientID {
+		changed = append(changed, "oidc_connect_console_client_id")
+	}
+	if before.OIDCConnectConsoleRedirectURL != after.OIDCConnectConsoleRedirectURL {
+		changed = append(changed, "oidc_connect_console_redirect_url")
+	}
+	if before.OIDCConnectConsoleFrontendRedirectURL != after.OIDCConnectConsoleFrontendRedirectURL {
+		changed = append(changed, "oidc_connect_console_frontend_redirect_url")
+	}
 	if before.SiteName != after.SiteName {
 		changed = append(changed, "site_name")
 	}

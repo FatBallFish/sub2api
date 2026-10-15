@@ -44,6 +44,7 @@ const HARDCODED_COPY_ALLOWLIST: readonly AllowlistEntry[] = [
   { value: "Gemini CLI", reason: "Official client name." },
   { value: "Google", reason: "OAuth provider name." },
   { value: "GitHub", reason: "OAuth provider name." },
+  { value: "OIDC", reason: "OAuth protocol name." },
   { value: "OAuth", reason: "Protocol name." },
   // URLs/input examples and code/config snippets are copied verbatim by users and must not be translated.
   { category: "jsx-attribute", value: "https://example.com/input.png", reason: "Image URL input example." },

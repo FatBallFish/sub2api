@@ -1511,12 +1511,12 @@ func clearOAuthLogoutCookies(c *gin.Context) {
 	clearCookie(c, linuxDoOAuthIntentCookieName, secureCookie)
 	clearCookie(c, linuxDoOAuthBindUserCookieName, secureCookie)
 
-	oidcClearCookie(c, oidcOAuthStateCookieName, secureCookie)
-	oidcClearCookie(c, oidcOAuthVerifierCookie, secureCookie)
-	oidcClearCookie(c, oidcOAuthRedirectCookie, secureCookie)
-	oidcClearCookie(c, oidcOAuthNonceCookie, secureCookie)
-	oidcClearCookie(c, oidcOAuthIntentCookieName, secureCookie)
-	oidcClearCookie(c, oidcOAuthBindUserCookieName, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthStateCookieName, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthVerifierCookie, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthRedirectCookie, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthNonceCookie, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthIntentCookieName, secureCookie)
+	oidcClearCookie(c, oidcOAuthCookiePath, oidcOAuthBindUserCookieName, secureCookie)
 
 	wechatClearCookie(c, wechatOAuthStateCookieName, secureCookie)
 	wechatClearCookie(c, wechatOAuthRedirectCookieName, secureCookie)

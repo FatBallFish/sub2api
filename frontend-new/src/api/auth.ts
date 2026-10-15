@@ -72,7 +72,7 @@ export interface PendingOAuthSessionStatus {
   choice_reason?: string;
 }
 
-export type OAuthProvider = "google" | "github";
+export type OAuthProvider = "google" | "github" | "oidc" | "oidc-console";
 
 const OAUTH_AFFILIATE_CODE_STORAGE_KEY = "oauth_aff_code";
 

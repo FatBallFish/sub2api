@@ -611,6 +611,13 @@ export interface SystemSettings {
   oidc_connect_userinfo_email_path: string;
   oidc_connect_userinfo_id_path: string;
   oidc_connect_userinfo_username_path: string;
+  // 新前端（console）独立 OIDC 登录配置
+  oidc_connect_console_enabled: boolean;
+  oidc_connect_console_provider_name: string;
+  oidc_connect_console_client_id: string;
+  oidc_connect_console_client_secret_configured: boolean;
+  oidc_connect_console_redirect_url: string;
+  oidc_connect_console_frontend_redirect_url: string;
   github_oauth_enabled: boolean;
   github_oauth_client_id: string;
   github_oauth_client_secret_configured: boolean;
@@ -953,6 +960,12 @@ export interface UpdateSettingsRequest {
   oidc_connect_scopes?: string;
   oidc_connect_redirect_url?: string;
   oidc_connect_frontend_redirect_url?: string;
+  oidc_connect_console_enabled?: boolean;
+  oidc_connect_console_provider_name?: string;
+  oidc_connect_console_client_id?: string;
+  oidc_connect_console_client_secret?: string;
+  oidc_connect_console_redirect_url?: string;
+  oidc_connect_console_frontend_redirect_url?: string;
   oidc_connect_token_auth_method?: string;
   oidc_connect_use_pkce?: boolean;
   oidc_connect_validate_id_token?: boolean;

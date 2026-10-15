@@ -743,8 +743,24 @@ func (s *SettingService) GetWeChatConnectOAuthConfig(ctx context.Context) (WeCha
 // - 若对应系统设置键存在，则覆盖 config.yaml/env 的值
 // - 否则回退到 config.yaml/env 的值
 func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.OIDCConnectConfig, error) {
+	effective, _, err := s.resolveOIDCConnectSettings(ctx)
+	if err != nil {
+		return config.OIDCConnectConfig{}, err
+	}
+	if !effective.Enabled {
+		return config.OIDCConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
+	}
+	if err := s.finalizeOIDCConnectConfig(ctx, &effective); err != nil {
+		return config.OIDCConnectConfig{}, err
+	}
+	return effective, nil
+}
+
+// resolveOIDCConnectSettings 读取主 OIDC 设置并叠加到配置文件默认值上，
+// 返回叠加结果与原始 settings map（供 console 变体复用）。
+func (s *SettingService) resolveOIDCConnectSettings(ctx context.Context) (config.OIDCConnectConfig, map[string]string, error) {
 	if s == nil || s.cfg == nil {
-		return config.OIDCConnectConfig{}, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
+		return config.OIDCConnectConfig{}, nil, infraerrors.ServiceUnavailable("CONFIG_NOT_READY", "config not loaded")
 	}
 
 	effective := s.cfg.OIDC
@@ -772,10 +788,16 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 		SettingKeyOIDCConnectUserInfoEmailPath,
 		SettingKeyOIDCConnectUserInfoIDPath,
 		SettingKeyOIDCConnectUserInfoUsernamePath,
+		SettingKeyOIDCConnectConsoleEnabled,
+		SettingKeyOIDCConnectConsoleProviderName,
+		SettingKeyOIDCConnectConsoleClientID,
+		SettingKeyOIDCConnectConsoleClientSecret,
+		SettingKeyOIDCConnectConsoleRedirectURL,
+		SettingKeyOIDCConnectConsoleFrontendRedirectURL,
 	}
 	settings, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
-		return config.OIDCConnectConfig{}, fmt.Errorf("get oidc connect settings: %w", err)
+		return config.OIDCConnectConfig{}, nil, fmt.Errorf("get oidc connect settings: %w", err)
 	}
 
 	if raw, ok := settings[SettingKeyOIDCConnectEnabled]; ok {
@@ -850,34 +872,36 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 	if v, ok := settings[SettingKeyOIDCConnectUserInfoUsernamePath]; ok {
 		effective.UserInfoUsernamePath = strings.TrimSpace(v)
 	}
+	return effective, settings, nil
+}
 
-	if !effective.Enabled {
-		return config.OIDCConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
-	}
+// finalizeOIDCConnectConfig 补齐展示默认值、校验必填字段并按需解析 discovery 文档。
+// 要求调用方已根据变体设置好 Enabled（主配置或 console 配置）。
+func (s *SettingService) finalizeOIDCConnectConfig(ctx context.Context, effective *config.OIDCConnectConfig) error {
 	if strings.TrimSpace(effective.ProviderName) == "" {
 		effective.ProviderName = "OIDC"
 	}
 	if strings.TrimSpace(effective.ClientID) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client id not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client id not configured")
 	}
 	if strings.TrimSpace(effective.IssuerURL) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth issuer url not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth issuer url not configured")
 	}
 	if strings.TrimSpace(effective.RedirectURL) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url not configured")
 	}
 	if strings.TrimSpace(effective.FrontendRedirectURL) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url not configured")
 	}
 	if !scopesContainOpenID(effective.Scopes) {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth scopes must contain openid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth scopes must contain openid")
 	}
 	if effective.ClockSkewSeconds < 0 || effective.ClockSkewSeconds > 600 {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth clock skew must be between 0 and 600")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth clock skew must be between 0 and 600")
 	}
 
 	if err := config.ValidateAbsoluteHTTPURL(effective.IssuerURL); err != nil {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth issuer url invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth issuer url invalid")
 	}
 
 	discoveryURL := strings.TrimSpace(effective.DiscoveryURL)
@@ -887,7 +911,7 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 	}
 	if discoveryURL != "" {
 		if err := config.ValidateAbsoluteHTTPURL(discoveryURL); err != nil {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth discovery url invalid")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth discovery url invalid")
 		}
 	}
 
@@ -897,7 +921,7 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 	if needsDiscovery && discoveryURL != "" {
 		metadata, resolveErr := oidcResolveProviderMetadata(ctx, discoveryURL)
 		if resolveErr != nil {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth discovery resolve failed").WithCause(resolveErr)
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth discovery resolve failed").WithCause(resolveErr)
 		}
 		if strings.TrimSpace(effective.AuthorizeURL) == "" {
 			effective.AuthorizeURL = strings.TrimSpace(metadata.AuthorizationEndpoint)
@@ -914,53 +938,91 @@ func (s *SettingService) GetOIDCConnectOAuthConfig(ctx context.Context) (config.
 	}
 
 	if strings.TrimSpace(effective.AuthorizeURL) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth authorize url not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth authorize url not configured")
 	}
 	if strings.TrimSpace(effective.TokenURL) == "" {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token url not configured")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token url not configured")
 	}
 	if err := config.ValidateAbsoluteHTTPURL(effective.AuthorizeURL); err != nil {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth authorize url invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth authorize url invalid")
 	}
 	if err := config.ValidateAbsoluteHTTPURL(effective.TokenURL); err != nil {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token url invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token url invalid")
 	}
 	if v := strings.TrimSpace(effective.UserInfoURL); v != "" {
 		if err := config.ValidateAbsoluteHTTPURL(v); err != nil {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth userinfo url invalid")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth userinfo url invalid")
 		}
 	}
 	if effective.ValidateIDToken {
 		if strings.TrimSpace(effective.JWKSURL) == "" {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth jwks url not configured")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth jwks url not configured")
 		}
 		if strings.TrimSpace(effective.AllowedSigningAlgs) == "" {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth signing algs not configured")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth signing algs not configured")
 		}
 	}
 	if v := strings.TrimSpace(effective.JWKSURL); v != "" {
 		if err := config.ValidateAbsoluteHTTPURL(v); err != nil {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth jwks url invalid")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth jwks url invalid")
 		}
 	}
 	if err := config.ValidateAbsoluteHTTPURL(effective.RedirectURL); err != nil {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth redirect url invalid")
 	}
 	if err := config.ValidateFrontendRedirectURL(effective.FrontendRedirectURL); err != nil {
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth frontend redirect url invalid")
 	}
 
 	method := strings.ToLower(strings.TrimSpace(effective.TokenAuthMethod))
 	switch method {
 	case "", "client_secret_post", "client_secret_basic":
 		if strings.TrimSpace(effective.ClientSecret) == "" {
-			return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client secret not configured")
+			return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth client secret not configured")
 		}
 	case "none":
 	default:
-		return config.OIDCConnectConfig{}, infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token_auth_method invalid")
+		return infraerrors.InternalServer("OAUTH_CONFIG_INVALID", "oauth token_auth_method invalid")
 	}
 
+	return nil
+}
+
+// GetOIDCConnectConsoleOAuthConfig 返回新前端（console）变体的 OIDC 配置。
+// 协议参数（issuer/scopes/PKCE 等）继承主配置；入口与回调字段按 console 专属设置覆盖，
+// client id/secret 未单独配置时同样回退主配置，便于两个域名共用同一个上游 client。
+func (s *SettingService) GetOIDCConnectConsoleOAuthConfig(ctx context.Context) (config.OIDCConnectConfig, error) {
+	effective, settings, err := s.resolveOIDCConnectSettings(ctx)
+	if err != nil {
+		return config.OIDCConnectConfig{}, err
+	}
+
+	consoleEnabled := false
+	if raw, ok := settings[SettingKeyOIDCConnectConsoleEnabled]; ok {
+		consoleEnabled = raw == "true"
+	}
+	if !consoleEnabled {
+		return config.OIDCConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
+	}
+	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleProviderName]); v != "" {
+		effective.ProviderName = v
+	}
+	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleClientID]); v != "" {
+		effective.ClientID = v
+	}
+	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleClientSecret]); v != "" {
+		effective.ClientSecret = v
+	}
+	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleRedirectURL]); v != "" {
+		effective.RedirectURL = v
+	}
+	if v := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleFrontendRedirectURL]); v != "" {
+		effective.FrontendRedirectURL = v
+	}
+
+	if err := s.finalizeOIDCConnectConfig(ctx, &effective); err != nil {
+		return config.OIDCConnectConfig{}, err
+	}
 	return effective, nil
 }
 

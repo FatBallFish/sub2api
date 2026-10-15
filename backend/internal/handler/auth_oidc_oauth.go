@@ -45,6 +45,56 @@ const (
 	oidcOAuthDefaultFrontendCB  = "/auth/oidc/callback"
 )
 
+// oidcRouteVariant 描述一个 OIDC 登录入口（老前端或新前端 console）。
+// 两个变体各自持有独立的 cookie 命名空间与配置解析入口，避免跨域回调时
+// state/verifier cookie 串扰。
+type oidcRouteVariant struct {
+	cookiePath        string
+	stateCookie       string
+	verifierCookie    string
+	redirectCookie    string
+	nonceCookie       string
+	intentCookie      string
+	bindUserCookie    string
+	defaultRedirectTo string
+	config            func(ctx context.Context) (config.OIDCConnectConfig, error)
+}
+
+func (h *AuthHandler) oidcMainRouteVariant() oidcRouteVariant {
+	return oidcRouteVariant{
+		cookiePath:        oidcOAuthCookiePath,
+		stateCookie:       oidcOAuthStateCookieName,
+		verifierCookie:    oidcOAuthVerifierCookie,
+		redirectCookie:    oidcOAuthRedirectCookie,
+		nonceCookie:       oidcOAuthNonceCookie,
+		intentCookie:      oidcOAuthIntentCookieName,
+		bindUserCookie:    oidcOAuthBindUserCookieName,
+		defaultRedirectTo: oidcOAuthDefaultRedirectTo,
+		config:            h.getOIDCOAuthConfig,
+	}
+}
+
+func (h *AuthHandler) oidcConsoleRouteVariant() oidcRouteVariant {
+	return oidcRouteVariant{
+		cookiePath:        "/api/v1/auth/oauth/oidc-console",
+		stateCookie:       "oidc_oauth_console_state",
+		verifierCookie:    "oidc_oauth_console_verifier",
+		redirectCookie:    "oidc_oauth_console_redirect",
+		nonceCookie:       "oidc_oauth_console_nonce",
+		intentCookie:      "oidc_oauth_console_intent",
+		bindUserCookie:    "oidc_oauth_console_bind_user",
+		defaultRedirectTo: "/console",
+		config:            h.getOIDCConsoleOAuthConfig,
+	}
+}
+
+func (h *AuthHandler) getOIDCConsoleOAuthConfig(ctx context.Context) (config.OIDCConnectConfig, error) {
+	if h != nil && h.settingSvc != nil {
+		return h.settingSvc.GetOIDCConnectConsoleOAuthConfig(ctx)
+	}
+	return config.OIDCConnectConfig{}, infraerrors.NotFound("OAUTH_DISABLED", "oauth login is disabled")
+}
+
 type oidcTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	TokenType    string `json:"token_type"`
@@ -112,13 +162,23 @@ type oidcJWK struct {
 	Y   string `json:"y"`
 }
 
-// OIDCOAuthStart 启动通用 OIDC OAuth 登录流程。
+// OIDCOAuthStart 启动通用 OIDC OAuth 登录流程（老前端入口）。
 // GET /api/v1/auth/oauth/oidc/start?redirect=/dashboard
 func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
+	h.oidcOAuthStart(c, h.oidcMainRouteVariant())
+}
+
+// OIDCOAuthConsoleStart 启动新前端（console）的 OIDC 登录流程。
+// GET /api/v1/auth/oauth/oidc-console/start?redirect=/console
+func (h *AuthHandler) OIDCOAuthConsoleStart(c *gin.Context) {
+	h.oidcOAuthStart(c, h.oidcConsoleRouteVariant())
+}
+
+func (h *AuthHandler) oidcOAuthStart(c *gin.Context, v oidcRouteVariant) {
 	if !h.requireActionCaptchaForOAuthLoginStart(c) {
 		return
 	}
-	cfg, err := h.getOIDCOAuthConfig(c.Request.Context())
+	cfg, err := v.config(c.Request.Context())
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -132,7 +192,7 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 
 	redirectTo := sanitizeFrontendRedirectPath(c.Query("redirect"))
 	if redirectTo == "" {
-		redirectTo = oidcOAuthDefaultRedirectTo
+		redirectTo = v.defaultRedirectTo
 	}
 
 	browserSessionKey, err := generateOAuthPendingBrowserSession()
@@ -142,10 +202,10 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 	}
 
 	secureCookie := isRequestHTTPS(c)
-	oidcSetCookie(c, oidcOAuthStateCookieName, encodeCookieValue(state), oidcOAuthCookieMaxAgeSec, secureCookie)
-	oidcSetCookie(c, oidcOAuthRedirectCookie, encodeCookieValue(redirectTo), oidcOAuthCookieMaxAgeSec, secureCookie)
+	oidcSetCookie(c, v.cookiePath, v.stateCookie, encodeCookieValue(state), oidcOAuthCookieMaxAgeSec, secureCookie)
+	oidcSetCookie(c, v.cookiePath, v.redirectCookie, encodeCookieValue(redirectTo), oidcOAuthCookieMaxAgeSec, secureCookie)
 	intent := normalizeOAuthIntent(c.Query("intent"))
-	oidcSetCookie(c, oidcOAuthIntentCookieName, encodeCookieValue(intent), oidcOAuthCookieMaxAgeSec, secureCookie)
+	oidcSetCookie(c, v.cookiePath, v.intentCookie, encodeCookieValue(intent), oidcOAuthCookieMaxAgeSec, secureCookie)
 	captureOAuthPromoCode(c, secureCookie)
 	setOAuthPendingBrowserCookie(c, browserSessionKey, secureCookie)
 	clearOAuthPendingSessionCookie(c, secureCookie)
@@ -155,9 +215,9 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 			response.ErrorFrom(c, err)
 			return
 		}
-		oidcSetCookie(c, oidcOAuthBindUserCookieName, encodeCookieValue(bindCookieValue), oidcOAuthCookieMaxAgeSec, secureCookie)
+		oidcSetCookie(c, v.cookiePath, v.bindUserCookie, encodeCookieValue(bindCookieValue), oidcOAuthCookieMaxAgeSec, secureCookie)
 	} else {
-		oidcClearCookie(c, oidcOAuthBindUserCookieName, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.bindUserCookie, secureCookie)
 	}
 
 	codeChallenge := ""
@@ -168,7 +228,7 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 			return
 		}
 		codeChallenge = oauth.GenerateCodeChallenge(verifier)
-		oidcSetCookie(c, oidcOAuthVerifierCookie, encodeCookieValue(verifier), oidcOAuthCookieMaxAgeSec, secureCookie)
+		oidcSetCookie(c, v.cookiePath, v.verifierCookie, encodeCookieValue(verifier), oidcOAuthCookieMaxAgeSec, secureCookie)
 	}
 
 	nonce := ""
@@ -178,7 +238,7 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 			response.ErrorFrom(c, infraerrors.InternalServer("OAUTH_NONCE_GEN_FAILED", "failed to generate oauth nonce").WithCause(err))
 			return
 		}
-		oidcSetCookie(c, oidcOAuthNonceCookie, encodeCookieValue(nonce), oidcOAuthCookieMaxAgeSec, secureCookie)
+		oidcSetCookie(c, v.cookiePath, v.nonceCookie, encodeCookieValue(nonce), oidcOAuthCookieMaxAgeSec, secureCookie)
 	}
 
 	redirectURI := strings.TrimSpace(cfg.RedirectURL)
@@ -196,10 +256,20 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 	respondOAuthStart(c, authURL)
 }
 
-// OIDCOAuthCallback 处理 OIDC 回调：校验 id_token、创建/登录用户并重定向到前端。
+// OIDCOAuthCallback 处理 OIDC 回调：校验 id_token、创建/登录用户并重定向到前端（老前端入口）。
 // GET /api/v1/auth/oauth/oidc/callback?code=...&state=...
 func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
-	cfg, cfgErr := h.getOIDCOAuthConfig(c.Request.Context())
+	h.oidcOAuthCallback(c, h.oidcMainRouteVariant())
+}
+
+// OIDCOAuthConsoleCallback 处理新前端（console）的 OIDC 回调。
+// GET /api/v1/auth/oauth/oidc-console/callback?code=...&state=...
+func (h *AuthHandler) OIDCOAuthConsoleCallback(c *gin.Context) {
+	h.oidcOAuthCallback(c, h.oidcConsoleRouteVariant())
+}
+
+func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
+	cfg, cfgErr := v.config(c.Request.Context())
 	if cfgErr != nil {
 		response.ErrorFrom(c, cfgErr)
 		return
@@ -224,37 +294,37 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 
 	secureCookie := isRequestHTTPS(c)
 	defer func() {
-		oidcClearCookie(c, oidcOAuthStateCookieName, secureCookie)
-		oidcClearCookie(c, oidcOAuthVerifierCookie, secureCookie)
-		oidcClearCookie(c, oidcOAuthRedirectCookie, secureCookie)
-		oidcClearCookie(c, oidcOAuthNonceCookie, secureCookie)
-		oidcClearCookie(c, oidcOAuthIntentCookieName, secureCookie)
-		oidcClearCookie(c, oidcOAuthBindUserCookieName, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.stateCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.verifierCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.redirectCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.nonceCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.intentCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.bindUserCookie, secureCookie)
 		clearOAuthPromoCodeCookie(c, secureCookie)
 	}()
 
-	expectedState, err := readCookieDecoded(c, oidcOAuthStateCookieName)
+	expectedState, err := readCookieDecoded(c, v.stateCookie)
 	if err != nil || expectedState == "" || state != expectedState {
 		redirectOAuthError(c, frontendCallback, "invalid_state", "invalid oauth state", "")
 		return
 	}
 
-	redirectTo, _ := readCookieDecoded(c, oidcOAuthRedirectCookie)
+	redirectTo, _ := readCookieDecoded(c, v.redirectCookie)
 	redirectTo = sanitizeFrontendRedirectPath(redirectTo)
 	if redirectTo == "" {
-		redirectTo = oidcOAuthDefaultRedirectTo
+		redirectTo = v.defaultRedirectTo
 	}
 	browserSessionKey, _ := readOAuthPendingBrowserCookie(c)
 	if strings.TrimSpace(browserSessionKey) == "" {
 		redirectOAuthError(c, frontendCallback, "missing_browser_session", "missing oauth browser session", "")
 		return
 	}
-	intent, _ := readCookieDecoded(c, oidcOAuthIntentCookieName)
+	intent, _ := readCookieDecoded(c, v.intentCookie)
 	intent = normalizeOAuthIntent(intent)
 
 	codeVerifier := ""
 	if cfg.UsePKCE {
-		codeVerifier, _ = readCookieDecoded(c, oidcOAuthVerifierCookie)
+		codeVerifier, _ = readCookieDecoded(c, v.verifierCookie)
 		if codeVerifier == "" {
 			redirectOAuthError(c, frontendCallback, "missing_verifier", "missing pkce verifier", "")
 			return
@@ -263,7 +333,7 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 
 	expectedNonce := ""
 	if cfg.ValidateIDToken {
-		expectedNonce, _ = readCookieDecoded(c, oidcOAuthNonceCookie)
+		expectedNonce, _ = readCookieDecoded(c, v.nonceCookie)
 		if expectedNonce == "" {
 			redirectOAuthError(c, frontendCallback, "missing_nonce", "missing oauth nonce", "")
 			return
@@ -397,7 +467,7 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 		upstreamClaims["compat_email"] = compatEmail
 	}
 	if intent == oauthIntentBindCurrentUser {
-		targetUserID, err := h.readOAuthBindUserIDFromCookie(c, oidcOAuthBindUserCookieName)
+		targetUserID, err := h.readOAuthBindUserIDFromCookie(c, v.bindUserCookie)
 		if err != nil {
 			redirectOAuthError(c, frontendCallback, "invalid_state", "invalid oauth bind target", "")
 			return
@@ -1198,11 +1268,11 @@ func oidcFallbackUsername(subject string) string {
 	return "oidc_" + hex.EncodeToString(sum[:])[:12]
 }
 
-func oidcSetCookie(c *gin.Context, name, value string, maxAgeSec int, secure bool) {
+func oidcSetCookie(c *gin.Context, path, name, value string, maxAgeSec int, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     name,
 		Value:    value,
-		Path:     oidcOAuthCookiePath,
+		Path:     path,
 		MaxAge:   maxAgeSec,
 		HttpOnly: true,
 		Secure:   secure,
@@ -1210,11 +1280,11 @@ func oidcSetCookie(c *gin.Context, name, value string, maxAgeSec int, secure boo
 	})
 }
 
-func oidcClearCookie(c *gin.Context, name string, secure bool) {
+func oidcClearCookie(c *gin.Context, path, name string, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     name,
 		Value:    "",
-		Path:     oidcOAuthCookiePath,
+		Path:     path,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   secure,
