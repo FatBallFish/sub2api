@@ -107,12 +107,24 @@ function relativeTime(value: string | null, t: TFunction<"console">) {
   return t("apiKeys.daysAgo", { count: Math.round(diffHours / 24) });
 }
 
+function normalizePageSizeOptions(options?: number[]) {
+  const normalized = (options ?? [10, 20, 50, 100])
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((a, b) => a - b);
+  return normalized.length > 0 ? normalized : [10, 20, 50, 100];
+}
+
 export default function ApiKeys() {
   const { t, i18n } = useTranslation("console");
   const locale = i18n.resolvedLanguage || i18n.language || "en";
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [activeStatus, setActiveStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [pageSizeOptions, setPageSizeOptions] = useState([10, 20, 50, 100]);
+  const [total, setTotal] = useState(0);
+  const [refreshCounter, setRefreshCounter] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState<LocalizedMessage | null>(null);
   const [actionError, setActionError] = useState<LocalizedMessage | null>(null);
@@ -141,15 +153,17 @@ export default function ApiKeys() {
     () => keys.map((key) => applyEffectiveGroupRate(key, groups, userGroupRates)),
     [groups, keys, userGroupRates],
   );
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   usePageTitle(t("apiKeys.title"));
 
   useEffect(() => {
     let active = true;
 
-    listApiKeys({ page: 1, pageSize: 10, status: activeStatus })
+    listApiKeys({ page, pageSize, status: activeStatus })
       .then((data) => {
         if (active) {
           setKeys(data.items);
+          setTotal(data.total);
           setFatalError(null);
           if (data.items.length === 0) {
             setUsageStats({});
@@ -188,7 +202,7 @@ export default function ApiKeys() {
     return () => {
       active = false;
     };
-  }, [activeStatus]);
+  }, [activeStatus, page, pageSize, refreshCounter]);
 
   useEffect(() => {
     let active = true;
@@ -216,7 +230,17 @@ export default function ApiKeys() {
     let active = true;
     getPublicSettings()
       .then((data) => {
-        if (active) setSettings(data);
+        if (active) {
+          setSettings(data);
+          const options = normalizePageSizeOptions(data.table_page_size_options);
+          setPageSizeOptions(options);
+          setPageSize((current) => {
+            if (data.table_default_page_size && options.includes(data.table_default_page_size)) {
+              return data.table_default_page_size;
+            }
+            return options.includes(current) ? current : options[0];
+          });
+        }
       })
       .catch(() => {
         if (active) setSettings({});
@@ -286,7 +310,13 @@ export default function ApiKeys() {
   const changeStatus = (status: string) => {
     if (status === activeStatus) return;
     setActiveStatus(status);
+    setPage(1);
     setLoading(true);
+  };
+
+  const changePageSize = (nextPageSize: number) => {
+    setPageSize(nextPageSize);
+    setPage(1);
   };
 
   const closeCcsImport = () => {
@@ -354,9 +384,10 @@ export default function ApiKeys() {
         setFeedback(translationMessage("console:apiKeys.updated", { name: hydrated.name }));
       } else {
         const created = await createApiKey(payload);
-        const hydrated = hydrateApiKeyGroup(created, groups);
-        setKeys((current) => [hydrated, ...current.filter((item) => item.id !== hydrated.id)]);
-        setFeedback(translationMessage("console:apiKeys.created", { name: hydrated.name }));
+        setFeedback(translationMessage("console:apiKeys.created", { name: created.name }));
+        // Reload so pagination metadata (total/pages) reflects the new key.
+        setPage(1);
+        setRefreshCounter((current) => current + 1);
       }
       closeKeyModal();
     } catch (reason) {
@@ -392,6 +423,9 @@ export default function ApiKeys() {
       await deleteApiKey(key.id);
       setKeys((current) => current.filter((item) => item.id !== key.id));
       setFeedback(translationMessage("console:apiKeys.deleted", { name: key.name }));
+      // Step back when the emptied page is not the first one.
+      if (keys.length === 1 && page > 1) setPage(page - 1);
+      else setRefreshCounter((current) => current + 1);
     } catch (reason) {
       setActionError(errorMessage(reason, "apiKeyDeleteFailed", "apiKeys"));
     } finally {
@@ -464,6 +498,7 @@ export default function ApiKeys() {
 
       {/* Keys Table */}
       {!loading && (
+        <>
         <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -563,6 +598,45 @@ export default function ApiKeys() {
           </tbody>
         </table>
         </div>
+
+        <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 shadow-sm md:flex-row md:items-center md:justify-between">
+          <span>{t("apiKeys.showingPage", { page, pageCount })}</span>
+          <span className="sr-only">{t("apiKeys.pageStatus", { page, pageCount })}</span>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2">
+              <span>{t("apiKeys.rows")}</span>
+              <select
+                aria-label={t("apiKeys.rowsPerPage")}
+                value={pageSize}
+                onChange={(event) => changePageSize(Number(event.target.value))}
+                className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900 outline-none"
+              >
+                {pageSizeOptions.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              aria-label={t("apiKeys.previousPage")}
+              disabled={page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              className="rounded-lg border border-zinc-200 px-3 py-2 font-medium text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+            >
+              {t("apiKeys.previous")}
+            </button>
+            <button
+              type="button"
+              aria-label={t("apiKeys.nextPage")}
+              disabled={page >= pageCount}
+              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+              className="rounded-lg border border-zinc-200 px-3 py-2 font-medium text-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-300"
+            >
+              {t("apiKeys.next")}
+            </button>
+          </div>
+        </div>
+        </>
       )}
 
       {pendingCcsKey ? (
