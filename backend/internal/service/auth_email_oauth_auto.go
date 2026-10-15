@@ -155,7 +155,8 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 }
 
 func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username, providerType, invitationCode, affiliateCode string) (*User, error) {
-	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
+	if s.settingService == nil ||
+		(!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, providerType)) {
 		return nil, ErrRegDisabled
 	}
 	invitationRedeemCode, err := s.validateOAuthRegistrationInvitation(ctx, invitationCode)
