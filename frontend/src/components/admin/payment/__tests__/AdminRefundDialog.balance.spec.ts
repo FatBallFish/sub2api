@@ -6,7 +6,7 @@ import AdminRefundDialog from '../AdminRefundDialog.vue'
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 enableAutoUnmount(afterEach)
 
-async function openRefund(overrides: Partial<PaymentOrder> = {}) {
+async function openRefund(overrides: Partial<PaymentOrder> = {}, userBalance: number | null = 50) {
   const order: PaymentOrder = {
     id: 1, user_id: 10, amount: 100, pay_amount: 100, fee_rate: 0,
     payment_type: 'stripe', out_trade_no: 'order-1', status: 'COMPLETED',
@@ -14,7 +14,7 @@ async function openRefund(overrides: Partial<PaymentOrder> = {}) {
     refund_amount: 0, ...overrides
   }
   const wrapper = mount(AdminRefundDialog, {
-    props: { show: false, order, userBalance: 50 },
+    props: { show: false, order, userBalance },
     global: { stubs: { BaseDialog: { template: '<div><slot /><slot name="footer" /></div>' } } }
   })
   await wrapper.setProps({ show: true })
@@ -24,8 +24,21 @@ async function openRefund(overrides: Partial<PaymentOrder> = {}) {
 const warning = 'payment.admin.insufficientBalance'
 
 describe('refund balance warning', () => {
-  it('compares the available balance with the edited refund amount', async () => {
+  it('warns balance orders against the full order amount even for partial refunds', async () => {
     const wrapper = await openRefund()
+    expect(wrapper.text()).toContain(warning)
+    await wrapper.get('input[type="number"]').setValue('20')
+    expect(wrapper.text()).toContain(warning)
+  })
+
+  it('does not warn when the balance covers the balance order amount', async () => {
+    const wrapper = await openRefund({}, 100)
+    await wrapper.get('input[type="number"]').setValue('20')
+    expect(wrapper.text()).not.toContain(warning)
+  })
+
+  it('compares the available balance with the edited refund amount for non-balance orders', async () => {
+    const wrapper = await openRefund({ order_type: 'subscription' })
     expect(wrapper.text()).toContain(warning)
     await wrapper.get('input[type="number"]').setValue('20')
     expect(wrapper.text()).not.toContain(warning)
@@ -33,14 +46,8 @@ describe('refund balance warning', () => {
     expect(wrapper.text()).toContain(warning)
   })
 
-  it('does not warn when the balance exactly covers the refund', async () => {
-    const wrapper = await openRefund()
-    await wrapper.get('input[type="number"]').setValue('50')
-    expect(wrapper.text()).not.toContain(warning)
-  })
-
   it('uses the remaining amount for an already partially refunded order', async () => {
-    const wrapper = await openRefund({ status: 'PARTIALLY_REFUNDED', refund_amount: 80 })
+    const wrapper = await openRefund({ status: 'PARTIALLY_REFUNDED', refund_amount: 80, order_type: 'subscription' })
     expect((wrapper.get('input[type="number"]').element as HTMLInputElement).value).toBe('20')
     expect(wrapper.text()).not.toContain(warning)
   })

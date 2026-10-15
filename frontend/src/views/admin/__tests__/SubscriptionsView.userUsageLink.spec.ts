@@ -155,7 +155,8 @@ describe('admin subscription users', () => {
         .find((button) => button.text() === 'admin.subscriptions.assignSubscription')!
         .trigger('click')
       const form = wrapper.get('#assign-subscription-form')
-      form.getComponent({ name: 'Select' }).vm.$emit('update:modelValue', 3)
+      // The first Select picks the entitlement type; the group selector follows it.
+      form.findAllComponents({ name: 'Select' })[1]!.vm.$emit('update:modelValue', 3)
       const search = wrapper.get('[data-assign-user-search] input')
       await search.trigger('focus')
       await search.setValue('reader')
