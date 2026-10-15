@@ -120,6 +120,12 @@ type UpdateSettingsRequest struct {
 	// Generic OIDC OAuth 登录
 	OIDCConnectEnabled              bool   `json:"oidc_connect_enabled"`
 	OAuthSignupBypassRegistration   bool   `json:"oauth_signup_bypass_registration"`
+	PasswordLoginDisabled           bool   `json:"password_login_disabled"`
+	OIDCUserSyncEnabled             bool   `json:"oidc_user_sync_enabled"`
+	OIDCUserSyncAdminURL            string `json:"oidc_user_sync_admin_url"`
+	OIDCUserSyncRealm               string `json:"oidc_user_sync_realm"`
+	OIDCUserSyncClientID            string `json:"oidc_user_sync_client_id"`
+	OIDCUserSyncClientSecret        string `json:"oidc_user_sync_client_secret"`
 	OIDCConnectProviderName         string `json:"oidc_connect_provider_name"`
 	OIDCConnectClientID             string `json:"oidc_connect_client_id"`
 	OIDCConnectClientSecret         string `json:"oidc_connect_client_secret"`
@@ -1719,6 +1725,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		WeChatConnectFrontendRedirectURL:       req.WeChatConnectFrontendRedirectURL,
 		OIDCConnectEnabled:                     req.OIDCConnectEnabled,
 		OAuthSignupBypassRegistration:          req.OAuthSignupBypassRegistration,
+		PasswordLoginDisabled:                  req.PasswordLoginDisabled,
+		OIDCUserSyncEnabled:                    req.OIDCUserSyncEnabled,
+		OIDCUserSyncAdminURL:                   strings.TrimSpace(req.OIDCUserSyncAdminURL),
+		OIDCUserSyncRealm:                      strings.TrimSpace(req.OIDCUserSyncRealm),
+		OIDCUserSyncClientID:                   strings.TrimSpace(req.OIDCUserSyncClientID),
+		OIDCUserSyncClientSecret:               req.OIDCUserSyncClientSecret,
 		OIDCConnectProviderName:                req.OIDCConnectProviderName,
 		OIDCConnectClientID:                    req.OIDCConnectClientID,
 		OIDCConnectClientSecret:                req.OIDCConnectClientSecret,
@@ -2399,6 +2411,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		WeChatConnectFrontendRedirectURL:                       updatedSettings.WeChatConnectFrontendRedirectURL,
 		OIDCConnectEnabled:                                     updatedSettings.OIDCConnectEnabled,
 		OAuthSignupBypassRegistration:                          updatedSettings.OAuthSignupBypassRegistration,
+		PasswordLoginDisabled:                                  updatedSettings.PasswordLoginDisabled,
+		OIDCUserSyncEnabled:                                    updatedSettings.OIDCUserSyncEnabled,
+		OIDCUserSyncAdminURL:                                   updatedSettings.OIDCUserSyncAdminURL,
+		OIDCUserSyncRealm:                                      updatedSettings.OIDCUserSyncRealm,
+		OIDCUserSyncClientID:                                   updatedSettings.OIDCUserSyncClientID,
+		OIDCUserSyncClientSecretConfigured:                     updatedSettings.OIDCUserSyncClientSecretConfigured,
 		OIDCConnectProviderName:                                updatedSettings.OIDCConnectProviderName,
 		OIDCConnectClientID:                                    updatedSettings.OIDCConnectClientID,
 		OIDCConnectClientSecretConfigured:                      updatedSettings.OIDCConnectClientSecretConfigured,

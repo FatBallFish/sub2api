@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -62,6 +63,7 @@ type SettingHandler struct {
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
 	userService              *service.UserService
+	authService              *service.AuthService
 }
 
 // NewSettingHandler 创建系统设置处理器
@@ -81,6 +83,31 @@ func NewSettingHandler(settingService *service.SettingService, emailService *ser
 // the constructor signature used by existing unit tests.
 func (h *SettingHandler) SetNotificationEmailService(notificationEmailService *service.NotificationEmailService) {
 	h.notificationEmailService = notificationEmailService
+}
+
+// SetAuthService attaches the auth service for session-wide operations
+// (invalidate all sessions) without changing the constructor signature.
+func (h *SettingHandler) SetAuthService(authService *service.AuthService) {
+	h.authService = authService
+}
+
+// InvalidateAllSessions 清空全部用户的 refresh session，强制全站重新登录。
+// 用于 OIDC 迁移期促进账号同步；存量 access token 将在自身过期后失效。
+// POST /api/v1/admin/settings/invalidate-all-sessions
+func (h *SettingHandler) InvalidateAllSessions(c *gin.Context) {
+	if h.authService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("AUTH_NOT_READY", "auth service not ready"))
+		return
+	}
+	affected, err := h.authService.InvalidateAllUserSessions(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, infraerrors.InternalServer("SESSIONS_INVALIDATE_FAILED", "failed to invalidate sessions").WithCause(err))
+		return
+	}
+	response.Success(c, gin.H{
+		"message":        "all sessions invalidated; users must sign in again",
+		"affected_users": affected,
+	})
 }
 
 // SetAliyunCaptchaService attaches the Aliyun captcha credential validator without
@@ -216,6 +243,12 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		WeChatConnectFrontendRedirectURL:                       settings.WeChatConnectFrontendRedirectURL,
 		OIDCConnectEnabled:                                     settings.OIDCConnectEnabled,
 		OAuthSignupBypassRegistration:                          settings.OAuthSignupBypassRegistration,
+		PasswordLoginDisabled:                                  settings.PasswordLoginDisabled,
+		OIDCUserSyncEnabled:                                    settings.OIDCUserSyncEnabled,
+		OIDCUserSyncAdminURL:                                   settings.OIDCUserSyncAdminURL,
+		OIDCUserSyncRealm:                                      settings.OIDCUserSyncRealm,
+		OIDCUserSyncClientID:                                   settings.OIDCUserSyncClientID,
+		OIDCUserSyncClientSecretConfigured:                     settings.OIDCUserSyncClientSecretConfigured,
 		OIDCConnectProviderName:                                settings.OIDCConnectProviderName,
 		OIDCConnectClientID:                                    settings.OIDCConnectClientID,
 		OIDCConnectClientSecretConfigured:                      settings.OIDCConnectClientSecretConfigured,

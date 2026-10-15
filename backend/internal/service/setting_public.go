@@ -217,6 +217,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingPaymentEnabled,
 		SettingBalancePayDisabled,
 		SettingKeyOIDCConnectEnabled,
+		SettingKeyPasswordLoginDisabled,
 		SettingKeyOIDCConnectProviderName,
 		SettingKeyOIDCConnectConsoleEnabled,
 		SettingKeyOIDCConnectConsoleProviderName,
@@ -361,6 +362,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		OIDCOAuthEnabled:                    oidcEnabled,
 		OIDCOAuthProviderName:               oidcProviderName,
 		OIDCConsoleOAuthEnabled:             oidcConsoleEnabled,
+		PasswordLoginDisabled:               settings[SettingKeyPasswordLoginDisabled] == "true",
 		OIDCConsoleOAuthProviderName:        oidcConsoleProviderName,
 		GitHubOAuthEnabled:                  gitHubEnabled,
 		GoogleOAuthEnabled:                  googleEnabled,
@@ -621,6 +623,7 @@ type PublicSettingsInjectionPayload struct {
 	OIDCOAuthEnabled                    bool                     `json:"oidc_oauth_enabled"`
 	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
 	OIDCConsoleOAuthEnabled             bool                     `json:"oidc_console_oauth_enabled"`
+	PasswordLoginDisabled               bool                     `json:"password_login_disabled"`
 	OIDCConsoleOAuthProviderName        string                   `json:"oidc_console_oauth_provider_name"`
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
@@ -720,6 +723,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		OIDCOAuthEnabled:                    settings.OIDCOAuthEnabled,
 		OIDCOAuthProviderName:               settings.OIDCOAuthProviderName,
 		OIDCConsoleOAuthEnabled:             settings.OIDCConsoleOAuthEnabled,
+		PasswordLoginDisabled:               settings.PasswordLoginDisabled,
 		OIDCConsoleOAuthProviderName:        settings.OIDCConsoleOAuthProviderName,
 		GitHubOAuthEnabled:                  settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:                  settings.GoogleOAuthEnabled,

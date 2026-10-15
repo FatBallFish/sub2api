@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -23,6 +24,7 @@ type AuthHandler struct {
 	authService          *service.AuthService
 	userService          *service.UserService
 	settingSvc           *service.SettingService
+	oidcSync             *service.OIDCUserSyncService
 	promoService         *service.PromoService
 	redeemService        *service.RedeemService
 	totpService          *service.TotpService
@@ -33,12 +35,13 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler creates a new AuthHandler
-func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService) *AuthHandler {
+func NewAuthHandler(cfg *config.Config, authService *service.AuthService, userService *service.UserService, settingService *service.SettingService, promoService *service.PromoService, redeemService *service.RedeemService, totpService *service.TotpService, userAttributeService *service.UserAttributeService, oidcSync *service.OIDCUserSyncService) *AuthHandler {
 	return &AuthHandler{
 		cfg:                  cfg,
 		authService:          authService,
 		userService:          userService,
 		settingSvc:           settingService,
+		oidcSync:             oidcSync,
 		promoService:         promoService,
 		redeemService:        redeemService,
 		totpService:          totpService,
@@ -264,6 +267,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 	_ = token // token 由 authService.Login 返回但此处由 respondWithTokenPair 重新生成
 
+	// 账密登录关闭时仅放行 admin（break-glass）；凭据已在上方校验，不向未认证者暴露开关状态
+	if h.settingSvc.IsPasswordLoginDisabled(c.Request.Context()) && user.Role != service.RoleAdmin {
+		response.ErrorFrom(c, infraerrors.Forbidden("PASSWORD_LOGIN_DISABLED", "password login is disabled, please sign in with OIDC"))
+		return
+	}
+
 	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), user); err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -287,8 +296,25 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	h.authService.RecordSuccessfulLogin(c.Request.Context(), user.ID)
+	h.oidcSyncAsync(user.Email, func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+		svc.SyncLogin(ctx, email, req.Password)
+	})
 
 	h.respondWithTokenPair(c, user)
+}
+
+// oidcSyncAsync 异步执行一个 OIDC 同步动作（登录补缺/改密双写/drift 检测），
+// 任何失败只记日志，绝不影响主流程。
+func (h *AuthHandler) oidcSyncAsync(email string, run func(ctx context.Context, svc *service.OIDCUserSyncService, email string)) {
+	if h.oidcSync == nil || email == "" {
+		return
+	}
+	go func() {
+		defer func() { _ = recover() }()
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		run(ctx, h.oidcSync, email)
+	}()
 }
 
 // TotpLoginResponse represents the response when 2FA is required
@@ -667,6 +693,9 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.oidcSyncAsync(strings.ToLower(strings.TrimSpace(req.Email)), func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+		svc.SyncPasswordChange(ctx, email, req.NewPassword)
+	})
 
 	response.Success(c, ResetPasswordResponse{
 		Message: "Your password has been reset successfully. You can now log in with your new password.",

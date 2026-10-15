@@ -465,6 +465,12 @@ export default function Auth() {
                       />
                     )}
                   />
+
+                  <div className="flex justify-end">
+                    <Link to="/forgot-password" className="text-xs font-semibold text-zinc-500 transition-colors hover:text-zinc-900">
+                      {t("forgotPasswordLink")}
+                    </Link>
+                  </div>
                   <CaptchaChallenge
                     ref={captchaRef}
                     settings={settings}

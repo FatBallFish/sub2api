@@ -7,6 +7,8 @@ import Home from "./pages/public/Home";
 import Pricing from "./pages/public/Pricing";
 import ModelPricing from "./pages/public/ModelPricing";
 import Auth from "./pages/public/Auth";
+import ForgotPassword from "./pages/public/ForgotPassword";
+import ResetPassword from "./pages/public/ResetPassword";
 import OAuthCallback from "./pages/public/OAuthCallback";
 import Blog from "./pages/public/Blog";
 import Team from "./pages/public/Team";
@@ -18,6 +20,7 @@ import StripePayment from "./pages/public/StripePayment";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import Overview from "./pages/console/Overview";
 import ApiKeys from "./pages/console/ApiKeys";
+import Security from "./pages/console/Security";
 import Billing from "./pages/console/Billing";
 import UsageHistory from "./pages/console/UsageHistory";
 import Announcements from "./pages/console/Announcements";
@@ -181,6 +184,8 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
 
       {/* Auth Route (standalone layout) */}
       <Route path="/login" element={<Auth />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/register" element={<Auth />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
       <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
@@ -191,6 +196,7 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
       <Route path="/console" element={<ConsoleGuard />}>
         <Route index element={<Overview />} />
         <Route path="api-keys" element={<ApiKeys />} />
+        <Route path="security" element={<Security />} />
         <Route path="playground" element={<Playground />} />
         <Route path="subscription-wallet" element={<Billing />} />
         <Route path="referral" element={<Referral />} />

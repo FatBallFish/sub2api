@@ -1468,6 +1468,23 @@
                 <Toggle v-model="form.oauth_signup_bypass_registration" />
               </div>
 
+              <!-- Password login disable -->
+              <div
+                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+              >
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">{{
+                    t("admin.settings.registration.passwordLoginDisabled")
+                  }}</label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{
+                      t("admin.settings.registration.passwordLoginDisabledHint")
+                    }}
+                  </p>
+                </div>
+                <Toggle v-model="form.password_login_disabled" />
+              </div>
+
               <!-- Email Verification -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -3841,6 +3858,117 @@
                       </p>
                     </div>
                   </div>
+                </div>
+
+                <!-- 登录/改密时自动同步到 OIDC（Keycloak） -->
+                <div
+                  class="rounded-xl border border-gray-200 p-5 dark:border-dark-700"
+                >
+                  <div class="mb-4">
+                    <h4
+                      class="text-sm font-semibold text-gray-900 dark:text-white"
+                    >
+                      {{ t("admin.settings.oidc.userSync.title") }}
+                    </h4>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.oidc.userSync.description") }}
+                    </p>
+                  </div>
+                  <div class="mb-4 flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.userSync.enable") }}
+                      </label>
+                      <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.oidc.userSync.enableHint") }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.oidc_user_sync_enabled" />
+                  </div>
+                  <div
+                    v-if="form.oidc_user_sync_enabled"
+                    class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                  >
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t("admin.settings.oidc.userSync.adminUrl") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_user_sync_admin_url"
+                        type="url"
+                        class="input font-mono text-sm"
+                        :placeholder="t('admin.settings.oidc.userSync.adminUrlPlaceholder')"
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.oidc.userSync.adminUrlHint") }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t("admin.settings.oidc.userSync.realm") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_user_sync_realm"
+                        type="text"
+                        class="input font-mono text-sm"
+                        :placeholder="t('admin.settings.oidc.userSync.realmPlaceholder')"
+                      />
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t("admin.settings.oidc.userSync.clientId") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_user_sync_client_id"
+                        type="text"
+                        class="input font-mono text-sm"
+                        :placeholder="t('admin.settings.oidc.userSync.clientIdPlaceholder')"
+                      />
+                    </div>
+                    <div>
+                      <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {{ t("admin.settings.oidc.userSync.clientSecret") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_user_sync_client_secret"
+                        type="password"
+                        autocomplete="new-password"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          form.oidc_user_sync_client_secret_configured
+                            ? t('admin.settings.oidc.userSync.clientSecretConfiguredPlaceholder')
+                            : t('admin.settings.oidc.userSync.clientSecretPlaceholder')
+                        "
+                      />
+                      <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.oidc.userSync.clientSecretHint") }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 失效所有账号登录态 -->
+                <div
+                  class="rounded-xl border border-red-200 p-5 dark:border-red-900/50"
+                >
+                  <div class="mb-3">
+                    <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ t("admin.settings.sessions.invalidateTitle") }}
+                    </h4>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.sessions.invalidateHint") }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-sm bg-red-600 text-white hover:bg-red-700"
+                    :disabled="invalidatingSessions"
+                    @click="invalidateAllSessions"
+                  >
+                    {{ invalidatingSessions ? t('common.processing') : t('admin.settings.sessions.invalidateButton') }}
+                  </button>
                 </div>
 
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -9524,6 +9652,24 @@ const { copyToClipboard } = useClipboard();
 const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
+const invalidatingSessions = ref(false);
+
+async function invalidateAllSessions() {
+  if (invalidatingSessions.value) return;
+  if (!window.confirm(t('admin.settings.sessions.invalidateConfirm'))) return;
+  invalidatingSessions.value = true;
+  try {
+    const result = await adminAPI.settings.invalidateAllSessions();
+    appStore.showSuccess(
+      t('admin.settings.sessions.invalidated', { count: result.affected_users ?? 0 })
+    );
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } } };
+    appStore.showError(err.response?.data?.message || t('admin.settings.sessions.invalidateFailed'));
+  } finally {
+    invalidatingSessions.value = false;
+  }
+}
 const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
@@ -10094,6 +10240,7 @@ type SettingsForm = Omit<
   wechat_connect_mobile_enabled: boolean;
   oidc_connect_client_secret: string;
   oidc_connect_console_client_secret: string;
+  oidc_user_sync_client_secret: string;
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
   force_email_on_third_party_signup: boolean;
@@ -10133,6 +10280,13 @@ function platformQuotaRows(map: DefaultPlatformQuotasMap | undefined): string[] 
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   oauth_signup_bypass_registration: false,
+  password_login_disabled: false,
+  oidc_user_sync_enabled: false,
+  oidc_user_sync_admin_url: "",
+  oidc_user_sync_realm: "",
+  oidc_user_sync_client_id: "",
+  oidc_user_sync_client_secret: "",
+  oidc_user_sync_client_secret_configured: false,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
   registration_email_domain_quota_enabled: false,
@@ -11852,6 +12006,12 @@ async function saveSettings() {
     const payload: UpdateSettingsRequest = {
       registration_enabled: form.registration_enabled,
       oauth_signup_bypass_registration: form.oauth_signup_bypass_registration,
+      password_login_disabled: form.password_login_disabled,
+      oidc_user_sync_enabled: form.oidc_user_sync_enabled,
+      oidc_user_sync_admin_url: form.oidc_user_sync_admin_url,
+      oidc_user_sync_realm: form.oidc_user_sync_realm,
+      oidc_user_sync_client_id: form.oidc_user_sync_client_id,
+      oidc_user_sync_client_secret: form.oidc_user_sync_client_secret || undefined,
       email_verify_enabled: form.email_verify_enabled,
       registration_email_suffix_whitelist:
         registrationEmailSuffixWhitelistTags.value.map((suffix) =>

@@ -71,7 +71,9 @@ func (h *UserHandler) GetMyPlatformQuotas(c *gin.Context) {
 
 // ChangePasswordRequest represents the change password request payload
 type ChangePasswordRequest struct {
-	OldPassword string `json:"old_password" binding:"required"`
+	// old_password 允许为空：OAuth 渠道建号的用户不知晓本地随机密码，
+	// 已登录态即身份证明（service 层按 signup_source 分支校验）。
+	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 

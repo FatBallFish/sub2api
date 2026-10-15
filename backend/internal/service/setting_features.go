@@ -34,6 +34,25 @@ func (s *SettingService) IsOAuthSignupBypassRegistrationEnabled(ctx context.Cont
 	return value == "true"
 }
 
+// IsOIDCUserSyncEnabled 检查「登录/改密时自动同步到 OIDC」总开关。
+// 所有触发式同步（登录补缺、改密双写、drift 检测）仅在该开关开启时运行。
+func (s *SettingService) IsOIDCUserSyncEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyOIDCUserSyncEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// IsPasswordLoginDisabled 检查是否关闭本站账密登录（admin 豁免在登录处理层实现）。
+func (s *SettingService) IsPasswordLoginDisabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyPasswordLoginDisabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
 // IsEmailVerifyEnabled 检查是否开启邮件验证
 func (s *SettingService) IsEmailVerifyEnabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyEmailVerifyEnabled)

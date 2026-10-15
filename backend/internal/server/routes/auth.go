@@ -189,6 +189,10 @@ func RegisterAuthRoutes(
 			h.Auth.OIDCOAuthStart(c)
 		})
 		auth.GET("/oauth/oidc/callback", h.Auth.OIDCOAuthCallback)
+		// Mikiko App 等原生客户端：PKCE 换取 id_token 后在此换取本站会话 token。
+		auth.POST("/oauth/oidc/token-exchange", rateLimiter.LimitWithOptions("oauth-oidc-token-exchange", 20, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.OIDCTokenExchange)
 		// 新前端（console）独立 OIDC 入口：独立 cookie 命名空间与回调地址，
 		// 让新老前端在各自域名下互不干扰地完成 OAuth 登录。
 		auth.GET("/oauth/oidc-console/start", h.Auth.OIDCOAuthConsoleStart)

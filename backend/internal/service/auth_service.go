@@ -1982,6 +1982,15 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID int64) e
 	return s.refreshTokenCache.DeleteUserRefreshTokens(ctx, userID)
 }
 
+// InvalidateAllUserSessions 强制全站所有用户下线（清空全部 refresh session）。
+// 存量 access token 为无状态签发，将在其自身过期后失效。
+func (s *AuthService) InvalidateAllUserSessions(ctx context.Context) (int64, error) {
+	if s.refreshTokenCache == nil {
+		return 0, nil
+	}
+	return s.refreshTokenCache.DeleteAllUserRefreshTokens(ctx)
+}
+
 // RevokeAllUserTokens invalidates both stateless access tokens and refresh sessions.
 //
 // 注意：users 表没有 token_version 列（resolvedTokenVersion 由 email+password_hash

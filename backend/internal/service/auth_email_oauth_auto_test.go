@@ -95,7 +95,7 @@ func TestCreateEmailOAuthUser_RegistrationDisabledButBypassEnabled(t *testing.T)
 	svc := newEmailOAuthAutoAuthService(
 		userRepo,
 		map[string]string{
-			SettingKeyRegistrationEnabled:            "false",
+			SettingKeyRegistrationEnabled:           "false",
 			SettingKeyOAuthSignupBypassRegistration: "true",
 		},
 		quotaRepo,
@@ -121,7 +121,7 @@ func TestCreateEmailOAuthUser_RegistrationDisabledWithoutBypass(t *testing.T) {
 	svc := newEmailOAuthAutoAuthService(
 		userRepo,
 		map[string]string{
-			SettingKeyRegistrationEnabled:            "false",
+			SettingKeyRegistrationEnabled:           "false",
 			SettingKeyOAuthSignupBypassRegistration: "false",
 		},
 		quotaRepo,

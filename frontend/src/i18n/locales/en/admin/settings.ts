@@ -173,6 +173,8 @@ export default {
         description: 'Control user registration and verification',
         enableRegistration: 'Enable Registration',
         oauthSignupBypass: 'Allow OAuth signup',
+        passwordLoginDisabled: 'Disable password sign-in',
+        passwordLoginDisabledHint: 'Users can only sign in via OIDC; the admin account keeps password sign-in as a break-glass path',
         oauthSignupBypassHint: 'Let third-party authorized signups create accounts even when open registration is disabled (the public signup entry stays hidden)',
         enableRegistrationHint: 'Allow new users to register',
         emailVerification: 'Email Verification',
@@ -374,6 +376,14 @@ export default {
         syncDeptTargetHint: 'Defaults to dingtalk_department / DingTalk Department. Saving settings auto-creates the user attribute by the key and display name above (existing definition only has its display name synced).',
         syncAttrDisplayName: 'Display name'
       },
+      sessions: {
+            invalidateTitle: 'Invalidate all account sessions',
+            invalidateHint: 'Clear every user session and force a re-sign-in (commonly used to accelerate OIDC account sync). Outstanding access tokens expire naturally within 1 hour; the admin is signed out too',
+            invalidateButton: 'Invalidate all sessions',
+            invalidateConfirm: 'Force every user (including admins) to sign in again? This takes effect immediately and cannot be undone.',
+            invalidated: 'Invalidated sessions for {count} user(s)',
+            invalidateFailed: 'Failed to invalidate sessions',
+          },
       oidc: {
         title: 'OIDC Login',
         description: 'Configure a standard OIDC provider (for example Keycloak)',
@@ -412,6 +422,23 @@ export default {
         frontendRedirectUrlPlaceholder: '/auth/oidc/callback',
         frontendRedirectUrlHint: 'Frontend route used after backend callback',
 
+        userSync: {
+          title: 'Auto-sync to OIDC on sign-in / password change',
+          description: 'Sync accounts and passwords to Keycloak when users sign in with credentials or change passwords (requires a service account client with the realm-management manage-users role)',
+          enable: 'Enable auto-sync',
+          enableHint: 'Sync policy: create missing users, backfill missing passwords, never overwrite existing ones; password changes push to both sides',
+          adminUrl: 'Keycloak Base URL',
+          adminUrlPlaceholder: 'https://oauth.mikiko.ai',
+          adminUrlHint: 'Public Keycloak root; sync uses /realms/{realm}/protocol and /admin/realms/{realm}',
+          realm: 'Realm',
+          realmPlaceholder: 'mikiko',
+          clientId: 'Client ID (service account)',
+          clientIdPlaceholder: 'sub2api-sync',
+          clientSecret: 'Client Secret',
+          clientSecretPlaceholder: '********',
+          clientSecretConfiguredPlaceholder: '********',
+          clientSecretHint: 'Secret of a service account client granted manage-users',
+        },
         console: {
           title: 'Console (new frontend) standalone OIDC login',
           description:

@@ -48,6 +48,10 @@ type RefreshTokenCache interface {
 	// 用于密码更改或用户主动登出所有设备
 	DeleteUserRefreshTokens(ctx context.Context, userID int64) error
 
+	// DeleteAllUserRefreshTokens 删除全部用户的 Refresh Token（全站强制重登）。
+	// 返回受影响的用户数。
+	DeleteAllUserRefreshTokens(ctx context.Context) (int64, error)
+
 	// DeleteTokenFamily 删除整个Token家族
 	// 用于检测到Token重放攻击时，撤销整个会话链
 	DeleteTokenFamily(ctx context.Context, familyID string) error
