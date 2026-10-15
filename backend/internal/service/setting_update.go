@@ -164,6 +164,14 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// 注册设置
 	updates[SettingKeyRegistrationEnabled] = strconv.FormatBool(settings.RegistrationEnabled)
 	updates[SettingKeyOAuthSignupBypassRegistration] = strconv.FormatBool(settings.OAuthSignupBypassRegistration)
+	updates[SettingKeyPasswordLoginDisabled] = strconv.FormatBool(settings.PasswordLoginDisabled)
+	updates[SettingKeyOIDCUserSyncEnabled] = strconv.FormatBool(settings.OIDCUserSyncEnabled)
+	updates[SettingKeyOIDCUserSyncAdminURL] = strings.TrimSpace(settings.OIDCUserSyncAdminURL)
+	updates[SettingKeyOIDCUserSyncRealm] = strings.TrimSpace(settings.OIDCUserSyncRealm)
+	updates[SettingKeyOIDCUserSyncClientID] = strings.TrimSpace(settings.OIDCUserSyncClientID)
+	if settings.OIDCUserSyncClientSecret != "" {
+		updates[SettingKeyOIDCUserSyncClientSecret] = settings.OIDCUserSyncClientSecret
+	}
 	updates[SettingKeyEmailVerifyEnabled] = strconv.FormatBool(settings.EmailVerifyEnabled)
 	registrationEmailSuffixWhitelistJSON, err := json.Marshal(settings.RegistrationEmailSuffixWhitelist)
 	if err != nil {

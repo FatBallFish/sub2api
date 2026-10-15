@@ -1,4 +1,4 @@
-import { postJSON } from "./client";
+import { postJSON, putJSON } from "./client";
 import {
   captchaProofPayload,
   type CaptchaProof,
@@ -241,4 +241,27 @@ export function pendingOAuthBindLogin(request: PendingOAuthBindLoginRequest) {
 export function completeOAuthRegistration(request: CompleteOAuthRegistrationRequest) {
   const { provider, ...body } = request;
   return postJSON<AuthResponse>(`/auth/oauth/${provider}/complete-registration`, body);
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+  turnstile_token?: string;
+}
+
+export function forgotPassword(request: ForgotPasswordRequest) {
+  return postJSON<{ message: string }>("/auth/forgot-password", request);
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  token: string;
+  new_password: string;
+}
+
+export function resetPassword(request: ResetPasswordRequest) {
+  return postJSON<{ message: string }>("/auth/reset-password", request);
+}
+
+export function changePassword(request: { old_password?: string; new_password: string }) {
+  return putJSON<{ message: string }>("/user/password", request);
 }

@@ -142,6 +142,33 @@ func (c *refreshTokenCache) AddToFamilyTokenSet(ctx context.Context, familyID st
 	return err
 }
 
+// DeleteAllUserRefreshTokens SCAN 全部 user_refresh_tokens:* 索引并逐用户删除
+// （复用 DeleteUserRefreshTokens 以同步清理 refresh_token:* 主键）。
+func (c *refreshTokenCache) DeleteAllUserRefreshTokens(ctx context.Context) (int64, error) {
+	var affected int64
+	var cursor uint64
+	for {
+		keys, next, err := c.rdb.Scan(ctx, cursor, userRefreshTokensPrefix+"*", 500).Result()
+		if err != nil {
+			return affected, fmt.Errorf("scan refresh token keys: %w", err)
+		}
+		for _, key := range keys {
+			var userID int64
+			if _, err := fmt.Sscanf(key, userRefreshTokensPrefix+"%d", &userID); err != nil || userID <= 0 {
+				continue
+			}
+			if err := c.DeleteUserRefreshTokens(ctx, userID); err == nil {
+				affected++
+			}
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	return affected, nil
+}
+
 func (c *refreshTokenCache) GetUserTokenHashes(ctx context.Context, userID int64) ([]string, error) {
 	key := userRefreshTokensKey(userID)
 	return c.rdb.SMembers(ctx, key).Result()

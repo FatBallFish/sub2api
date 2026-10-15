@@ -57,11 +57,17 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	defaults := map[string]string{
 		SettingKeyRegistrationEnabled:                       "true",
 		SettingKeyOAuthSignupBypassRegistration:             "false",
+		SettingKeyPasswordLoginDisabled:                     "false",
 		SettingKeyEmailVerifyEnabled:                        "false",
+		SettingKeyOIDCUserSyncEnabled:                       "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
+		SettingKeyOIDCUserSyncAdminURL:                      "",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
+		SettingKeyOIDCUserSyncRealm:                         "",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
+		SettingKeyOIDCUserSyncClientID:                      "",
 		SettingKeyLoginAgreementEnabled:                     "false",
+		SettingKeyOIDCUserSyncClientSecret:                  "",
 		SettingKeyLoginAgreementMode:                        defaultLoginAgreementMode,
 		SettingKeyLoginAgreementUpdatedAt:                   defaultLoginAgreementDate,
 		SettingKeyLoginAgreementDocuments:                   loginAgreementDocumentsJSON,
@@ -345,12 +351,19 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                            settings[SettingKeyFrontendURL],
 		InvitationCodeEnabled:                  settings[SettingKeyInvitationCodeEnabled] == "true",
+		PasswordLoginDisabled:                  settings[SettingKeyPasswordLoginDisabled] == "true",
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
+		OIDCUserSyncEnabled:                    settings[SettingKeyOIDCUserSyncEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
+		OIDCUserSyncAdminURL:                   strings.TrimSpace(settings[SettingKeyOIDCUserSyncAdminURL]),
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭
-		StepUpEnabled:                          settings[SettingKeyStepUpEnabled] == "true",         // 默认关闭
+		OIDCUserSyncRealm:                      strings.TrimSpace(settings[SettingKeyOIDCUserSyncRealm]),
+		StepUpEnabled:                          settings[SettingKeyStepUpEnabled] == "true", // 默认关闭
+		OIDCUserSyncClientID:                   strings.TrimSpace(settings[SettingKeyOIDCUserSyncClientID]),
 		AuditLogRetentionDays:                  parseAuditLogRetentionDays(settings[SettingKeyAuditLogRetentionDays]),
+		OIDCUserSyncClientSecret:               strings.TrimSpace(settings[SettingKeyOIDCUserSyncClientSecret]),
 		LoginAgreementEnabled:                  settings[SettingKeyLoginAgreementEnabled] == "true",
+		OIDCUserSyncClientSecretConfigured:     strings.TrimSpace(settings[SettingKeyOIDCUserSyncClientSecret]) != "",
 		LoginAgreementMode:                     normalizeLoginAgreementMode(settings[SettingKeyLoginAgreementMode]),
 		LoginAgreementUpdatedAt:                loginAgreementUpdatedAt,
 		LoginAgreementDocuments:                loginAgreementDocuments,

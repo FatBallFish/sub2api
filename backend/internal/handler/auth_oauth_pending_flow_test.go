@@ -2637,7 +2637,7 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 		affiliateService,
 		nil,
 	)
-	userSvc := service.NewUserService(userRepo, nil, nil, nil)
+	userSvc := service.NewUserService(userRepo, nil, nil, nil, nil)
 	var totpSvc *service.TotpService
 	if options.totpCache != nil || options.totpEncryptor != nil {
 		totpCache := options.totpCache
@@ -2796,6 +2796,10 @@ func (s *oauthPendingFlowSettingRepoStub) Delete(context.Context, string) error 
 }
 
 type oauthPendingFlowRefreshTokenCacheStub struct{}
+
+func (*oauthPendingFlowRefreshTokenCacheStub) DeleteAllUserRefreshTokens(ctx context.Context) (int64, error) {
+	return 0, nil
+}
 
 type oauthPendingFlowEmailCacheStub struct {
 	verificationCodes map[string]*service.VerificationCodeData

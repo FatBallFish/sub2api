@@ -19,6 +19,7 @@ import {
   X,
   Ticket,
   DownloadSimple,
+  LockKey,
 } from "@phosphor-icons/react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -297,6 +298,14 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
                 </div>
                 <button
                   type="button"
+                  onClick={() => navigate("/console/security")}
+                  className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                >
+                  <LockKey size={16} />
+                  {t("shell.menuSecurity")}
+                </button>
+                <button
+                  type="button"
                   onClick={logout}
                   className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
                 >
@@ -310,6 +319,18 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
 
         {/* Page Area */}
         <div className="console-page mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+          {bootstrap.oidc_password_drift ? (
+            <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+              <span>{t("shell.driftBanner")}</span>
+              <button
+                type="button"
+                onClick={() => navigate("/console/security")}
+                className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+              >
+                {t("shell.driftBannerAction")}
+              </button>
+            </div>
+          ) : null}
           <Outlet />
         </div>
       </main>

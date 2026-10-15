@@ -243,6 +243,48 @@ func (_c *UserCreate) SetNillableSignupSource(v *string) *UserCreate {
 	return _c
 }
 
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (_c *UserCreate) SetOidcSyncedAt(v time.Time) *UserCreate {
+	_c.mutation.SetOidcSyncedAt(v)
+	return _c
+}
+
+// SetNillableOidcSyncedAt sets the "oidc_synced_at" field if the given value is not nil.
+func (_c *UserCreate) SetNillableOidcSyncedAt(v *time.Time) *UserCreate {
+	if v != nil {
+		_c.SetOidcSyncedAt(*v)
+	}
+	return _c
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (_c *UserCreate) SetOidcPasswordCredAt(v int64) *UserCreate {
+	_c.mutation.SetOidcPasswordCredAt(v)
+	return _c
+}
+
+// SetNillableOidcPasswordCredAt sets the "oidc_password_cred_at" field if the given value is not nil.
+func (_c *UserCreate) SetNillableOidcPasswordCredAt(v *int64) *UserCreate {
+	if v != nil {
+		_c.SetOidcPasswordCredAt(*v)
+	}
+	return _c
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (_c *UserCreate) SetOidcPasswordDrift(v bool) *UserCreate {
+	_c.mutation.SetOidcPasswordDrift(v)
+	return _c
+}
+
+// SetNillableOidcPasswordDrift sets the "oidc_password_drift" field if the given value is not nil.
+func (_c *UserCreate) SetNillableOidcPasswordDrift(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetOidcPasswordDrift(*v)
+	}
+	return _c
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_c *UserCreate) SetLastLoginAt(v time.Time) *UserCreate {
 	_c.mutation.SetLastLoginAt(v)
@@ -681,6 +723,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultSignupSource
 		_c.mutation.SetSignupSource(v)
 	}
+	if _, ok := _c.mutation.OidcPasswordDrift(); !ok {
+		v := user.DefaultOidcPasswordDrift
+		_c.mutation.SetOidcPasswordDrift(v)
+	}
 	if _, ok := _c.mutation.RestrictPublicGroups(); !ok {
 		v := user.DefaultRestrictPublicGroups
 		_c.mutation.SetRestrictPublicGroups(v)
@@ -778,6 +824,9 @@ func (_c *UserCreate) check() error {
 		if err := user.SignupSourceValidator(v); err != nil {
 			return &ValidationError{Name: "signup_source", err: fmt.Errorf(`ent: validator failed for field "User.signup_source": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.OidcPasswordDrift(); !ok {
+		return &ValidationError{Name: "oidc_password_drift", err: errors.New(`ent: missing required field "User.oidc_password_drift"`)}
 	}
 	if _, ok := _c.mutation.RestrictPublicGroups(); !ok {
 		return &ValidationError{Name: "restrict_public_groups", err: errors.New(`ent: missing required field "User.restrict_public_groups"`)}
@@ -887,6 +936,18 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.SignupSource(); ok {
 		_spec.SetField(user.FieldSignupSource, field.TypeString, value)
 		_node.SignupSource = value
+	}
+	if value, ok := _c.mutation.OidcSyncedAt(); ok {
+		_spec.SetField(user.FieldOidcSyncedAt, field.TypeTime, value)
+		_node.OidcSyncedAt = &value
+	}
+	if value, ok := _c.mutation.OidcPasswordCredAt(); ok {
+		_spec.SetField(user.FieldOidcPasswordCredAt, field.TypeInt64, value)
+		_node.OidcPasswordCredAt = &value
+	}
+	if value, ok := _c.mutation.OidcPasswordDrift(); ok {
+		_spec.SetField(user.FieldOidcPasswordDrift, field.TypeBool, value)
+		_node.OidcPasswordDrift = value
 	}
 	if value, ok := _c.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
@@ -1436,6 +1497,60 @@ func (u *UserUpsert) UpdateSignupSource() *UserUpsert {
 	return u
 }
 
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (u *UserUpsert) SetOidcSyncedAt(v time.Time) *UserUpsert {
+	u.Set(user.FieldOidcSyncedAt, v)
+	return u
+}
+
+// UpdateOidcSyncedAt sets the "oidc_synced_at" field to the value that was provided on create.
+func (u *UserUpsert) UpdateOidcSyncedAt() *UserUpsert {
+	u.SetExcluded(user.FieldOidcSyncedAt)
+	return u
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (u *UserUpsert) ClearOidcSyncedAt() *UserUpsert {
+	u.SetNull(user.FieldOidcSyncedAt)
+	return u
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (u *UserUpsert) SetOidcPasswordCredAt(v int64) *UserUpsert {
+	u.Set(user.FieldOidcPasswordCredAt, v)
+	return u
+}
+
+// UpdateOidcPasswordCredAt sets the "oidc_password_cred_at" field to the value that was provided on create.
+func (u *UserUpsert) UpdateOidcPasswordCredAt() *UserUpsert {
+	u.SetExcluded(user.FieldOidcPasswordCredAt)
+	return u
+}
+
+// AddOidcPasswordCredAt adds v to the "oidc_password_cred_at" field.
+func (u *UserUpsert) AddOidcPasswordCredAt(v int64) *UserUpsert {
+	u.Add(user.FieldOidcPasswordCredAt, v)
+	return u
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (u *UserUpsert) ClearOidcPasswordCredAt() *UserUpsert {
+	u.SetNull(user.FieldOidcPasswordCredAt)
+	return u
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (u *UserUpsert) SetOidcPasswordDrift(v bool) *UserUpsert {
+	u.Set(user.FieldOidcPasswordDrift, v)
+	return u
+}
+
+// UpdateOidcPasswordDrift sets the "oidc_password_drift" field to the value that was provided on create.
+func (u *UserUpsert) UpdateOidcPasswordDrift() *UserUpsert {
+	u.SetExcluded(user.FieldOidcPasswordDrift)
+	return u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (u *UserUpsert) SetLastLoginAt(v time.Time) *UserUpsert {
 	u.Set(user.FieldLastLoginAt, v)
@@ -1874,6 +1989,69 @@ func (u *UserUpsertOne) SetSignupSource(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateSignupSource() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateSignupSource()
+	})
+}
+
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (u *UserUpsertOne) SetOidcSyncedAt(v time.Time) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcSyncedAt(v)
+	})
+}
+
+// UpdateOidcSyncedAt sets the "oidc_synced_at" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateOidcSyncedAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcSyncedAt()
+	})
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (u *UserUpsertOne) ClearOidcSyncedAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearOidcSyncedAt()
+	})
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (u *UserUpsertOne) SetOidcPasswordCredAt(v int64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcPasswordCredAt(v)
+	})
+}
+
+// AddOidcPasswordCredAt adds v to the "oidc_password_cred_at" field.
+func (u *UserUpsertOne) AddOidcPasswordCredAt(v int64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddOidcPasswordCredAt(v)
+	})
+}
+
+// UpdateOidcPasswordCredAt sets the "oidc_password_cred_at" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateOidcPasswordCredAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcPasswordCredAt()
+	})
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (u *UserUpsertOne) ClearOidcPasswordCredAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearOidcPasswordCredAt()
+	})
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (u *UserUpsertOne) SetOidcPasswordDrift(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcPasswordDrift(v)
+	})
+}
+
+// UpdateOidcPasswordDrift sets the "oidc_password_drift" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateOidcPasswordDrift() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcPasswordDrift()
 	})
 }
 
@@ -2505,6 +2683,69 @@ func (u *UserUpsertBulk) SetSignupSource(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateSignupSource() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateSignupSource()
+	})
+}
+
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (u *UserUpsertBulk) SetOidcSyncedAt(v time.Time) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcSyncedAt(v)
+	})
+}
+
+// UpdateOidcSyncedAt sets the "oidc_synced_at" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateOidcSyncedAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcSyncedAt()
+	})
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (u *UserUpsertBulk) ClearOidcSyncedAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearOidcSyncedAt()
+	})
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (u *UserUpsertBulk) SetOidcPasswordCredAt(v int64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcPasswordCredAt(v)
+	})
+}
+
+// AddOidcPasswordCredAt adds v to the "oidc_password_cred_at" field.
+func (u *UserUpsertBulk) AddOidcPasswordCredAt(v int64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddOidcPasswordCredAt(v)
+	})
+}
+
+// UpdateOidcPasswordCredAt sets the "oidc_password_cred_at" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateOidcPasswordCredAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcPasswordCredAt()
+	})
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (u *UserUpsertBulk) ClearOidcPasswordCredAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearOidcPasswordCredAt()
+	})
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (u *UserUpsertBulk) SetOidcPasswordDrift(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetOidcPasswordDrift(v)
+	})
+}
+
+// UpdateOidcPasswordDrift sets the "oidc_password_drift" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateOidcPasswordDrift() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateOidcPasswordDrift()
 	})
 }
 

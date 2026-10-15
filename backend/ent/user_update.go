@@ -282,6 +282,67 @@ func (_u *UserUpdate) SetNillableSignupSource(v *string) *UserUpdate {
 	return _u
 }
 
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (_u *UserUpdate) SetOidcSyncedAt(v time.Time) *UserUpdate {
+	_u.mutation.SetOidcSyncedAt(v)
+	return _u
+}
+
+// SetNillableOidcSyncedAt sets the "oidc_synced_at" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableOidcSyncedAt(v *time.Time) *UserUpdate {
+	if v != nil {
+		_u.SetOidcSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (_u *UserUpdate) ClearOidcSyncedAt() *UserUpdate {
+	_u.mutation.ClearOidcSyncedAt()
+	return _u
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (_u *UserUpdate) SetOidcPasswordCredAt(v int64) *UserUpdate {
+	_u.mutation.ResetOidcPasswordCredAt()
+	_u.mutation.SetOidcPasswordCredAt(v)
+	return _u
+}
+
+// SetNillableOidcPasswordCredAt sets the "oidc_password_cred_at" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableOidcPasswordCredAt(v *int64) *UserUpdate {
+	if v != nil {
+		_u.SetOidcPasswordCredAt(*v)
+	}
+	return _u
+}
+
+// AddOidcPasswordCredAt adds value to the "oidc_password_cred_at" field.
+func (_u *UserUpdate) AddOidcPasswordCredAt(v int64) *UserUpdate {
+	_u.mutation.AddOidcPasswordCredAt(v)
+	return _u
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (_u *UserUpdate) ClearOidcPasswordCredAt() *UserUpdate {
+	_u.mutation.ClearOidcPasswordCredAt()
+	return _u
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (_u *UserUpdate) SetOidcPasswordDrift(v bool) *UserUpdate {
+	_u.mutation.SetOidcPasswordDrift(v)
+	return _u
+}
+
+// SetNillableOidcPasswordDrift sets the "oidc_password_drift" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableOidcPasswordDrift(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetOidcPasswordDrift(*v)
+	}
+	return _u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_u *UserUpdate) SetLastLoginAt(v time.Time) *UserUpdate {
 	_u.mutation.SetLastLoginAt(v)
@@ -1143,6 +1204,24 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.SignupSource(); ok {
 		_spec.SetField(user.FieldSignupSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OidcSyncedAt(); ok {
+		_spec.SetField(user.FieldOidcSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OidcSyncedAtCleared() {
+		_spec.ClearField(user.FieldOidcSyncedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.OidcPasswordCredAt(); ok {
+		_spec.SetField(user.FieldOidcPasswordCredAt, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOidcPasswordCredAt(); ok {
+		_spec.AddField(user.FieldOidcPasswordCredAt, field.TypeInt64, value)
+	}
+	if _u.mutation.OidcPasswordCredAtCleared() {
+		_spec.ClearField(user.FieldOidcPasswordCredAt, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.OidcPasswordDrift(); ok {
+		_spec.SetField(user.FieldOidcPasswordDrift, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)
@@ -2137,6 +2216,67 @@ func (_u *UserUpdateOne) SetNillableSignupSource(v *string) *UserUpdateOne {
 	return _u
 }
 
+// SetOidcSyncedAt sets the "oidc_synced_at" field.
+func (_u *UserUpdateOne) SetOidcSyncedAt(v time.Time) *UserUpdateOne {
+	_u.mutation.SetOidcSyncedAt(v)
+	return _u
+}
+
+// SetNillableOidcSyncedAt sets the "oidc_synced_at" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableOidcSyncedAt(v *time.Time) *UserUpdateOne {
+	if v != nil {
+		_u.SetOidcSyncedAt(*v)
+	}
+	return _u
+}
+
+// ClearOidcSyncedAt clears the value of the "oidc_synced_at" field.
+func (_u *UserUpdateOne) ClearOidcSyncedAt() *UserUpdateOne {
+	_u.mutation.ClearOidcSyncedAt()
+	return _u
+}
+
+// SetOidcPasswordCredAt sets the "oidc_password_cred_at" field.
+func (_u *UserUpdateOne) SetOidcPasswordCredAt(v int64) *UserUpdateOne {
+	_u.mutation.ResetOidcPasswordCredAt()
+	_u.mutation.SetOidcPasswordCredAt(v)
+	return _u
+}
+
+// SetNillableOidcPasswordCredAt sets the "oidc_password_cred_at" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableOidcPasswordCredAt(v *int64) *UserUpdateOne {
+	if v != nil {
+		_u.SetOidcPasswordCredAt(*v)
+	}
+	return _u
+}
+
+// AddOidcPasswordCredAt adds value to the "oidc_password_cred_at" field.
+func (_u *UserUpdateOne) AddOidcPasswordCredAt(v int64) *UserUpdateOne {
+	_u.mutation.AddOidcPasswordCredAt(v)
+	return _u
+}
+
+// ClearOidcPasswordCredAt clears the value of the "oidc_password_cred_at" field.
+func (_u *UserUpdateOne) ClearOidcPasswordCredAt() *UserUpdateOne {
+	_u.mutation.ClearOidcPasswordCredAt()
+	return _u
+}
+
+// SetOidcPasswordDrift sets the "oidc_password_drift" field.
+func (_u *UserUpdateOne) SetOidcPasswordDrift(v bool) *UserUpdateOne {
+	_u.mutation.SetOidcPasswordDrift(v)
+	return _u
+}
+
+// SetNillableOidcPasswordDrift sets the "oidc_password_drift" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableOidcPasswordDrift(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetOidcPasswordDrift(*v)
+	}
+	return _u
+}
+
 // SetLastLoginAt sets the "last_login_at" field.
 func (_u *UserUpdateOne) SetLastLoginAt(v time.Time) *UserUpdateOne {
 	_u.mutation.SetLastLoginAt(v)
@@ -3028,6 +3168,24 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.SignupSource(); ok {
 		_spec.SetField(user.FieldSignupSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.OidcSyncedAt(); ok {
+		_spec.SetField(user.FieldOidcSyncedAt, field.TypeTime, value)
+	}
+	if _u.mutation.OidcSyncedAtCleared() {
+		_spec.ClearField(user.FieldOidcSyncedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.OidcPasswordCredAt(); ok {
+		_spec.SetField(user.FieldOidcPasswordCredAt, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedOidcPasswordCredAt(); ok {
+		_spec.AddField(user.FieldOidcPasswordCredAt, field.TypeInt64, value)
+	}
+	if _u.mutation.OidcPasswordCredAtCleared() {
+		_spec.ClearField(user.FieldOidcPasswordCredAt, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.OidcPasswordDrift(); ok {
+		_spec.SetField(user.FieldOidcPasswordDrift, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastLoginAt(); ok {
 		_spec.SetField(user.FieldLastLoginAt, field.TypeTime, value)

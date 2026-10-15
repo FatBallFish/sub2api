@@ -47,6 +47,12 @@ const (
 	FieldTotpEnabledAt = "totp_enabled_at"
 	// FieldSignupSource holds the string denoting the signup_source field in the database.
 	FieldSignupSource = "signup_source"
+	// FieldOidcSyncedAt holds the string denoting the oidc_synced_at field in the database.
+	FieldOidcSyncedAt = "oidc_synced_at"
+	// FieldOidcPasswordCredAt holds the string denoting the oidc_password_cred_at field in the database.
+	FieldOidcPasswordCredAt = "oidc_password_cred_at"
+	// FieldOidcPasswordDrift holds the string denoting the oidc_password_drift field in the database.
+	FieldOidcPasswordDrift = "oidc_password_drift"
 	// FieldLastLoginAt holds the string denoting the last_login_at field in the database.
 	FieldLastLoginAt = "last_login_at"
 	// FieldLastActiveAt holds the string denoting the last_active_at field in the database.
@@ -230,6 +236,9 @@ var Columns = []string{
 	FieldTotpEnabled,
 	FieldTotpEnabledAt,
 	FieldSignupSource,
+	FieldOidcSyncedAt,
+	FieldOidcPasswordCredAt,
+	FieldOidcPasswordDrift,
 	FieldLastLoginAt,
 	FieldLastActiveAt,
 	FieldRestrictPublicGroups,
@@ -301,6 +310,8 @@ var (
 	DefaultSignupSource string
 	// SignupSourceValidator is a validator for the "signup_source" field. It is called by the builders before save.
 	SignupSourceValidator func(string) error
+	// DefaultOidcPasswordDrift holds the default value on creation for the "oidc_password_drift" field.
+	DefaultOidcPasswordDrift bool
 	// DefaultRestrictPublicGroups holds the default value on creation for the "restrict_public_groups" field.
 	DefaultRestrictPublicGroups bool
 	// DefaultBalanceNotifyEnabled holds the default value on creation for the "balance_notify_enabled" field.
@@ -401,6 +412,21 @@ func ByTotpEnabledAt(opts ...sql.OrderTermOption) OrderOption {
 // BySignupSource orders the results by the signup_source field.
 func BySignupSource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSignupSource, opts...).ToFunc()
+}
+
+// ByOidcSyncedAt orders the results by the oidc_synced_at field.
+func ByOidcSyncedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOidcSyncedAt, opts...).ToFunc()
+}
+
+// ByOidcPasswordCredAt orders the results by the oidc_password_cred_at field.
+func ByOidcPasswordCredAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOidcPasswordCredAt, opts...).ToFunc()
+}
+
+// ByOidcPasswordDrift orders the results by the oidc_password_drift field.
+func ByOidcPasswordDrift(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOidcPasswordDrift, opts...).ToFunc()
 }
 
 // ByLastLoginAt orders the results by the last_login_at field.

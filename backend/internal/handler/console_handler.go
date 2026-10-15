@@ -143,11 +143,12 @@ func (h *ConsoleHandler) Bootstrap(c *gin.Context) {
 
 	response.Success(c, consoleBootstrapResponse{
 		User: consoleBootstrapUser{
-			ID:        user.ID,
-			Email:     user.Email,
-			Name:      consoleDisplayName(user),
-			AvatarURL: user.AvatarURL,
-			Role:      user.Role,
+			ID:           user.ID,
+			Email:        user.Email,
+			Name:         consoleDisplayName(user),
+			AvatarURL:    user.AvatarURL,
+			Role:         user.Role,
+			SignupSource: user.SignupSource,
 		},
 		Wallet: consoleBillingWallet{
 			AvailableBalance: user.Balance,
@@ -157,6 +158,7 @@ func (h *ConsoleHandler) Bootstrap(c *gin.Context) {
 		GlobalPlan:          globalPlan,
 		UnreadAnnouncements: len(unreadAnnouncements),
 		AffiliateEnabled:    h.consoleAffiliateEnabled(c.Request.Context()),
+		OIDCPasswordDrift:   user.OidcPasswordDrift,
 	})
 }
 
@@ -355,6 +357,8 @@ type consoleBootstrapResponse struct {
 	GlobalPlan          consoleBootstrapGlobalPlan `json:"global_plan"`
 	UnreadAnnouncements int                        `json:"unread_announcements"`
 	AffiliateEnabled    bool                       `json:"affiliate_enabled"`
+	// 身份源密码漂移（Keycloak 侧改密未收敛），控制台据此提示重置。
+	OIDCPasswordDrift bool `json:"oidc_password_drift"`
 }
 
 type consoleBootstrapUser struct {
@@ -362,7 +366,9 @@ type consoleBootstrapUser struct {
 	Email     string `json:"email"`
 	Name      string `json:"name,omitempty"`
 	AvatarURL string `json:"avatar_url,omitempty"`
-	Role      string `json:"role"`
+	// 注册渠道（email/oidc/github/...）：控制台据此决定改密是否需要当前密码。
+	SignupSource string `json:"signup_source,omitempty"`
+	Role         string `json:"role"`
 }
 
 type consoleBootstrapGlobalPlan struct {

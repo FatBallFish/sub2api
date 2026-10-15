@@ -87,6 +87,18 @@ func (User) Fields() []ent.Field {
 				}
 			}).
 			Default("email"),
+		// OIDC 账号同步（Keycloak）：最近一次成功同步时间
+		field.Time("oidc_synced_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		// 同步/双写时 Keycloak password credential 的 createdDate 快照（epoch ms）
+		field.Int64("oidc_password_cred_at").
+			Optional().
+			Nillable(),
+		// Keycloak 侧密码与本地不一致（用户在身份源改密未收敛）
+		field.Bool("oidc_password_drift").
+			Default(false),
 		field.Time("last_login_at").
 			Optional().
 			Nillable().

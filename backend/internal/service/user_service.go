@@ -294,17 +294,20 @@ type UserService struct {
 	settingRepo          SettingRepository
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCache         BillingCache
-	lastActiveTouchL1    sync.Map
-	lastActiveTouchSF    singleflight.Group
+	// oidcSync 供改密成功后双写到 Keycloak；可为 nil（测试/未启用）。
+	oidcSync          *OIDCUserSyncService
+	lastActiveTouchL1 sync.Map
+	lastActiveTouchSF singleflight.Group
 }
 
 // NewUserService 创建用户服务实例
-func NewUserService(userRepo UserRepository, settingRepo SettingRepository, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCache BillingCache) *UserService {
+func NewUserService(userRepo UserRepository, settingRepo SettingRepository, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCache BillingCache, oidcSync *OIDCUserSyncService) *UserService {
 	return &UserService{
 		userRepo:             userRepo,
 		settingRepo:          settingRepo,
 		authCacheInvalidator: authCacheInvalidator,
 		billingCache:         billingCache,
+		oidcSync:             oidcSync,
 	}
 }
 
@@ -1024,8 +1027,13 @@ func (s *UserService) ChangePassword(ctx context.Context, userID int64, req Chan
 		return fmt.Errorf("get user: %w", err)
 	}
 
-	// 验证当前密码
-	if !user.CheckPassword(req.CurrentPassword) {
+	// 验证当前密码。OAuth 渠道建号的用户本地密码是随机串（用户不知晓），
+	// 已登录态本身即身份证明，允许免当前密码修改。
+	isOAuthSourcedUser := strings.TrimSpace(user.SignupSource) != "" && user.SignupSource != "email"
+	if strings.TrimSpace(req.CurrentPassword) == "" && !isOAuthSourcedUser {
+		return ErrPasswordIncorrect
+	}
+	if strings.TrimSpace(req.CurrentPassword) != "" && !user.CheckPassword(req.CurrentPassword) {
 		return ErrPasswordIncorrect
 	}
 
@@ -1041,6 +1049,18 @@ func (s *UserService) ChangePassword(ctx context.Context, userID int64, req Chan
 	// 指纹推导），改密写回 password_hash 即可让旧 token 失效。
 	if err := s.userRepo.Update(ctx, user, UserUpdateFields{PasswordHash: true}); err != nil {
 		return fmt.Errorf("update user: %w", err)
+	}
+
+	// 改密成功后异步双写到 OIDC（Keycloak），保持两边密码一致。
+	if s.oidcSync != nil {
+		email := user.Email
+		newPassword := req.NewPassword
+		go func() {
+			defer func() { _ = recover() }()
+			syncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			s.oidcSync.SyncPasswordChange(syncCtx, email, newPassword)
+		}()
 	}
 
 	return nil
