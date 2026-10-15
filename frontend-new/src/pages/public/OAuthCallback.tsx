@@ -91,7 +91,9 @@ function isPendingSession(
 }
 
 function providerLabel(provider: OAuthProvider) {
-  return provider === "google" ? "Google" : "GitHub";
+  if (provider === "google") return "Google";
+  if (provider === "github") return "GitHub";
+  return "OIDC";
 }
 
 export default function OAuthCallback() {
@@ -179,7 +181,11 @@ export default function OAuthCallback() {
           return;
         }
 
-        const pendingProvider = completion.provider === "github" ? "github" : "google";
+        const pendingProvider: OAuthProvider = completion.provider === "github"
+          ? "github"
+          : completion.provider === "oidc" || completion.provider === "oidc-console"
+            ? "oidc"
+            : "google";
         const resolvedEmail = (completion.resolved_email || completion.email || "").trim();
         const registrationRequired = completion.error === "invitation_required"
           || completion.error === "registration_completion_required";

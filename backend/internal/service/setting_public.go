@@ -218,6 +218,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingBalancePayDisabled,
 		SettingKeyOIDCConnectEnabled,
 		SettingKeyOIDCConnectProviderName,
+		SettingKeyOIDCConnectConsoleEnabled,
+		SettingKeyOIDCConnectConsoleProviderName,
 		SettingKeyGitHubOAuthEnabled,
 		SettingKeyGitHubOAuthClientID,
 		SettingKeyGitHubOAuthClientSecret,
@@ -275,6 +277,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	}
 	if oidcProviderName == "" {
 		oidcProviderName = "OIDC"
+	}
+	// 新前端（console）独立 OIDC 入口：只暴露开关与展示名。
+	oidcConsoleEnabled := settings[SettingKeyOIDCConnectConsoleEnabled] == "true"
+	oidcConsoleProviderName := strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleProviderName])
+	if oidcConsoleProviderName == "" {
+		oidcConsoleProviderName = oidcProviderName
 	}
 	gitHubEnabled := s.emailOAuthPublicEnabled(settings, "github")
 	googleEnabled := s.emailOAuthPublicEnabled(settings, "google")
@@ -352,6 +360,8 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PaymentBalanceDisabled:              settings[SettingBalancePayDisabled] == "true",
 		OIDCOAuthEnabled:                    oidcEnabled,
 		OIDCOAuthProviderName:               oidcProviderName,
+		OIDCConsoleOAuthEnabled:             oidcConsoleEnabled,
+		OIDCConsoleOAuthProviderName:        oidcConsoleProviderName,
 		GitHubOAuthEnabled:                  gitHubEnabled,
 		GoogleOAuthEnabled:                  googleEnabled,
 		BalanceLowNotifyEnabled:             settings[SettingKeyBalanceLowNotifyEnabled] == "true",
@@ -610,6 +620,8 @@ type PublicSettingsInjectionPayload struct {
 	WeChatOAuthMobileEnabled            bool                     `json:"wechat_oauth_mobile_enabled"`
 	OIDCOAuthEnabled                    bool                     `json:"oidc_oauth_enabled"`
 	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
+	OIDCConsoleOAuthEnabled             bool                     `json:"oidc_console_oauth_enabled"`
+	OIDCConsoleOAuthProviderName        string                   `json:"oidc_console_oauth_provider_name"`
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
 	BackendModeEnabled                  bool                     `json:"backend_mode_enabled"`
@@ -707,6 +719,8 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		WeChatOAuthMobileEnabled:            settings.WeChatOAuthMobileEnabled,
 		OIDCOAuthEnabled:                    settings.OIDCOAuthEnabled,
 		OIDCOAuthProviderName:               settings.OIDCOAuthProviderName,
+		OIDCConsoleOAuthEnabled:             settings.OIDCConsoleOAuthEnabled,
+		OIDCConsoleOAuthProviderName:        settings.OIDCConsoleOAuthProviderName,
 		GitHubOAuthEnabled:                  settings.GitHubOAuthEnabled,
 		GoogleOAuthEnabled:                  settings.GoogleOAuthEnabled,
 		BackendModeEnabled:                  settings.BackendModeEnabled,

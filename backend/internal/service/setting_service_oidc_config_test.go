@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -248,4 +249,69 @@ func TestGetOIDCConnectOAuthConfig_DefaultsCompatibilityFlagsToSafeValuesWhenSet
 	require.NoError(t, err)
 	require.True(t, got.UsePKCE)
 	require.True(t, got.ValidateIDToken)
+}
+
+func TestGetOIDCConnectConsoleOAuthConfig(t *testing.T) {
+	baseValues := func() map[string]string {
+		return map[string]string{
+			SettingKeyOIDCConnectEnabled:             "true",
+			SettingKeyOIDCConnectClientID:            "main-client",
+			SettingKeyOIDCConnectClientSecret:        "main-secret",
+			SettingKeyOIDCConnectIssuerURL:           "https://issuer.example.com",
+			SettingKeyOIDCConnectAuthorizeURL:        "https://issuer.example.com/oauth/authorize",
+			SettingKeyOIDCConnectTokenURL:            "https://issuer.example.com/oauth/token",
+			SettingKeyOIDCConnectUserInfoURL:         "https://issuer.example.com/oauth/userinfo",
+			SettingKeyOIDCConnectScopes:              "openid email profile",
+			SettingKeyOIDCConnectRedirectURL:         "https://old.example.com/api/v1/auth/oauth/oidc/callback",
+			SettingKeyOIDCConnectFrontendRedirectURL: "/auth/oidc/callback",
+			SettingKeyOIDCConnectTokenAuthMethod:     "client_secret_post",
+		}
+	}
+	cfg := &config.Config{OIDC: config.OIDCConnectConfig{UsePKCE: false, ValidateIDToken: false, AllowedSigningAlgs: "RS256", ClockSkewSeconds: 120}}
+
+	t.Run("inherits main protocol config and applies console overrides", func(t *testing.T) {
+		values := baseValues()
+		values[SettingKeyOIDCConnectConsoleEnabled] = "true"
+		values[SettingKeyOIDCConnectConsoleProviderName] = "Mikiko SSO"
+		values[SettingKeyOIDCConnectConsoleRedirectURL] = "https://console.example.com/api/v1/auth/oauth/oidc-console/callback"
+		values[SettingKeyOIDCConnectConsoleFrontendRedirectURL] = "/auth/oauth/callback"
+
+		svc := NewSettingService(&settingOIDCRepoStub{values: values}, cfg)
+		got, err := svc.GetOIDCConnectConsoleOAuthConfig(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, "Mikiko SSO", got.ProviderName)
+		require.Equal(t, "main-client", got.ClientID)
+		require.Equal(t, "main-secret", got.ClientSecret)
+		require.Equal(t, "https://issuer.example.com", got.IssuerURL)
+		require.Equal(t, "https://issuer.example.com/oauth/authorize", got.AuthorizeURL)
+		require.Equal(t, "https://console.example.com/api/v1/auth/oauth/oidc-console/callback", got.RedirectURL)
+		require.Equal(t, "/auth/oauth/callback", got.FrontendRedirectURL)
+	})
+
+	t.Run("console client credentials override main config", func(t *testing.T) {
+		values := baseValues()
+		values[SettingKeyOIDCConnectConsoleEnabled] = "true"
+		values[SettingKeyOIDCConnectConsoleClientID] = "console-client"
+		values[SettingKeyOIDCConnectConsoleClientSecret] = "console-secret"
+
+		svc := NewSettingService(&settingOIDCRepoStub{values: values}, cfg)
+		got, err := svc.GetOIDCConnectConsoleOAuthConfig(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, "console-client", got.ClientID)
+		require.Equal(t, "console-secret", got.ClientSecret)
+	})
+
+	t.Run("disabled when console flag missing or false", func(t *testing.T) {
+		svc := NewSettingService(&settingOIDCRepoStub{values: baseValues()}, cfg)
+		_, err := svc.GetOIDCConnectConsoleOAuthConfig(context.Background())
+		require.Error(t, err)
+		require.Equal(t, "OAUTH_DISABLED", infraerrors.Reason(err))
+
+		values := baseValues()
+		values[SettingKeyOIDCConnectConsoleEnabled] = "false"
+		svc = NewSettingService(&settingOIDCRepoStub{values: values}, cfg)
+		_, err = svc.GetOIDCConnectConsoleOAuthConfig(context.Background())
+		require.Error(t, err)
+		require.Equal(t, "OAUTH_DISABLED", infraerrors.Reason(err))
+	})
 }

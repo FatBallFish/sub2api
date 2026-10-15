@@ -3671,6 +3671,161 @@
                   </div>
                 </div>
 
+                <!-- 新前端（console）独立 OIDC 登录 -->
+                <div
+                  class="rounded-xl border border-gray-200 p-5 dark:border-dark-700"
+                >
+                  <div class="mb-4">
+                    <h4
+                      class="text-sm font-semibold text-gray-900 dark:text-white"
+                    >
+                      {{ t("admin.settings.oidc.console.title") }}
+                    </h4>
+                    <p
+                      class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+                    >
+                      {{ t("admin.settings.oidc.console.description") }}
+                    </p>
+                  </div>
+                  <div class="mb-4 flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.enable") }}
+                      </label>
+                      <p
+                        class="mt-0.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t("admin.settings.oidc.console.enableHint") }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.oidc_connect_console_enabled" />
+                  </div>
+                  <div
+                    v-if="form.oidc_connect_console_enabled"
+                    class="grid grid-cols-1 gap-6 lg:grid-cols-2"
+                  >
+                    <div>
+                      <label
+                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.providerName") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_connect_console_provider_name"
+                        type="text"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          t('admin.settings.oidc.console.providerNamePlaceholder')
+                        "
+                      />
+                      <p
+                        class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t("admin.settings.oidc.console.providerNameHint") }}
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.clientId") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_connect_console_client_id"
+                        type="text"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          t('admin.settings.oidc.console.clientIdPlaceholder')
+                        "
+                      />
+                      <p
+                        class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t("admin.settings.oidc.console.clientIdHint") }}
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.clientSecret") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_connect_console_client_secret"
+                        type="password"
+                        autocomplete="new-password"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          form.oidc_connect_console_client_secret_configured
+                            ? t(
+                                'admin.settings.oidc.console.clientSecretConfiguredPlaceholder',
+                              )
+                            : t(
+                                'admin.settings.oidc.console.clientSecretPlaceholder',
+                              )
+                        "
+                      />
+                      <p
+                        class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{
+                          form.oidc_connect_console_client_secret_configured
+                            ? t(
+                                'admin.settings.oidc.console.clientSecretConfiguredHint',
+                              )
+                            : t('admin.settings.oidc.console.clientSecretHint')
+                        }}
+                      </p>
+                    </div>
+                    <div>
+                      <label
+                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.redirectUrl") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_connect_console_redirect_url"
+                        type="url"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          t('admin.settings.oidc.console.redirectUrlPlaceholder')
+                        "
+                      />
+                      <p
+                        class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{ t("admin.settings.oidc.console.redirectUrlHint") }}
+                      </p>
+                    </div>
+                    <div class="lg:col-span-2">
+                      <label
+                        class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.console.frontendRedirectUrl") }}
+                      </label>
+                      <input
+                        v-model="form.oidc_connect_console_frontend_redirect_url"
+                        type="text"
+                        class="input font-mono text-sm"
+                        :placeholder="
+                          t(
+                            'admin.settings.oidc.console.frontendRedirectUrlPlaceholder',
+                          )
+                        "
+                      />
+                      <p
+                        class="mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+                      >
+                        {{
+                          t("admin.settings.oidc.console.frontendRedirectUrlHint")
+                        }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div>
                     <label
@@ -9921,6 +10076,7 @@ type SettingsForm = Omit<
   wechat_connect_mp_enabled: boolean;
   wechat_connect_mobile_enabled: boolean;
   oidc_connect_client_secret: string;
+  oidc_connect_console_client_secret: string;
   github_oauth_client_secret: string;
   google_oauth_client_secret: string;
   force_email_on_third_party_signup: boolean;
@@ -10155,6 +10311,13 @@ const form = reactive<SettingsForm>({
   oidc_connect_userinfo_email_path: "",
   oidc_connect_userinfo_id_path: "",
   oidc_connect_userinfo_username_path: "",
+  oidc_connect_console_enabled: false,
+  oidc_connect_console_provider_name: "",
+  oidc_connect_console_client_id: "",
+  oidc_connect_console_client_secret: "",
+  oidc_connect_console_client_secret_configured: false,
+  oidc_connect_console_redirect_url: "",
+  oidc_connect_console_frontend_redirect_url: "/auth/oauth/callback",
   // GitHub / Google 邮箱快捷登录
   github_oauth_enabled: false,
   github_oauth_client_id: "",
@@ -11830,6 +11993,14 @@ async function saveSettings() {
       oidc_connect_userinfo_id_path: form.oidc_connect_userinfo_id_path,
       oidc_connect_userinfo_username_path:
         form.oidc_connect_userinfo_username_path,
+      oidc_connect_console_enabled: form.oidc_connect_console_enabled,
+      oidc_connect_console_provider_name: form.oidc_connect_console_provider_name,
+      oidc_connect_console_client_id: form.oidc_connect_console_client_id,
+      oidc_connect_console_client_secret:
+        form.oidc_connect_console_client_secret || undefined,
+      oidc_connect_console_redirect_url: form.oidc_connect_console_redirect_url,
+      oidc_connect_console_frontend_redirect_url:
+        form.oidc_connect_console_frontend_redirect_url,
       github_oauth_enabled: form.github_oauth_enabled,
       github_oauth_client_id: form.github_oauth_client_id,
       github_oauth_client_secret:

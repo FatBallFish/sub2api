@@ -123,6 +123,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOIDCConnectUserInfoEmailPath:              "",
 		SettingKeyOIDCConnectUserInfoIDPath:                 "",
 		SettingKeyOIDCConnectUserInfoUsernamePath:           "",
+		SettingKeyOIDCConnectConsoleEnabled:                 "false",
+		SettingKeyOIDCConnectConsoleProviderName:            "",
+		SettingKeyOIDCConnectConsoleClientID:                "",
+		SettingKeyOIDCConnectConsoleClientSecret:            "",
+		SettingKeyOIDCConnectConsoleRedirectURL:             "",
+		SettingKeyOIDCConnectConsoleFrontendRedirectURL:     "/auth/oauth/callback",
 		SettingKeyDefaultConcurrency:                        strconv.Itoa(s.cfg.Default.UserConcurrency),
 		SettingKeyDefaultBalance:                            strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
 		SettingKeyAffiliateRebateRate:                       strconv.FormatFloat(AffiliateRebateRateDefault, 'f', 8, 64),
@@ -750,6 +756,23 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.OIDCConnectClientSecret = strings.TrimSpace(oidcBase.ClientSecret)
 	}
 	result.OIDCConnectClientSecretConfigured = result.OIDCConnectClientSecret != ""
+
+	// 新前端（console）独立 OIDC 配置：布尔默认关闭，其余字段空值即继承主配置。
+	if raw, ok := settings[SettingKeyOIDCConnectConsoleEnabled]; ok {
+		result.OIDCConnectConsoleEnabled = raw == "true"
+	}
+	result.OIDCConnectConsoleProviderName = strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleProviderName])
+	result.OIDCConnectConsoleClientID = strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleClientID])
+	result.OIDCConnectConsoleClientSecret = strings.TrimSpace(settings[SettingKeyOIDCConnectConsoleClientSecret])
+	result.OIDCConnectConsoleClientSecretConfigured = result.OIDCConnectConsoleClientSecret != ""
+	if v, ok := settings[SettingKeyOIDCConnectConsoleRedirectURL]; ok {
+		result.OIDCConnectConsoleRedirectURL = strings.TrimSpace(v)
+	}
+	if v, ok := settings[SettingKeyOIDCConnectConsoleFrontendRedirectURL]; ok && strings.TrimSpace(v) != "" {
+		result.OIDCConnectConsoleFrontendRedirectURL = strings.TrimSpace(v)
+	} else {
+		result.OIDCConnectConsoleFrontendRedirectURL = "/auth/oauth/callback"
+	}
 
 	gitHubEffective := s.effectiveEmailOAuthConfig(settings, "github")
 	result.GitHubOAuthEnabled = gitHubEffective.Enabled

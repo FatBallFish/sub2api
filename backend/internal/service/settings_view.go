@@ -135,6 +135,15 @@ type SystemSettings struct {
 	OIDCConnectUserInfoIDPath         string
 	OIDCConnectUserInfoUsernamePath   string
 
+	// 新前端（console）独立 OIDC 登录配置
+	OIDCConnectConsoleEnabled                bool
+	OIDCConnectConsoleProviderName           string
+	OIDCConnectConsoleClientID               string
+	OIDCConnectConsoleClientSecret           string
+	OIDCConnectConsoleClientSecretConfigured bool
+	OIDCConnectConsoleRedirectURL            string
+	OIDCConnectConsoleFrontendRedirectURL    string
+
 	// GitHub / Google 邮箱快捷登录
 	GitHubOAuthEnabled                bool
 	GitHubOAuthClientID               string
@@ -376,20 +385,22 @@ type PublicSettings struct {
 	CustomMenuItems             string // JSON array of custom menu items
 	CustomEndpoints             string // JSON array of custom endpoints
 
-	LinuxDoOAuthEnabled      bool
-	DingTalkOAuthEnabled     bool
-	WeChatOAuthEnabled       bool
-	WeChatOAuthOpenEnabled   bool
-	WeChatOAuthMPEnabled     bool
-	WeChatOAuthMobileEnabled bool
-	BackendModeEnabled       bool
-	PaymentEnabled           bool
-	PaymentBalanceDisabled   bool
-	OIDCOAuthEnabled         bool
-	OIDCOAuthProviderName    string
-	GitHubOAuthEnabled       bool
-	GoogleOAuthEnabled       bool
-	Version                  string
+	LinuxDoOAuthEnabled          bool
+	DingTalkOAuthEnabled         bool
+	WeChatOAuthEnabled           bool
+	WeChatOAuthOpenEnabled       bool
+	WeChatOAuthMPEnabled         bool
+	WeChatOAuthMobileEnabled     bool
+	BackendModeEnabled           bool
+	PaymentEnabled               bool
+	PaymentBalanceDisabled       bool
+	OIDCOAuthEnabled             bool
+	OIDCOAuthProviderName        string
+	OIDCConsoleOAuthEnabled      bool
+	OIDCConsoleOAuthProviderName string
+	GitHubOAuthEnabled           bool
+	GoogleOAuthEnabled           bool
+	Version                      string
 
 	BalanceLowNotifyEnabled     bool
 	AccountQuotaNotifyEnabled   bool

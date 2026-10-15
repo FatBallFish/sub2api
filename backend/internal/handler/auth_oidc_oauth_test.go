@@ -1308,3 +1308,108 @@ func newOIDCTestProvider(t *testing.T, fixture oidcProviderFixture) (config.OIDC
 	}
 	return cfg, server.Close
 }
+
+func TestOIDCOAuthConsoleStartUsesConsoleCookiesAndRedirect(t *testing.T) {
+	cfg := config.OIDCConnectConfig{
+		Enabled:              true,
+		ProviderName:         "OIDC",
+		ClientID:             "oidc-client",
+		ClientSecret:         "oidc-secret",
+		IssuerURL:            "https://issuer.example.com",
+		AuthorizeURL:         "https://issuer.example.com/oauth/authorize",
+		TokenURL:             "https://issuer.example.com/oauth/token",
+		UserInfoURL:          "https://issuer.example.com/oauth/userinfo",
+		Scopes:               "openid profile email",
+		RedirectURL:          "https://old.example.com/api/v1/auth/oauth/oidc/callback",
+		FrontendRedirectURL:  "/auth/oidc/callback",
+		TokenAuthMethod:      "client_secret_post",
+		UsePKCE:              false,
+		ValidateIDToken:      false,
+		RequireEmailVerified: false,
+	}
+	handler, _ := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, map[string]string{
+		service.SettingKeyOIDCConnectConsoleEnabled:             "true",
+		service.SettingKeyOIDCConnectConsoleProviderName:        "Mikiko SSO",
+		service.SettingKeyOIDCConnectConsoleRedirectURL:         "https://console.example.com/api/v1/auth/oauth/oidc-console/callback",
+		service.SettingKeyOIDCConnectConsoleFrontendRedirectURL: "/auth/oauth/callback",
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start?redirect=/console", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "https://issuer.example.com/oauth/authorize")
+	require.Contains(t, location, "redirect_uri=https%3A%2F%2Fconsole.example.com%2Fapi%2Fv1%2Fauth%2Foauth%2Foidc-console%2Fcallback")
+
+	cookies := recorder.Result().Cookies()
+	stateCookie := findCookie(cookies, "oidc_oauth_console_state")
+	require.NotNil(t, stateCookie)
+	require.Equal(t, "/api/v1/auth/oauth/oidc-console", stateCookie.Path)
+	require.Nil(t, findCookie(cookies, oidcOAuthStateCookieName), "console start must not touch main-variant cookies")
+}
+
+func TestOIDCOAuthConsoleCallbackRejectsMainVariantState(t *testing.T) {
+	cfg := config.OIDCConnectConfig{
+		Enabled:              true,
+		ProviderName:         "OIDC",
+		ClientID:             "oidc-client",
+		ClientSecret:         "oidc-secret",
+		IssuerURL:            "https://issuer.example.com",
+		AuthorizeURL:         "https://issuer.example.com/oauth/authorize",
+		TokenURL:             "https://issuer.example.com/oauth/token",
+		UserInfoURL:          "https://issuer.example.com/oauth/userinfo",
+		Scopes:               "openid profile email",
+		RedirectURL:          "https://old.example.com/api/v1/auth/oauth/oidc/callback",
+		FrontendRedirectURL:  "/auth/oidc/callback",
+		TokenAuthMethod:      "client_secret_post",
+		UsePKCE:              false,
+		ValidateIDToken:      false,
+		RequireEmailVerified: false,
+	}
+	handler, _ := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, map[string]string{
+		service.SettingKeyOIDCConnectConsoleEnabled:             "true",
+		service.SettingKeyOIDCConnectConsoleRedirectURL:         "https://console.example.com/api/v1/auth/oauth/oidc-console/callback",
+		service.SettingKeyOIDCConnectConsoleFrontendRedirectURL: "/auth/oauth/callback",
+	})
+
+	// 模拟主变体 /start 种下的 state cookie：console 回调必须拒绝它。
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/callback?code=abc&state=main-state", nil)
+	request.AddCookie(&http.Cookie{Name: oidcOAuthStateCookieName, Value: encodeCookieValue("main-state"), Path: "/api/v1/auth/oauth/oidc"})
+	c.Request = request
+
+	handler.OIDCOAuthConsoleCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "/auth/oauth/callback")
+	require.Contains(t, location, "error=invalid_state")
+}
+
+func TestOIDCOAuthConsoleStartDisabledWhenConsoleFlagOff(t *testing.T) {
+	cfg := config.OIDCConnectConfig{
+		Enabled:         true,
+		ClientID:        "oidc-client",
+		ClientSecret:    "oidc-secret",
+		IssuerURL:       "https://issuer.example.com",
+		AuthorizeURL:    "https://issuer.example.com/oauth/authorize",
+		TokenURL:        "https://issuer.example.com/oauth/token",
+		Scopes:          "openid profile email",
+		RedirectURL:     "https://old.example.com/api/v1/auth/oauth/oidc/callback",
+		TokenAuthMethod: "client_secret_post",
+	}
+	handler, _ := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusNotFound, recorder.Code)
+}

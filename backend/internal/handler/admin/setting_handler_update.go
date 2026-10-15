@@ -141,6 +141,14 @@ type UpdateSettingsRequest struct {
 	OIDCConnectUserInfoIDPath       string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath string `json:"oidc_connect_userinfo_username_path"`
 
+	// 新前端（console）独立 OIDC 登录配置（协议参数继承上方主配置）
+	OIDCConnectConsoleEnabled             bool   `json:"oidc_connect_console_enabled"`
+	OIDCConnectConsoleProviderName        string `json:"oidc_connect_console_provider_name"`
+	OIDCConnectConsoleClientID            string `json:"oidc_connect_console_client_id"`
+	OIDCConnectConsoleClientSecret        string `json:"oidc_connect_console_client_secret"`
+	OIDCConnectConsoleRedirectURL         string `json:"oidc_connect_console_redirect_url"`
+	OIDCConnectConsoleFrontendRedirectURL string `json:"oidc_connect_console_frontend_redirect_url"`
+
 	GitHubOAuthEnabled             bool   `json:"github_oauth_enabled"`
 	GitHubOAuthClientID            string `json:"github_oauth_client_id"`
 	GitHubOAuthClientSecret        string `json:"github_oauth_client_secret"`
@@ -1278,6 +1286,56 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// 新前端（console）独立 OIDC 配置验证：仅在启用时要求回调相关字段；
+	// issuer/client 等协议参数继承主配置，client id/secret 为空时回退已存值。
+	req.OIDCConnectConsoleProviderName = strings.TrimSpace(req.OIDCConnectConsoleProviderName)
+	req.OIDCConnectConsoleClientID = strings.TrimSpace(req.OIDCConnectConsoleClientID)
+	req.OIDCConnectConsoleClientSecret = strings.TrimSpace(req.OIDCConnectConsoleClientSecret)
+	req.OIDCConnectConsoleRedirectURL = strings.TrimSpace(req.OIDCConnectConsoleRedirectURL)
+	req.OIDCConnectConsoleFrontendRedirectURL = strings.TrimSpace(req.OIDCConnectConsoleFrontendRedirectURL)
+	if req.OIDCConnectConsoleClientID == "" {
+		req.OIDCConnectConsoleClientID = strings.TrimSpace(previousSettings.OIDCConnectConsoleClientID)
+	}
+	if req.OIDCConnectConsoleClientSecret == "" {
+		req.OIDCConnectConsoleClientSecret = previousSettings.OIDCConnectConsoleClientSecret
+	}
+	if req.OIDCConnectConsoleEnabled {
+		if req.OIDCConnectConsoleProviderName == "" {
+			req.OIDCConnectConsoleProviderName = strings.TrimSpace(firstNonEmpty(previousSettings.OIDCConnectConsoleProviderName, req.OIDCConnectProviderName, previousSettings.OIDCConnectProviderName, "OIDC"))
+		}
+		consoleIssuer := strings.TrimSpace(firstNonEmpty(req.OIDCConnectIssuerURL, previousSettings.OIDCConnectIssuerURL))
+		if consoleIssuer == "" {
+			response.BadRequest(c, "OIDC Issuer URL is required when console OIDC is enabled")
+			return
+		}
+		consoleClientID := strings.TrimSpace(firstNonEmpty(req.OIDCConnectConsoleClientID, req.OIDCConnectClientID, previousSettings.OIDCConnectClientID))
+		if consoleClientID == "" {
+			response.BadRequest(c, "OIDC Client ID is required when console OIDC is enabled")
+			return
+		}
+		if req.OIDCConnectConsoleRedirectURL == "" {
+			req.OIDCConnectConsoleRedirectURL = strings.TrimSpace(previousSettings.OIDCConnectConsoleRedirectURL)
+		}
+		if req.OIDCConnectConsoleRedirectURL == "" {
+			response.BadRequest(c, "Console OIDC Redirect URL is required when enabled")
+			return
+		}
+		if err := config.ValidateAbsoluteHTTPURL(req.OIDCConnectConsoleRedirectURL); err != nil {
+			response.BadRequest(c, "Console OIDC Redirect URL must be an absolute http(s) URL")
+			return
+		}
+		if req.OIDCConnectConsoleFrontendRedirectURL == "" {
+			req.OIDCConnectConsoleFrontendRedirectURL = strings.TrimSpace(previousSettings.OIDCConnectConsoleFrontendRedirectURL)
+		}
+		if req.OIDCConnectConsoleFrontendRedirectURL == "" {
+			req.OIDCConnectConsoleFrontendRedirectURL = "/auth/oauth/callback"
+		}
+		if err := config.ValidateFrontendRedirectURL(req.OIDCConnectConsoleFrontendRedirectURL); err != nil {
+			response.BadRequest(c, "Console OIDC Frontend Redirect URL is invalid")
+			return
+		}
+	}
+
 	// “购买订阅”页面配置验证
 	purchaseEnabled := previousSettings.PurchaseSubscriptionEnabled
 	if req.PurchaseSubscriptionEnabled != nil {
@@ -1680,6 +1738,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OIDCConnectUserInfoEmailPath:           req.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:              req.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:        req.OIDCConnectUserInfoUsernamePath,
+		OIDCConnectConsoleEnabled:              req.OIDCConnectConsoleEnabled,
+		OIDCConnectConsoleProviderName:         req.OIDCConnectConsoleProviderName,
+		OIDCConnectConsoleClientID:             req.OIDCConnectConsoleClientID,
+		OIDCConnectConsoleClientSecret:         req.OIDCConnectConsoleClientSecret,
+		OIDCConnectConsoleRedirectURL:          req.OIDCConnectConsoleRedirectURL,
+		OIDCConnectConsoleFrontendRedirectURL:  req.OIDCConnectConsoleFrontendRedirectURL,
 		GitHubOAuthEnabled:                     req.GitHubOAuthEnabled,
 		GitHubOAuthClientID:                    req.GitHubOAuthClientID,
 		GitHubOAuthClientSecret:                req.GitHubOAuthClientSecret,
@@ -2353,6 +2417,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OIDCConnectUserInfoEmailPath:                           updatedSettings.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:                              updatedSettings.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:                        updatedSettings.OIDCConnectUserInfoUsernamePath,
+		OIDCConnectConsoleEnabled:                              updatedSettings.OIDCConnectConsoleEnabled,
+		OIDCConnectConsoleProviderName:                         updatedSettings.OIDCConnectConsoleProviderName,
+		OIDCConnectConsoleClientID:                             updatedSettings.OIDCConnectConsoleClientID,
+		OIDCConnectConsoleClientSecretConfigured:               updatedSettings.OIDCConnectConsoleClientSecretConfigured,
+		OIDCConnectConsoleRedirectURL:                          updatedSettings.OIDCConnectConsoleRedirectURL,
+		OIDCConnectConsoleFrontendRedirectURL:                  updatedSettings.OIDCConnectConsoleFrontendRedirectURL,
 		GitHubOAuthEnabled:                                     updatedSettings.GitHubOAuthEnabled,
 		GitHubOAuthClientID:                                    updatedSettings.GitHubOAuthClientID,
 		GitHubOAuthClientSecretConfigured:                      updatedSettings.GitHubOAuthClientSecretConfigured,

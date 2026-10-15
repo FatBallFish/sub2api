@@ -1447,6 +1447,43 @@ describe("Auth page", () => {
     });
   });
 
+  it("starts console OIDC login with the configured provider name", async () => {
+    await withMutableWindowLocation(async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            registration_enabled: true,
+            email_verify_enabled: true,
+            github_oauth_enabled: false,
+            google_oauth_enabled: false,
+            oidc_console_oauth_enabled: true,
+            oidc_console_oauth_provider_name: "Mikiko SSO",
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/login"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      const button = await screen.findByRole("button", { name: /mikiko sso/i });
+      expect(screen.queryByRole("button", { name: /^google$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^github$/i })).not.toBeInTheDocument();
+
+      fireEvent.click(button);
+      await waitFor(() => {
+        expect(window.location.href).toBe(
+          "/api/v1/auth/oauth/oidc-console/start?redirect=%2Fconsole",
+        );
+      });
+    });
+  });
+
   it("renders only OAuth providers enabled by public settings", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
