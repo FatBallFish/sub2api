@@ -91,6 +91,19 @@ function isPendingSession(
   return "auth_result" in response && response.auth_result === "pending_session";
 }
 
+// Mirrors the classic frontend: the upstream (possibly real) email arrives in
+// compat_email while resolved_email may be a synthetic oidc-...@oidc-connect.invalid
+// identity key; prefer the real one for display and account creation.
+function extractPendingEmail(completion: PendingOAuthCompletion): string {
+  return (completion.pending_email
+    || completion.existing_account_email
+    || completion.compat_email
+    || completion.resolved_email
+    || completion.email
+    || completion.suggested_email
+    || "").trim();
+}
+
 const pendingChoiceSteps = new Set([
   "choose_account_action_required",
   "choose_account_action",
@@ -212,7 +225,7 @@ export default function OAuthCallback() {
           : completion.provider === "oidc" || completion.provider === "oidc-console"
             ? "oidc"
             : "google";
-        const resolvedEmail = (completion.resolved_email || completion.email || "").trim();
+        const resolvedEmail = extractPendingEmail(completion);
         const registrationRequired = completion.error === "invitation_required"
           || completion.error === "registration_completion_required";
         if (!active) return;
