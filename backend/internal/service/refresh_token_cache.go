@@ -52,6 +52,13 @@ type RefreshTokenCache interface {
 	// 返回受影响的用户数。
 	DeleteAllUserRefreshTokens(ctx context.Context) (int64, error)
 
+	// SetGlobalSessionInvalidationAt 记录全站会话失效水位线（unix 秒），
+	// 早于该时刻签发的 access token 一律拒绝。
+	SetGlobalSessionInvalidationAt(ctx context.Context, at int64) error
+
+	// GetGlobalSessionInvalidationAt 读取全站会话失效水位线；未设置返回 0。
+	GetGlobalSessionInvalidationAt(ctx context.Context) (int64, error)
+
 	// DeleteTokenFamily 删除整个Token家族
 	// 用于检测到Token重放攻击时，撤销整个会话链
 	DeleteTokenFamily(ctx context.Context, familyID string) error

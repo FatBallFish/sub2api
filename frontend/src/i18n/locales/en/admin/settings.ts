@@ -378,7 +378,7 @@ export default {
       },
       sessions: {
             invalidateTitle: 'Invalidate all account sessions',
-            invalidateHint: 'Clear every user session and force a re-sign-in (commonly used to accelerate OIDC account sync). Outstanding access tokens expire naturally within 1 hour; the admin is signed out too',
+            invalidateHint: 'Immediately clear every user session and revoke outstanding access tokens (commonly used to accelerate OIDC account sync). Everyone, including the admin, must sign in again',
             invalidateButton: 'Invalidate all sessions',
             invalidateConfirm: 'Force every user (including admins) to sign in again? This takes effect immediately and cannot be undone.',
             invalidated: 'Invalidated sessions for {count} user(s)',

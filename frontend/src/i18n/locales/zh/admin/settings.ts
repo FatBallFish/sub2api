@@ -375,7 +375,7 @@ export default {
       },
       sessions: {
             invalidateTitle: '失效所有账号登录态',
-            invalidateHint: '清空全部用户的登录会话，强制重新登录（常用于促进 OIDC 账号同步）。存量访问令牌将在 1 小时内自然过期；管理员自身也会被登出',
+            invalidateHint: '立即清空全部用户的登录会话并使存量访问令牌一并失效（常用于促进 OIDC 账号同步）。所有用户（含管理员）需重新登录',
             invalidateButton: '失效全部登录态',
             invalidateConfirm: '确定要让所有用户（含管理员）重新登录吗？该操作立即生效且不可撤销。',
             invalidated: '已失效 {count} 个用户的登录态',
