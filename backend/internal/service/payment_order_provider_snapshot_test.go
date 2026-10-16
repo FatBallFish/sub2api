@@ -167,6 +167,7 @@ func TestCreateOrderInTx_WritesGlobalPlanSnapshot(t *testing.T) {
 		49,
 		0,
 		49,
+		0,
 		nil,
 	)
 	require.NoError(t, err)
@@ -265,6 +266,7 @@ func TestCreateOrderInTx_WritesGlobalPlanUpgradeProration(t *testing.T) {
 		quote.UpgradePrice,
 		0,
 		quote.UpgradePrice,
+		0,
 		nil,
 	)
 	require.NoError(t, err)
