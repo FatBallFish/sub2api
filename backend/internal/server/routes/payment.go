@@ -65,7 +65,6 @@ func RegisterPaymentRoutes(
 	publicLanding := v1.Group("/public")
 	{
 		publicLanding.GET("/pricing", paymentHandler.GetPublicPricing)
-		publicLanding.GET("/model-pricing", paymentHandler.GetPublicModelPricing)
 	}
 
 	// Signed resume-token recovery is the preferred public lookup path.

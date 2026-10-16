@@ -186,13 +186,13 @@ func ProvideAdminSubscriptionHandler(subscriptionService *service.SubscriptionSe
 }
 
 // ProvidePaymentHandler creates user-facing PaymentHandler with optional dependencies.
-func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, channelService *service.ChannelService, billingService *service.BillingService, modelPricingDisplay *service.ModelPricingDisplayService) *PaymentHandler {
-	return NewPaymentHandler(paymentService, configService, channelService, billingService, modelPricingDisplay)
+func ProvidePaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, channelService *service.ChannelService, billingService *service.BillingService) *PaymentHandler {
+	return NewPaymentHandler(paymentService, configService, channelService, billingService)
 }
 
 // ProvideAdminChannelHandler creates admin.ChannelHandler with optional display pricing support.
-func ProvideAdminChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService, modelPricingDisplay *service.ModelPricingDisplayService) *admin.ChannelHandler {
-	return admin.NewChannelHandler(channelService, billingService, pricingService, modelPricingDisplay)
+func ProvideAdminChannelHandler(channelService *service.ChannelService, billingService *service.BillingService, pricingService *service.PricingService) *admin.ChannelHandler {
+	return admin.NewChannelHandler(channelService, billingService, pricingService)
 }
 
 // ProvideConsoleHandler creates ConsoleHandler with optional console dependencies wired explicitly.
@@ -219,7 +219,6 @@ func ProvideHandlers(
 	passkeyHandler *PasskeyHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
-	modelPricingHandler *ModelPricingHandler,
 	availableChannelHandler *AvailableChannelHandler,
 	modelPlazaHandler *ModelPlazaHandler,
 	asyncImageHandler *AsyncImageHandler,
@@ -247,7 +246,6 @@ func ProvideHandlers(
 		Passkey:          passkeyHandler,
 		Payment:          paymentHandler,
 		PaymentWebhook:   paymentWebhookHandler,
-		ModelPricing:     modelPricingHandler,
 		AvailableChannel: availableChannelHandler,
 		ModelPlaza:       modelPlazaHandler,
 		AsyncImage:       asyncImageHandler,
@@ -276,7 +274,6 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 	ProvidePaymentHandler,
 	NewPaymentWebhookHandler,
-	NewModelPricingHandler,
 	NewAvailableChannelHandler,
 	NewModelPlazaHandler,
 	NewAsyncImageHandler,

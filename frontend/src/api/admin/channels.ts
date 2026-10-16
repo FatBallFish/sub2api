@@ -194,23 +194,6 @@ export interface SyncPricingModelsResult {
   models: string[]
 }
 
-export interface ModelPricingDisplayModel {
-  model: string
-  label?: string
-}
-
-export interface ModelPricingDisplayCategory {
-  id: string
-  label: string
-  description?: string
-  model_scopes: string[]
-  models: ModelPricingDisplayModel[]
-}
-
-export interface ModelPricingDisplayConfig {
-  categories: ModelPricingDisplayCategory[]
-}
-
 /**
  * Fetch the latest model names from the LiteLLM pricing catalog for the given platform
  */
@@ -221,16 +204,6 @@ export async function syncPricingModels(platform: string): Promise<SyncPricingMo
   return data
 }
 
-export async function getModelPricingDisplayConfig(): Promise<ModelPricingDisplayConfig> {
-  const { data } = await apiClient.get<ModelPricingDisplayConfig>('/admin/channels/model-pricing-display')
-  return data
-}
-
-export async function updateModelPricingDisplayConfig(config: ModelPricingDisplayConfig): Promise<ModelPricingDisplayConfig> {
-  const { data } = await apiClient.put<ModelPricingDisplayConfig>('/admin/channels/model-pricing-display', config)
-  return data
-}
-
 const channelsAPI = {
   list,
   getById,
@@ -238,8 +211,6 @@ const channelsAPI = {
   update,
   remove,
   getModelDefaultPricing,
-  syncPricingModels,
-  getModelPricingDisplayConfig,
-  updateModelPricingDisplayConfig
+  syncPricingModels
 }
 export default channelsAPI
