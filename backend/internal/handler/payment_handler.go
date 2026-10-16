@@ -19,31 +19,25 @@ import (
 
 // PaymentHandler handles user-facing payment requests.
 type PaymentHandler struct {
-	channelService      *service.ChannelService
-	paymentService      *service.PaymentService
-	configService       *service.PaymentConfigService
-	billingService      *service.BillingService
-	modelPricingDisplay *service.ModelPricingDisplayService
+	channelService *service.ChannelService
+	paymentService *service.PaymentService
+	configService  *service.PaymentConfigService
+	billingService *service.BillingService
 }
 
 // NewPaymentHandler creates a new PaymentHandler.
 func NewPaymentHandler(paymentService *service.PaymentService, configService *service.PaymentConfigService, channelService *service.ChannelService, optionalDeps ...any) *PaymentHandler {
 	var billingService *service.BillingService
-	var modelPricingDisplay *service.ModelPricingDisplayService
 	for _, dep := range optionalDeps {
 		if typed, ok := dep.(*service.BillingService); ok {
 			billingService = typed
 		}
-		if typed, ok := dep.(*service.ModelPricingDisplayService); ok {
-			modelPricingDisplay = typed
-		}
 	}
 	return &PaymentHandler{
-		channelService:      channelService,
-		paymentService:      paymentService,
-		configService:       configService,
-		billingService:      billingService,
-		modelPricingDisplay: modelPricingDisplay,
+		channelService: channelService,
+		paymentService: paymentService,
+		configService:  configService,
+		billingService: billingService,
 	}
 }
 
@@ -147,21 +141,6 @@ func (h *PaymentHandler) GetPublicPricing(c *gin.Context) {
 		out.Plans = append(out.Plans, publicPlanFromSubscriptionPlan(plan, i, groupInfo))
 	}
 	response.Success(c, out)
-}
-
-// GetPublicModelPricing returns anonymous model pricing rows for the public landing site.
-// GET /api/v1/public/model-pricing
-func (h *PaymentHandler) GetPublicModelPricing(c *gin.Context) {
-	if h.modelPricingDisplay != nil {
-		out, err := h.modelPricingDisplay.BuildPublicPricing(c.Request.Context())
-		if err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-		response.Success(c, out)
-		return
-	}
-	response.Success(c, buildPublicModelPricing(h.billingService))
 }
 
 // GetChannels returns enabled payment channels.
