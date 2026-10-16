@@ -188,6 +188,7 @@ func TestConsoleBootstrapReturnsShellState(t *testing.T) {
 				"used_percent": 0
 			},
 			"affiliate_enabled": true,
+			"model_plaza_enabled": false,
 			"oidc_password_drift": false,
 			"unread_announcements": 1
 		}
@@ -257,6 +258,7 @@ func TestConsoleBootstrapReturnsActiveGlobalPlan(t *testing.T) {
 				"expires_at": "2026-07-18T08:00:00Z"
 			},
 			"affiliate_enabled": true,
+			"model_plaza_enabled": false,
 			"oidc_password_drift": false,
 			"unread_announcements": 0
 		}

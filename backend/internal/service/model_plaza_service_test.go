@@ -16,7 +16,7 @@ func newPlazaService(channels []Channel, groups []Group, pricing *PricingService
 	repo := &mockChannelRepository{
 		listAllFn: func(ctx context.Context) ([]Channel, error) { return channels, nil },
 	}
-	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, pricing, nil, nil)
+	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, nil, pricing, nil, nil)
 }
 
 func plazaPricedChannel(id int64, name string, groupIDs []int64, platform string, models ...string) Channel {
@@ -403,7 +403,7 @@ func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	repo := &mockChannelRepository{
 		listAllFn: func(ctx context.Context) ([]Channel, error) { return nil, sentinel },
 	}
-	svc := NewModelPlazaService(repo, &stubGroupRepoForAvailable{}, nil, nil, nil)
+	svc := NewModelPlazaService(repo, &stubGroupRepoForAvailable{}, nil, nil, nil, nil)
 	out, err := svc.ListGroups(context.Background())
 	require.Nil(t, out)
 	require.ErrorIs(t, err, sentinel)
@@ -411,7 +411,7 @@ func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	svc2 := NewModelPlazaService(
 		&mockChannelRepository{listAllFn: func(ctx context.Context) ([]Channel, error) { return nil, nil }},
 		&stubGroupRepoForAvailable{listActiveErr: sentinel},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	out2, err2 := svc2.ListGroups(context.Background())
 	require.Nil(t, out2)
@@ -428,7 +428,7 @@ func newPlazaServiceWithBilling(channels []Channel, groups []Group, groupPlatfor
 	}
 	cs := NewChannelService(repo, nil, nil, nil, nil)
 	bs := NewBillingService(&config.Config{}, catalog)
-	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, catalog, bs, NewModelPricingResolver(cs, bs))
+	return NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, nil, catalog, bs, NewModelPricingResolver(cs, bs))
 }
 
 func plazaModelsByName(models []PlazaModel) map[string]PlazaModel {
@@ -581,4 +581,72 @@ func TestListGroups_TimePricingPassthrough(t *testing.T) {
 	require.InDelta(t, 0.5, m.TimePricing.Periods[0].Multiplier, 1e-12)
 	// 展示单价为标准时段价
 	require.InDelta(t, 0.28e-6, *m.Pricing.InputPrice, 1e-15)
+}
+
+// plazaAccountRepoStub 账号仓库 stub：ListActive 返回预置账号，其余接口空实现。
+type plazaAccountRepoStub struct {
+	mockAccountRepoForGemini
+	accounts []Account
+}
+
+func (s *plazaAccountRepoStub) ListActive(ctx context.Context) ([]Account, error) {
+	return s.accounts, nil
+}
+
+func TestListPlazaGroups_MergesAccountWhitelistModels(t *testing.T) {
+	// 渠道定价只配置了 claude-sonnet；账号白名单额外含 claude-opus 与 gpt-x，
+	// 并集后分组应同时展示三类模型，账号来源模型无渠道定价（Pricing 为 nil）。
+	channels := []Channel{
+		plazaPricedChannel(1, "chA", []int64{10}, "anthropic", "claude-sonnet"),
+	}
+	groups := []Group{
+		{ID: 10, Name: "g-main", Platform: "anthropic", RateMultiplier: 1},
+		{ID: 11, Name: "g-openai", Platform: "openai", RateMultiplier: 1},
+	}
+	accounts := []Account{
+		{
+			Platform: "anthropic",
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{"claude-sonnet": "claude-sonnet", "claude-opus": "claude-opus"},
+			},
+		},
+		{
+			Platform: "openai",
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{"gpt-x": "gpt-x", "gpt-noise": "gpt-noise"},
+			},
+			Extra: map[string]any{
+				"upstream_model_metadata": map[string]any{
+					"source":    "relay",
+					"synced_at": "2026-10-01T00:00:00Z",
+					"models": map[string]any{
+						"gpt-noise": map[string]any{"id": "gpt-noise"},
+					},
+				},
+			},
+		},
+	}
+	repo := &mockChannelRepository{listAllFn: func(ctx context.Context) ([]Channel, error) { return channels, nil }}
+	svc := NewModelPlazaService(repo, &stubGroupRepoForAvailable{activeGroups: groups}, &plazaAccountRepoStub{accounts: accounts}, nil, nil, nil)
+	out, err := svc.ListGroups(context.Background())
+	require.NoError(t, err)
+
+	byID := map[int64]PlazaGroup{}
+	for _, g := range out {
+		byID[g.ID] = g
+	}
+	// anthropic 分组 = 渠道定价 ∪ 账号白名单
+	names := map[string]bool{}
+	for _, m := range byID[10].Models {
+		names[m.Name] = true
+	}
+	require.True(t, names["claude-sonnet"])
+	require.True(t, names["claude-opus"])
+	// openai 分组：白名单 gpt-x 并入；上游快照中的 gpt-noise 跳过
+	openaiNames := map[string]bool{}
+	for _, m := range byID[11].Models {
+		openaiNames[m.Name] = true
+	}
+	require.True(t, openaiNames["gpt-x"])
+	require.False(t, openaiNames["gpt-noise"], "models synced from upstream must be skipped")
 }

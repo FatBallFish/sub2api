@@ -158,6 +158,7 @@ func (h *ConsoleHandler) Bootstrap(c *gin.Context) {
 		GlobalPlan:          globalPlan,
 		UnreadAnnouncements: len(unreadAnnouncements),
 		AffiliateEnabled:    h.consoleAffiliateEnabled(c.Request.Context()),
+		ModelPlazaEnabled:   h.consoleModelPlazaEnabled(c.Request.Context()),
 		OIDCPasswordDrift:   user.OidcPasswordDrift,
 	})
 }
@@ -357,6 +358,7 @@ type consoleBootstrapResponse struct {
 	GlobalPlan          consoleBootstrapGlobalPlan `json:"global_plan"`
 	UnreadAnnouncements int                        `json:"unread_announcements"`
 	AffiliateEnabled    bool                       `json:"affiliate_enabled"`
+	ModelPlazaEnabled   bool                       `json:"model_plaza_enabled"`
 	// 身份源密码漂移（Keycloak 侧改密未收敛），控制台据此提示重置。
 	OIDCPasswordDrift bool `json:"oidc_password_drift"`
 }
@@ -1034,6 +1036,19 @@ func (h *ConsoleHandler) consoleAffiliateEnabled(ctx context.Context) bool {
 		return true
 	}
 	return settings.AffiliateEnabled
+}
+
+// consoleModelPlazaEnabled 模型广场开关（控制台「模型价格」入口跟随显隐）；
+// 与后端广场运行时一致按 fail-closed 处理。
+func (h *ConsoleHandler) consoleModelPlazaEnabled(ctx context.Context) bool {
+	if h == nil || h.settings == nil {
+		return false
+	}
+	settings, err := h.settings.GetPublicSettings(ctx)
+	if err != nil || settings == nil {
+		return false
+	}
+	return settings.ModelPlazaEnabled
 }
 
 func (h *ConsoleHandler) affiliateInviteeSignupReward(ctx context.Context) float64 {
