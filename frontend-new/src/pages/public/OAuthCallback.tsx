@@ -188,11 +188,16 @@ export default function OAuthCallback() {
     return () => window.clearInterval(interval);
   }, [countdown]);
 
+  const exchangeStartedRef = useRef(false);
+
   useEffect(() => {
-    let active = true;
+    // dev 环境的 React StrictMode 会双执行 effect；pending session 是一次性的，
+    // 并发两次 exchange 会导致其一被后端拒绝并覆盖成功结果。只发一次，
+    // 且结果总是应用（卸载态 setState 在 React 18 中无害）。
+    if (exchangeStartedRef.current) return;
+    exchangeStartedRef.current = true;
 
     function finishWithTokens(tokens: AuthResponse, redirect: string) {
-      if (!active) return;
       persistAuth(tokens);
       clearOAuthAffiliateCode();
       navigate(sanitizeRedirectPath(redirect), { replace: true });
@@ -228,7 +233,6 @@ export default function OAuthCallback() {
         const resolvedEmail = extractPendingEmail(completion);
         const registrationRequired = completion.error === "invitation_required"
           || completion.error === "registration_completion_required";
-        if (!active) return;
 
         if (isPendingChoiceStep(completion)) {
           // Upstream identity is new (or its email is unverified): ask whether to
@@ -257,8 +261,7 @@ export default function OAuthCallback() {
             email_verify_enabled: true,
             turnstile_enabled: false,
           }));
-          if (!active) return;
-          setSettings(publicSettings);
+            setSettings(publicSettings);
           setMessage(null);
           setState("registration");
           return;
@@ -269,17 +272,12 @@ export default function OAuthCallback() {
           : translationMessage("errors:oauthCallbackFailed"));
         setState("error");
       } catch (error) {
-        if (!active) return;
         setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
         setState("error");
       }
     }
 
     void run();
-
-    return () => {
-      active = false;
-    };
   }, [navigate]);
 
   function showExistingAccountError() {

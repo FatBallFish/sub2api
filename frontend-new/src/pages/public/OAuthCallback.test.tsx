@@ -269,7 +269,7 @@ describe("OAuthCallback", () => {
     );
   });
 
-  it("does not persist a deferred exchange token after the callback unmounts", async () => {
+  it("persists a deferred exchange token after a strict-mode style unmount (single exchange)", async () => {
     let resolveExchange!: (value: ReturnType<typeof response>) => void;
     const exchangePromise = new Promise<ReturnType<typeof response>>((resolve) => {
       resolveExchange = resolve;
@@ -292,9 +292,10 @@ describe("OAuthCallback", () => {
       await exchangePromise;
     });
 
-    expect(localStorage.getItem("auth_token")).toBeNull();
-    expect(localStorage.getItem("refresh_token")).toBeNull();
-    expect(sessionStorage.getItem("oauth_aff_code")).toBe("AFF-DEFERRED");
+    // 结果总是应用（StrictMode 安全）：迟到的 token 依然持久化，aff_code 被清理。
+    expect(localStorage.getItem("auth_token")).toBe("late-access");
+    expect(localStorage.getItem("refresh_token")).toBe("late-refresh");
+    expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
   });
 
   it("rejects encoded backslashes and ASCII controls in a fragment redirect", async () => {
