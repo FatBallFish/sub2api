@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"sort"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -103,6 +104,20 @@ type modelPlazaGroup struct {
 type modelPlazaResponse struct {
 	Description string            `json:"description"`
 	Groups      []modelPlazaGroup `json:"groups"`
+	// Limited 为 true 表示未登录且广场要求登录：不暴露分组与倍率，
+	// 仅在 Summary 里给出每个模型当前可买的最低价。
+	Limited bool                    `json:"limited,omitempty"`
+	Summary []modelPlazaSummaryItem `json:"summary,omitempty"`
+}
+
+// modelPlazaSummaryItem 匿名摘要条目：单模型的当前最低实付价（跨公开分组取最小）。
+// token 模型给 input/output（USD per token），按次/图片模型给单次价。
+type modelPlazaSummaryItem struct {
+	Name            string   `json:"name"`
+	Platform        string   `json:"platform"`
+	InputPrice      *float64 `json:"input_price,omitempty"`
+	OutputPrice     *float64 `json:"output_price,omitempty"`
+	PerRequestPrice *float64 `json:"per_request_price,omitempty"`
 }
 
 // Get 返回模型广场数据。
@@ -120,7 +135,9 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	subject, authed := middleware.GetAuthSubjectFromContext(c)
 	if rt.RequireAuth && !authed {
-		response.Unauthorized(c, "Authentication required")
+		// 未公开（要求登录）时不直接 401：给出仅含最低价的匿名摘要，
+		// 供前端价格页在未登录态展示引导性价格；分组与倍率不暴露。
+		h.respondAnonymousSummary(c, rt)
 		return
 	}
 
@@ -159,6 +176,77 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		Description: rt.Description,
 		Groups:      out,
 	})
+}
+
+// respondAnonymousSummary 未登录且广场要求登录时的匿名摘要响应：
+// 跨匿名可见分组（非专属）对每个模型取最低实付价，不暴露分组结构与倍率。
+func (h *ModelPlazaHandler) respondAnonymousSummary(c *gin.Context, rt service.ModelPlazaRuntime) {
+	groups, err := h.plazaService.ListGroups(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	visible := filterPlazaVisibleGroups(groups, nil, false)
+
+	type summaryKey struct {
+		platform string
+		name     string
+	}
+	summary := make(map[summaryKey]*modelPlazaSummaryItem)
+	for i := range visible {
+		for j := range visible[i].Models {
+			m := &visible[i].Models[j]
+			key := summaryKey{platform: m.Platform, name: m.Name}
+			item := summary[key]
+			if item == nil {
+				item = &modelPlazaSummaryItem{Name: m.Name, Platform: m.Platform}
+				summary[key] = item
+			}
+			mergeLowestSummaryPrice(item, m.Pricing)
+		}
+	}
+	out := make([]modelPlazaSummaryItem, 0, len(summary))
+	for _, item := range summary {
+		out = append(out, *item)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Platform != out[j].Platform {
+			return out[i].Platform < out[j].Platform
+		}
+		return out[i].Name < out[j].Name
+	})
+	c.Writer.Header().Add("Vary", "Accept-Language")
+	response.Success(c, modelPlazaResponse{
+		Description: rt.Description,
+		Limited:     true,
+		Summary:     out,
+	})
+}
+
+// mergeLowestSummaryPrice 把一个分组的实付定价并入摘要条目，各价格字段独立取最小。
+func mergeLowestSummaryPrice(item *modelPlazaSummaryItem, pricing *service.ChannelModelPricing) {
+	if pricing == nil {
+		return
+	}
+	minPtr := func(dst **float64, v *float64) {
+		if v == nil {
+			return
+		}
+		if *dst == nil || *v < **dst {
+			copied := *v
+			*dst = &copied
+		}
+	}
+	minPtr(&item.InputPrice, pricing.InputPrice)
+	minPtr(&item.OutputPrice, pricing.OutputPrice)
+	minPtr(&item.PerRequestPrice, pricing.PerRequestPrice)
+	for i := range pricing.Intervals {
+		iv := &pricing.Intervals[i]
+		// 多档 token 阶梯按首档口径并入 input/output；按次档位并入单次价。
+		minPtr(&item.InputPrice, iv.InputPrice)
+		minPtr(&item.OutputPrice, iv.OutputPrice)
+		minPtr(&item.PerRequestPrice, iv.PerRequestPrice)
+	}
 }
 
 // filterPlazaVisibleGroups 按登录态裁剪分组可见性。

@@ -283,7 +283,7 @@ func (plazaVaryGroupRepo) ListActive(context.Context) ([]service.Group, error) {
 func TestModelPlazaHandler_VaryKeepsCORSOrigin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := NewModelPlazaHandler(
-		service.NewModelPlazaService(plazaVaryChannelRepo{}, plazaVaryGroupRepo{}, nil, nil, nil),
+		service.NewModelPlazaService(plazaVaryChannelRepo{}, plazaVaryGroupRepo{}, nil, nil, nil, nil),
 		nil,
 		service.NewSettingService(plazaVarySettingRepo{}, &config.Config{}),
 	)
@@ -304,4 +304,31 @@ func TestModelPlazaHandler_VaryKeepsCORSOrigin(t *testing.T) {
 		// 共享缓存需同时按来源与语言区分，否则 A 来源的响应可能被复用给 B。
 		require.Equal(t, []string{"Origin", "Accept-Language"}, w.Header().Values("Vary"))
 	}
+}
+
+func TestMergeLowestSummaryPrice(t *testing.T) {
+	fp := func(v float64) *float64 { return &v }
+	in := fp(3)
+	out := fp(15)
+	item := &modelPlazaSummaryItem{Name: "m", Platform: "anthropic"}
+
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: in, OutputPrice: out})
+	require.NotNil(t, item.InputPrice)
+	require.EqualValues(t, 3, *item.InputPrice)
+
+	// 更低的价格覆盖，更高的被忽略；各字段独立。
+	lower := fp(2)
+	higherOut := fp(30)
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: lower, OutputPrice: higherOut})
+	require.EqualValues(t, 2, *item.InputPrice)
+	require.EqualValues(t, 15, *item.OutputPrice)
+
+	// 阶梯档位参与取最小。
+	tier := fp(1)
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{Intervals: []service.PricingInterval{{InputPrice: tier, PerRequestPrice: fp(0.4)}}})
+	require.EqualValues(t, 1, *item.InputPrice)
+	require.NotNil(t, item.PerRequestPrice)
+	require.EqualValues(t, 0.4, *item.PerRequestPrice)
+
+	mergeLowestSummaryPrice(item, nil) // nil 定价不 panic
 }
