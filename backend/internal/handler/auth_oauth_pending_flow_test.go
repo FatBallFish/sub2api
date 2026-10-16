@@ -2801,6 +2801,14 @@ func (*oauthPendingFlowRefreshTokenCacheStub) DeleteAllUserRefreshTokens(ctx con
 	return 0, nil
 }
 
+func (*oauthPendingFlowRefreshTokenCacheStub) SetGlobalSessionInvalidationAt(ctx context.Context, at int64) error {
+	return nil
+}
+
+func (*oauthPendingFlowRefreshTokenCacheStub) GetGlobalSessionInvalidationAt(ctx context.Context) (int64, error) {
+	return 0, nil
+}
+
 type oauthPendingFlowEmailCacheStub struct {
 	verificationCodes map[string]*service.VerificationCodeData
 }

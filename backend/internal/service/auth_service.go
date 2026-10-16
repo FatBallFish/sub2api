@@ -11,6 +11,7 @@ import (
 	"net/mail"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -1480,10 +1481,44 @@ func (s *AuthService) ValidateToken(tokenString string) (*JWTClaims, error) {
 	}
 
 	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
+		if s.rejectIssuedBeforeWatermark(claims) {
+			return nil, ErrInvalidToken
+		}
 		return claims, nil
 	}
 
 	return nil, ErrInvalidToken
+}
+
+// sessionWatermark 缓存全站失效水位线，避免每个请求都打 Redis。
+var sessionWatermark struct {
+	mu      sync.RWMutex
+	value   int64
+	fetched time.Time
+}
+
+const sessionWatermarkCacheTTL = 5 * time.Second
+
+func (s *AuthService) rejectIssuedBeforeWatermark(claims *JWTClaims) bool {
+	if s == nil || s.refreshTokenCache == nil || claims.IssuedAt == nil {
+		return false
+	}
+	sessionWatermark.mu.RLock()
+	cached, cachedAt := sessionWatermark.value, sessionWatermark.fetched
+	sessionWatermark.mu.RUnlock()
+	if cachedAt.IsZero() || time.Since(cachedAt) > sessionWatermarkCacheTTL {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		value, err := s.refreshTokenCache.GetGlobalSessionInvalidationAt(ctx)
+		cancel()
+		if err != nil {
+			value = cached // Redis 异常时沿用上次值，fail-open
+		}
+		sessionWatermark.mu.Lock()
+		sessionWatermark.value, sessionWatermark.fetched = value, time.Now()
+		sessionWatermark.mu.Unlock()
+		cached = value
+	}
+	return cached > 0 && claims.IssuedAt.Unix() < cached
 }
 
 func randomHexString(byteLength int) (string, error) {
@@ -1992,13 +2027,24 @@ func (s *AuthService) RevokeAllUserSessions(ctx context.Context, userID int64) e
 	return s.refreshTokenCache.DeleteUserRefreshTokens(ctx, userID)
 }
 
-// InvalidateAllUserSessions 强制全站所有用户下线（清空全部 refresh session）。
-// 存量 access token 为无状态签发，将在其自身过期后失效。
+// InvalidateAllUserSessions 强制全站所有用户下线：清空全部 refresh session，
+// 并抬升全局签发水位线，让存量 access token 立即失效（含管理员自身）。
 func (s *AuthService) InvalidateAllUserSessions(ctx context.Context) (int64, error) {
 	if s.refreshTokenCache == nil {
 		return 0, nil
 	}
-	return s.refreshTokenCache.DeleteAllUserRefreshTokens(ctx)
+	affected, err := s.refreshTokenCache.DeleteAllUserRefreshTokens(ctx)
+	if err != nil {
+		return affected, err
+	}
+	watermark := time.Now().Add(-time.Second).Unix() // 容忍轻微时钟偏差
+	if err := s.refreshTokenCache.SetGlobalSessionInvalidationAt(ctx, watermark); err != nil {
+		return affected, fmt.Errorf("set session watermark: %w", err)
+	}
+	sessionWatermark.mu.Lock()
+	sessionWatermark.value, sessionWatermark.fetched = watermark, time.Now()
+	sessionWatermark.mu.Unlock()
+	return affected, nil
 }
 
 // RevokeAllUserTokens invalidates both stateless access tokens and refresh sessions.
