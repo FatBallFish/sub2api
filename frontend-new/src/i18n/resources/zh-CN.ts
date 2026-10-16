@@ -450,6 +450,7 @@ login: "登录", register: "创建账号", oauth: "OAuth 登录" },
     scoped: {
       auth: {
         INVALID_USER: "无法使用该账号登录。",
+        PASSWORD_LOGIN_DISABLED: "账密登录已关闭，请使用 OIDC 登录。",
       },
       affiliate: {
         INVALID_USER: "请选择有效的返利用户。",

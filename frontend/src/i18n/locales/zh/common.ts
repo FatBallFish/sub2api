@@ -250,6 +250,7 @@ export default {
     errors: {
       USER_NOT_ACTIVE: '账号已被禁用',
       EMAIL_BLOCKED: '该邮箱不允许注册，请更换其他邮箱。',
+      PASSWORD_LOGIN_DISABLED: '账密登录已关闭，请使用 OIDC 登录。
     },
     registrationFailed: '注册失败，请重试。',
     emailDomainRegistrationLimit:

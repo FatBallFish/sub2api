@@ -453,6 +453,7 @@ const en = {
     scoped: {
       auth: {
         INVALID_USER: "Unable to sign in with this user account.",
+        PASSWORD_LOGIN_DISABLED: "Password sign-in is disabled. Please sign in with OIDC.",
       },
       affiliate: {
         INVALID_USER: "Select a valid affiliate user.",

@@ -450,6 +450,7 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
     scoped: {
       auth: {
         INVALID_USER: "このユーザーアカウントではログインできません。",
+        PASSWORD_LOGIN_DISABLED: "パスワードログインは無効です。OIDC でログインしてください。",
       },
       affiliate: {
         INVALID_USER: "有効なアフィリエイトユーザーを選択してください。",

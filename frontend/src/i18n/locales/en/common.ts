@@ -250,6 +250,7 @@ export default {
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
       EMAIL_BLOCKED: 'This email address is not allowed. Please use a different one.',
+      PASSWORD_LOGIN_DISABLED: 'Password sign-in is disabled. Please sign in with OIDC.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:

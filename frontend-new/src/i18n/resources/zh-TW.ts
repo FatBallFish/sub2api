@@ -450,6 +450,7 @@ login: "登入", register: "建立帳號", oauth: "OAuth 登入" },
     scoped: {
       auth: {
         INVALID_USER: "無法使用此帳號登入。",
+        PASSWORD_LOGIN_DISABLED: "帳密登入已關閉，請使用 OIDC 登入。",
       },
       affiliate: {
         INVALID_USER: "請選擇有效的返利使用者。",
