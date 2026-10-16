@@ -504,6 +504,14 @@ export default {
         success: '已删除 {count} 个用户',
         failed: '{count} 个用户删除失败，已保留选中，可重试。'
       },
+      bulkDisable: {
+        action: '批量禁用（{count}）',
+        title: '禁用已选用户',
+        confirm: '确定禁用已选的 {count} 个用户吗？被禁用的用户将立即无法访问。管理员账号会被自动跳过。',
+        confirmAction: '禁用',
+        success: '已禁用 {count} 个用户',
+        failed: '批量禁用失败，请重试。'
+      },
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',

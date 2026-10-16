@@ -504,6 +504,14 @@ export default {
         success: 'Deleted {count} users',
         failed: 'Failed to delete {count} users. They remain selected for retry.'
       },
+      bulkDisable: {
+        action: 'Disable selected ({count})',
+        title: 'Disable selected users',
+        confirm: 'Disable the {count} selected users? Disabled users immediately lose access. Administrator accounts are skipped automatically.',
+        confirmAction: 'Disable',
+        success: 'Disabled {count} users',
+        failed: 'Failed to disable users. Please retry.'
+      },
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',

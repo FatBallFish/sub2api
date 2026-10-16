@@ -56,6 +56,15 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface BatchUpdateUserStatusRequest {
+  user_ids: number[]
+  status: 'active' | 'disabled'
+}
+
+export interface BatchUpdateUserStatusResponse {
+  affected: number
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -202,6 +211,17 @@ export async function batchUpdateLimits(
 ): Promise<BatchUpdateUserLimitsResponse> {
   const { data } = await apiClient.post<BatchUpdateUserLimitsResponse>(
     '/admin/users/batch-limits',
+    request
+  )
+  return data
+}
+
+/** Batch enable/disable users. Admin accounts are skipped by the backend. */
+export async function batchUpdateStatus(
+  request: BatchUpdateUserStatusRequest
+): Promise<BatchUpdateUserStatusResponse> {
+  const { data } = await apiClient.post<BatchUpdateUserStatusResponse>(
+    '/admin/users/batch-status',
     request
   )
   return data
@@ -413,6 +433,7 @@ export const usersAPI = {
   updateBalance,
   updateConcurrency,
   batchUpdateLimits,
+  batchUpdateStatus,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

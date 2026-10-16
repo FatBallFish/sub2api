@@ -208,6 +208,10 @@ func (s *stubAdminService) BatchUpdateLimits(ctx context.Context, userIDs []int6
 	return len(userIDs), nil
 }
 
+func (s *stubAdminService) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (s *stubAdminService) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]service.APIKey, int64, error) {
 	return s.apiKeys, int64(len(s.apiKeys)), nil
 }
