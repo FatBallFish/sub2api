@@ -30,6 +30,7 @@ export interface ConsoleBootstrap {
   global_plan: ConsoleGlobalPlan;
   unread_announcements: number;
   affiliate_enabled?: boolean;
+  model_plaza_enabled?: boolean;
   oidc_password_drift?: boolean;
 }
 

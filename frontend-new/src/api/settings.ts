@@ -38,6 +38,8 @@ export interface PublicSettings {
   region_block_current_region?: string;
   table_default_page_size?: number;
   table_page_size_options?: number[];
+  model_plaza_enabled?: boolean;
+  model_plaza_require_auth?: boolean;
 }
 
 export function getPublicSettings() {

@@ -13,6 +13,7 @@ export default function PublicLayout() {
   const user = getStoredUser();
   const signedIn = isAuthenticated();
   const [legalDocuments, setLegalDocuments] = React.useState<LoginAgreementDocument[]>([]);
+  const [modelPricingVisible, setModelPricingVisible] = React.useState(true);
 
   React.useEffect(() => {
     let active = true;
@@ -20,6 +21,8 @@ export default function PublicLayout() {
       .then((settings) => {
         if (!active) return;
         setLegalDocuments(settings.login_agreement_enabled === true ? agreementDocuments(settings) : []);
+        // 广场功能关闭时全站隐藏；要求登录且未登录时页面仍以匿名最低价形态展示，导航保留。
+        setModelPricingVisible(settings.model_plaza_enabled !== false);
       })
       .catch(() => {
         if (active) setLegalDocuments([]);
@@ -45,12 +48,14 @@ export default function PublicLayout() {
             >
               {t("navigation.pricing")}
             </Link>
-            <Link
-              to="/model-pricing"
-              className={`text-sm font-medium transition-colors ${location.pathname === '/model-pricing' ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
-            >
-              {t("navigation.modelPricing")}
-            </Link>
+            {modelPricingVisible ? (
+              <Link
+                to="/model-pricing"
+                className={`text-sm font-medium transition-colors ${location.pathname === '/model-pricing' ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
+              >
+                {t("navigation.modelPricing")}
+              </Link>
+            ) : null}
             <Link
               to="/blog"
               className={`text-sm font-medium transition-colors ${location.pathname.startsWith('/blog') ? 'text-zinc-900 underline underline-offset-4' : 'text-zinc-500 hover:text-zinc-900'}`}
@@ -98,7 +103,7 @@ export default function PublicLayout() {
             <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-900">{t("footer.product")}</h4>
             <nav className="flex flex-col gap-2">
               <Link to="/pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.pricing")}</Link>
-              <Link to="/model-pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.modelPricing")}</Link>
+              {modelPricingVisible ? <Link to="/model-pricing" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.modelPricing")}</Link> : null}
               <Link to="/console" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">{t("navigation.console")}</Link>
             </nav>
           </div>
