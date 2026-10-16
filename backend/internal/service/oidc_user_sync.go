@@ -102,14 +102,28 @@ func (s *OIDCUserSyncService) adminURL(cfg *oidcUserSyncConfig, path string) str
 	return cfg.AdminURL + "/admin/realms/" + cfg.Realm + path
 }
 
-// findKeycloakUser 返回 (userID, hasPasswordCredential)
-func (s *OIDCUserSyncService) findKeycloakUser(ctx context.Context, cfg *oidcUserSyncConfig, email string) (string, bool, error) {
+// oidcSyncUserOrigin 同步建号时写入 Keycloak 用户属性 origin 的固定值，
+// 标识该账号源自 Mikiko CC（sub2api）注册。改密双写只对该属性匹配的用户生效。
+const oidcSyncUserOrigin = "mikikocc"
+
+// keycloakUserSummary findKeycloakUser 的查询结果。
+type keycloakUserSummary struct {
+	ID string
+	// HasPassword 是否已有密码 credential。
+	HasPassword bool
+	// Origin 用户属性 origin 的值（多值取第一个）；未配置为空。
+	Origin string
+}
+
+// findKeycloakUser 按邮箱精确查询 Keycloak 用户；不存在时 ID 为空。
+func (s *OIDCUserSyncService) findKeycloakUser(ctx context.Context, cfg *oidcUserSyncConfig, email string) (keycloakUserSummary, error) {
 	token, err := s.adminToken(ctx, cfg)
 	if err != nil {
-		return "", false, err
+		return keycloakUserSummary{}, err
 	}
 	type kcUser struct {
-		ID string `json:"id"`
+		ID         string              `json:"id"`
+		Attributes map[string][]string `json:"attributes"`
 	}
 	var users []kcUser
 	resp, err := req.C().SetTimeout(10*time.Second).R().SetContext(ctx).
@@ -117,20 +131,24 @@ func (s *OIDCUserSyncService) findKeycloakUser(ctx context.Context, cfg *oidcUse
 		SetSuccessResult(&users).
 		Get(s.adminURL(cfg, "/users?email="+queryEscape(email)+"&exact=true"))
 	if err != nil {
-		return "", false, fmt.Errorf("query keycloak users: %w", err)
+		return keycloakUserSummary{}, fmt.Errorf("query keycloak users: %w", err)
 	}
 	if !resp.IsSuccessState() {
-		return "", false, fmt.Errorf("query keycloak users: status=%d", resp.StatusCode)
+		return keycloakUserSummary{}, fmt.Errorf("query keycloak users: status=%d", resp.StatusCode)
 	}
 	if len(users) == 0 {
-		return "", false, nil
+		return keycloakUserSummary{}, nil
 	}
-	userID := users[0].ID
-	createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, userID)
+	found := users[0]
+	createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, found.ID)
 	if err != nil {
-		return "", false, err
+		return keycloakUserSummary{}, err
 	}
-	return userID, createdAt != nil, nil
+	origin := ""
+	if vals := found.Attributes["origin"]; len(vals) > 0 {
+		origin = strings.TrimSpace(vals[0])
+	}
+	return keycloakUserSummary{ID: found.ID, HasPassword: createdAt != nil, Origin: origin}, nil
 }
 
 type kcCredential struct {
@@ -164,7 +182,8 @@ func (s *OIDCUserSyncService) passwordCredentialCreatedAt(ctx context.Context, c
 	return nil, nil
 }
 
-func (s *OIDCUserSyncService) createKeycloakUser(ctx context.Context, cfg *oidcUserSyncConfig, email string) (string, error) {
+// createKeycloakUser 创建 Keycloak 用户；origin 非空时写入用户属性 origin（注册来源标识）。
+func (s *OIDCUserSyncService) createKeycloakUser(ctx context.Context, cfg *oidcUserSyncConfig, email, origin string) (string, error) {
 	token, err := s.adminToken(ctx, cfg)
 	if err != nil {
 		return "", err
@@ -183,6 +202,9 @@ func (s *OIDCUserSyncService) createKeycloakUser(ctx context.Context, cfg *oidcU
 		"firstName":     emailName,
 		"lastName":      "sub2api",
 	}
+	if origin != "" {
+		body["attributes"] = map[string][]string{"origin": {origin}}
+	}
 	resp, err := req.C().SetTimeout(10*time.Second).R().SetContext(ctx).
 		SetHeader("Authorization", "Bearer "+token).
 		SetBody(body).
@@ -198,8 +220,8 @@ func (s *OIDCUserSyncService) createKeycloakUser(ctx context.Context, cfg *oidcU
 		return location[idx+1:], nil
 	}
 	// 兜底：按邮箱再查一次
-	userID, _, err := s.findKeycloakUser(ctx, cfg, email)
-	return userID, err
+	found, err := s.findKeycloakUser(ctx, cfg, email)
+	return found.ID, err
 }
 
 func (s *OIDCUserSyncService) resetPassword(ctx context.Context, cfg *oidcUserSyncConfig, userID, password string) error {
@@ -250,19 +272,20 @@ func (s *OIDCUserSyncService) SyncLogin(ctx context.Context, email, password str
 		syncLog("not configured", err)
 		return
 	}
-	kcID, hasPassword, err := s.findKeycloakUser(ctx, cfg, email)
+	found, err := s.findKeycloakUser(ctx, cfg, email)
 	if err != nil {
 		syncLog("lookup failed", err)
 		return
 	}
+	kcID := found.ID
 	if kcID == "" {
-		kcID, err = s.createKeycloakUser(ctx, cfg, email)
+		kcID, err = s.createKeycloakUser(ctx, cfg, email, oidcSyncUserOrigin)
 		if err != nil {
 			syncLog("create user failed", err)
 			return
 		}
 	}
-	if !hasPassword {
+	if !found.HasPassword {
 		if err := s.resetPassword(ctx, cfg, kcID, password); err != nil {
 			syncLog("backfill password failed", err)
 			return
@@ -277,6 +300,8 @@ func (s *OIDCUserSyncService) SyncLogin(ctx context.Context, email, password str
 }
 
 // SyncPasswordChange 本站改密/重置成功后的双写：覆盖 Keycloak 密码并刷新快照。
+// 仅当 Keycloak 侧用户的 origin 属性为 mikikocc（即由本站同步创建的账号）时才推送；
+// 用户不存在、无 origin 或值不一致时跳过，不动本地同步标记。
 func (s *OIDCUserSyncService) SyncPasswordChange(ctx context.Context, email, newPassword string) {
 	if !s.syncableUser(email) || newPassword == "" {
 		return
@@ -290,26 +315,27 @@ func (s *OIDCUserSyncService) SyncPasswordChange(ctx context.Context, email, new
 		syncLog("not configured", err)
 		return
 	}
-	kcID, _, err := s.findKeycloakUser(ctx, cfg, email)
+	found, err := s.findKeycloakUser(ctx, cfg, email)
 	if err != nil {
 		syncLog("lookup failed", err)
 		return
 	}
-	if kcID == "" {
-		kcID, err = s.createKeycloakUser(ctx, cfg, email)
-		if err != nil {
-			syncLog("create user failed", err)
-			return
-		}
+	if found.ID == "" {
+		syncLog("origin gate", fmt.Errorf("keycloak user not found, skip password push"))
+		return
 	}
-	if err := s.resetPassword(ctx, cfg, kcID, newPassword); err != nil {
+	if found.Origin != oidcSyncUserOrigin {
+		syncLog("origin gate", fmt.Errorf("origin=%q, want %q, skip password push", found.Origin, oidcSyncUserOrigin))
+		return
+	}
+	if err := s.resetPassword(ctx, cfg, found.ID, newPassword); err != nil {
 		// 本地密码已改、远端失败 → 置 drift，下次登录由提示引导收敛
 		syncLog("push password failed", err)
 		s.recordSyncResult(ctx, userID, nil, true)
 		return
 	}
 	var snap *int64
-	if createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, kcID); err == nil {
+	if createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, found.ID); err == nil {
 		snap = createdAt
 	}
 	s.recordSyncResult(ctx, userID, snap, false)
@@ -332,11 +358,11 @@ func (s *OIDCUserSyncService) CheckDrift(ctx context.Context, email string) {
 	if err != nil || local.OidcPasswordCredAt == nil {
 		return // 从未同步过，无需 drift 检测
 	}
-	kcID, _, err := s.findKeycloakUser(ctx, cfg, email)
-	if err != nil || kcID == "" {
+	found, err := s.findKeycloakUser(ctx, cfg, email)
+	if err != nil || found.ID == "" {
 		return
 	}
-	createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, kcID)
+	createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, found.ID)
 	if err != nil || createdAt == nil {
 		return
 	}
