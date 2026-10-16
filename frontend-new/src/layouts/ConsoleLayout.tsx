@@ -99,8 +99,13 @@ export default function ConsoleLayout({ bootstrap = fallbackBootstrap }: Console
   const mobileNavRef = useRef<HTMLElement>(null);
   const planPercent = Math.min(Math.max(bootstrap.global_plan.used_percent, 0), 100);
   const visibleNavItems = useMemo(
-    () => navItems.filter((item) => item.id !== "referral" || bootstrap.affiliate_enabled !== false),
-    [bootstrap.affiliate_enabled],
+    () =>
+      navItems.filter(
+        (item) =>
+          (item.id !== "referral" || bootstrap.affiliate_enabled !== false) &&
+          (item.id !== "modelPricing" || bootstrap.model_plaza_enabled !== false),
+      ),
+    [bootstrap.affiliate_enabled, bootstrap.model_plaza_enabled],
   );
   const activeRoute = routeMetadata.find((item) => item.href === location.pathname) ?? routeMetadata[0];
   usePageTitle(t(activeRoute.labelKey));
