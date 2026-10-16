@@ -86,6 +86,7 @@ type GlobalErrorCode = (typeof GLOBAL_ERROR_CODES)[number];
 
 export const SCOPED_ERROR_KEYS = {
   "auth:INVALID_USER": "scoped.auth.INVALID_USER",
+  "auth:PASSWORD_LOGIN_DISABLED": "scoped.auth.PASSWORD_LOGIN_DISABLED",
   "affiliate:INVALID_USER": "scoped.affiliate.INVALID_USER",
   "payment:DAILY_LIMIT_EXCEEDED": "scoped.payment.DAILY_LIMIT_EXCEEDED",
   "payment:INVALID_AMOUNT": "scoped.payment.INVALID_AMOUNT",

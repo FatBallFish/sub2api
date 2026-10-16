@@ -249,6 +249,7 @@ export default {
     loginFailed: 'Login failed. Please check your credentials and try again.',
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
+      PASSWORD_LOGIN_DISABLED: 'Password sign-in is disabled. Please sign in with OIDC.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:
