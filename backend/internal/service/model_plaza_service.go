@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 )
 
 // PlazaOfficialPricing 模型广场展示用的官方参考价（USD per token），与计费同源：
@@ -63,11 +65,13 @@ type PlazaGroup struct {
 
 // ModelPlazaService 聚合模型广场数据。
 //
-// 模型枚举来自渠道配置；token 模型的展示单价与阶梯由 BillingService 的阶梯表
+// 模型枚举 = 渠道定价条目 ∪ 账号白名单（全站活跃账号按平台归类，跳过「同步上游」
+// 合并进来的模型）；token 模型的展示单价与阶梯由 BillingService 的阶梯表
 // 查询给出（与扣费走同一条解析链与计费函数），图片/按次模型沿用渠道/分组档位价。
 type ModelPlazaService struct {
 	channelRepo    ChannelRepository
 	groupRepo      GroupRepository
+	accountRepo    AccountRepository
 	pricingService *PricingService
 	billingService *BillingService
 	resolver       *ModelPricingResolver
@@ -77,6 +81,7 @@ type ModelPlazaService struct {
 func NewModelPlazaService(
 	channelRepo ChannelRepository,
 	groupRepo GroupRepository,
+	accountRepo AccountRepository,
 	pricingService *PricingService,
 	billingService *BillingService,
 	resolver *ModelPricingResolver,
@@ -84,10 +89,60 @@ func NewModelPlazaService(
 	return &ModelPlazaService{
 		channelRepo:    channelRepo,
 		groupRepo:      groupRepo,
+		accountRepo:    accountRepo,
 		pricingService: pricingService,
 		billingService: billingService,
 		resolver:       resolver,
 	}
+}
+
+// concreteRequestPlatforms 全部具体请求平台（composite 分组可挂接的平台范围）。
+func concreteRequestPlatforms() []string {
+	return domain.ConcretePlatformIDs()
+}
+
+// accountDisplayModels 按平台枚举账号侧可供展示的模型名集合：
+// 全站活跃账号的模型白名单（credentials.model_mapping 的 key）按账号平台归类，
+// 其中通过「同步上游模型」自动合并进白名单的条目（存在于该账号的上游模型快照中）
+// 跳过——这类条目是上游站点整单目录的镜像，通常并非运营者想主动展示的清单。
+func (s *ModelPlazaService) accountDisplayModels(ctx context.Context) map[string]map[string]struct{} {
+	if s.accountRepo == nil {
+		return nil
+	}
+	accounts, err := s.accountRepo.ListActive(ctx)
+	if err != nil {
+		// 账号清单拿不到时退化为仅渠道定价口径，不影响广场主链路。
+		return nil
+	}
+	out := make(map[string]map[string]struct{})
+	for i := range accounts {
+		acc := &accounts[i]
+		platform := strings.TrimSpace(acc.Platform)
+		if platform == "" {
+			continue
+		}
+		var synced map[string]struct{}
+		if snapshot := acc.GetUpstreamModelMetadataSnapshot(); snapshot != nil && len(snapshot.Models) > 0 {
+			synced = make(map[string]struct{}, len(snapshot.Models))
+			for name := range snapshot.Models {
+				synced[name] = struct{}{}
+			}
+		}
+		for name := range acc.GetModelMapping() {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			if _, isSynced := synced[name]; isSynced {
+				continue
+			}
+			if out[platform] == nil {
+				out[platform] = make(map[string]struct{})
+			}
+			out[platform][name] = struct{}{}
+		}
+	}
+	return out
 }
 
 // ListGroups 返回模型广场数据：每个活跃分组附带其可用模型与定价。
@@ -192,6 +247,45 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 					Name:     m.Name,
 					Platform: m.Platform,
 					Pricing:  m.Pricing,
+				})
+			}
+		}
+	}
+
+	// 账号白名单模型并入各平台分组：渠道定价未配置但账号可服务的模型也进入展示清单，
+	// 展示定价由 fillDisplayPricing 的解析链回落到系统默认价（含分组倍率）。
+	accountModels := s.accountDisplayModels(ctx)
+	for _, gid := range order {
+		pg := byGroup[gid]
+		platforms := []string{pg.Platform}
+		if pg.Platform == PlatformComposite {
+			platforms = concreteRequestPlatforms()
+		}
+		for _, platform := range platforms {
+			names := accountModels[platform]
+			if len(names) == 0 {
+				continue
+			}
+			idx := modelIdx[gid]
+			if idx == nil {
+				idx = make(map[modelKey]int, len(names))
+				modelIdx[gid] = idx
+			}
+			sorted := make([]string, 0, len(names))
+			for name := range names {
+				sorted = append(sorted, name)
+			}
+			sort.Strings(sorted)
+			for _, name := range sorted {
+				key := modelKey{platform: platform, name: name}
+				if _, seen := idx[key]; seen {
+					continue
+				}
+				idx[key] = len(pg.Models)
+				pg.Models = append(pg.Models, PlazaModel{
+					Name:     name,
+					Platform: platform,
+					// Pricing 留空：分组价卡/渠道价/系统默认价在 fillDisplayPricing 统一解析。
 				})
 			}
 		}
