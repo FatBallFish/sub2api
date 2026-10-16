@@ -701,6 +701,27 @@ func (h *UserHandler) BatchUpdateLimits(c *gin.Context) {
 	response.Success(c, gin.H{"affected": affected})
 }
 
+// BatchUpdateStatus 批量启用/禁用用户（admin 账号由后端跳过）。
+// POST /api/v1/admin/users/batch-status
+type BatchUpdateStatusRequest struct {
+	UserIDs []int64 `json:"user_ids" binding:"required,min=1,max=500"`
+	Status  string  `json:"status" binding:"required,oneof=active disabled"`
+}
+
+func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
+	var req BatchUpdateStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	affected, err := h.adminService.BatchUpdateStatus(c.Request.Context(), req.UserIDs, req.Status)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"affected": affected})
+}
+
 // GetUserPlatformQuotas GET /admin/users/:id/platform-quotas
 // admin 视角：D14 lazy 归零 + 暴露 *_window_start 调试字段
 func (h *UserHandler) GetUserPlatformQuotas(c *gin.Context) {

@@ -41,6 +41,10 @@ func (s *batchLimitsAdminServiceStub) BatchUpdateLimits(_ context.Context, userI
 	return len(userIDs), nil
 }
 
+func (s *batchLimitsAdminServiceStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func setupBatchLimitsRouter(serviceStub service.AdminService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

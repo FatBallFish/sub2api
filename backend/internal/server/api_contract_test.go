@@ -1761,6 +1761,10 @@ func (r *stubUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (
 	return 0, nil
 }
 
+func (r *stubUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (r *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return false, errors.New("not implemented")
 }

@@ -1143,6 +1143,10 @@ func (s *emailBindUserRepoStub) BatchUpdateLimits(context.Context, []int64, *int
 	return 0, nil
 }
 
+func (s *emailBindUserRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (s *emailBindUserRepoStub) RemoveGroupFromAllowedGroups(context.Context, int64) (int64, error) {
 	return 0, nil
 }

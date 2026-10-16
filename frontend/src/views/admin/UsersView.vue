@@ -263,6 +263,17 @@
               {{ t('admin.users.bulkDelete.action', { count: selectedCount }) }}
             </button>
 
+            <button
+              v-if="selectedCount > 0"
+              class="btn btn-warning flex-1 md:flex-initial"
+              data-test="bulk-disable-users"
+              :disabled="bulkDisabling"
+              @click="bulkDisableIds = [...selectedIds]"
+            >
+              <Icon name="ban" size="md" class="mr-2" />
+              {{ t('admin.users.bulkDisable.action', { count: selectedCount }) }}
+            </button>
+
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
             <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
               <Icon name="plus" size="md" class="mr-2" />
@@ -767,6 +778,15 @@
       danger
       @confirm="confirmBulkDelete"
       @cancel="bulkDeleteIds = []"
+    />
+    <ConfirmDialog
+      :show="bulkDisableIds.length > 0"
+      :title="t('admin.users.bulkDisable.title')"
+      :message="t('admin.users.bulkDisable.confirm', { count: bulkDisableIds.length })"
+      :confirm-text="t('admin.users.bulkDisable.confirmAction')"
+      danger
+      @confirm="confirmBulkDisable"
+      @cancel="bulkDisableIds = []"
     />
     <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
@@ -1345,6 +1365,8 @@ const showBulkEditModal = ref(false)
 const showDeleteDialog = ref(false)
 const bulkDeleteIds = ref<number[]>([])
 const bulkDeleting = ref(false)
+const bulkDisableIds = ref<number[]>([])
+const bulkDisabling = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
@@ -1840,6 +1862,23 @@ const confirmBulkDelete = async () => {
   if (failed > 0) appStore.showError(t('admin.users.bulkDelete.failed', { count: failed }))
   await loadUsers()
   bulkDeleting.value = false
+}
+
+const confirmBulkDisable = async () => {
+  const ids = bulkDisableIds.value
+  bulkDisableIds.value = []
+  bulkDisabling.value = true
+  try {
+    const { affected } = await adminAPI.users.batchUpdateStatus({ user_ids: ids, status: 'disabled' })
+    removeSelectedIds(ids)
+    appStore.showSuccess(t('admin.users.bulkDisable.success', { count: affected }))
+    await loadUsers()
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.detail || t('admin.users.bulkDisable.failed'))
+    console.error('Error disabling users:', error)
+  } finally {
+    bulkDisabling.value = false
+  }
 }
 
 const handleDeposit = (user: AdminUser) => {

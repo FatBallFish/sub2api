@@ -265,6 +265,10 @@ func (r *contentModerationTestUserRepo) BatchUpdateLimits(ctx context.Context, u
 	panic("unexpected BatchUpdateLimits call")
 }
 
+func (r *contentModerationTestUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (r *contentModerationTestUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	panic("unexpected ExistsByEmail call")
 }

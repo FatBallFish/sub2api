@@ -513,6 +513,39 @@ func (s *adminServiceImpl) BatchUpdateLimits(ctx context.Context, userIDs []int6
 	return affected, nil
 }
 
+// BatchUpdateStatus 批量启用/禁用用户。admin 账号与已是目标状态的用户由 SQL 跳过；
+// 禁用立即生效依赖 auth 缓存失效 + JWT 中间件的 IsActive 校验，与单个更新口径一致。
+func (s *adminServiceImpl) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
+	if status != StatusActive && status != StatusDisabled {
+		return 0, fmt.Errorf("invalid status: %q", status)
+	}
+	cleaned := make([]int64, 0, len(userIDs))
+	seen := make(map[int64]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		if userID <= 0 {
+			continue
+		}
+		if _, ok := seen[userID]; ok {
+			continue
+		}
+		seen[userID] = struct{}{}
+		cleaned = append(cleaned, userID)
+	}
+	if len(cleaned) == 0 {
+		return 0, nil
+	}
+	affected, err := s.userRepo.BatchUpdateStatus(ctx, cleaned, status)
+	if err != nil {
+		return 0, err
+	}
+	if s.authCacheInvalidator != nil {
+		for _, userID := range cleaned {
+			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, userID)
+		}
+	}
+	return affected, nil
+}
+
 func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
 	// 余额调整必须走原子接口：先读后整行写回会把并发的计费扣款覆盖掉。
 	var (

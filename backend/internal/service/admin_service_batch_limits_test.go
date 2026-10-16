@@ -28,6 +28,10 @@ func (s *batchLimitsUserRepoStub) BatchUpdateLimits(_ context.Context, userIDs [
 	return s.affected, s.err
 }
 
+func (s *batchLimitsUserRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func cloneBatchLimitValue(value *int) *int {
 	if value == nil {
 		return nil

@@ -1146,6 +1146,26 @@ func (r *userRepository) BatchUpdateLimits(ctx context.Context, userIDs []int64,
 	return int(affected), nil
 }
 
+// BatchUpdateStatus 批量修改用户状态；admin 账号一律跳过（防锁死，与单个更新口径一致）。
+func (r *userRepository) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {
+	if len(userIDs) == 0 || (status != service.StatusActive && status != service.StatusDisabled) {
+		return 0, nil
+	}
+	res, err := r.sql.ExecContext(ctx, `
+		UPDATE users
+		SET status = $1, updated_at = NOW()
+		WHERE id = ANY($2)
+			AND deleted_at IS NULL
+			AND role != 'admin'
+			AND status != $1
+	`, status, pq.Array(userIDs))
+	if err != nil {
+		return 0, fmt.Errorf("batch update user status: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	return int(affected), nil
+}
+
 func (r *userRepository) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	return r.client.User.Query().Where(userEmailLookupPredicate(email)).Exist(ctx)
 }

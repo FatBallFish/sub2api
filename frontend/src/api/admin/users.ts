@@ -56,6 +56,15 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface BatchUpdateUserStatusRequest {
+  user_ids: number[]
+  status: 'active' | 'disabled'
+}
+
+export interface BatchUpdateUserStatusResponse {
+  affected: number
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -225,6 +234,17 @@ export async function findBlacklistedEmailUsers(
   return data
 }
 
+/** Batch enable/disable users. Admin accounts are skipped by the backend. */
+export async function batchUpdateStatus(
+  request: BatchUpdateUserStatusRequest
+): Promise<BatchUpdateUserStatusResponse> {
+  const { data } = await apiClient.post<BatchUpdateUserStatusResponse>(
+    '/admin/users/batch-status',
+    request
+  )
+  return data
+}
+
 /** Disable multiple users; admins and already-disabled users are skipped. */
 export async function batchDisable(userIds: number[]): Promise<{ affected: number }> {
   const { data } = await apiClient.post<{ affected: number }>('/admin/users/batch-disable', {
@@ -232,7 +252,6 @@ export async function batchDisable(userIds: number[]): Promise<{ affected: numbe
   })
   return data
 }
-
 /**
  * Toggle user status
  * @param id - User ID
@@ -441,6 +460,7 @@ export const usersAPI = {
   batchUpdateLimits,
   findBlacklistedEmailUsers,
   batchDisable,
+  batchUpdateStatus,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

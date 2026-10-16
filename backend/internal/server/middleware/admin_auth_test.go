@@ -216,6 +216,10 @@ func (s *stubUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (
 	return 0, nil
 }
 
+func (s *stubUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (s *stubUserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	panic("unexpected ExistsByEmail call")
 }

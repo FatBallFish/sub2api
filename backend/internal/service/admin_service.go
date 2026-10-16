@@ -26,6 +26,7 @@ type AdminService interface {
 	FindActiveUsersByBlacklistedEmails(ctx context.Context, emails []string) ([]User, error)
 	// BatchDisableUsers 批量禁用普通用户，返回实际禁用的人数。
 	BatchDisableUsers(ctx context.Context, userIDs []int64) (int, error)
+	BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
