@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -1921,6 +1922,36 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 	writeOAuthTokenPairResponse(c, tokenPair)
 }
 
+// pendingExchangeReplayEntry 缓存已消费 session 的终态响应：
+// dev 环境的 React StrictMode 会并发发出两次 exchange，用户也可能在回调页刷新重放；
+// 一次性 session 被第一个请求消费后，后续请求凭同 sessionToken 在 TTL 内拿回同样结果。
+type pendingExchangeReplayEntry struct {
+	payload map[string]any
+	exp     time.Time
+}
+
+var pendingExchangeReplayCache sync.Map
+
+func rememberPendingExchangeReplay(sessionToken string, payload map[string]any) {
+	pendingExchangeReplayCache.Store(sessionToken, pendingExchangeReplayEntry{
+		payload: payload,
+		exp:     time.Now().Add(120 * time.Second),
+	})
+}
+
+func lookupPendingExchangeReplay(sessionToken string) (map[string]any, bool) {
+	v, ok := pendingExchangeReplayCache.Load(sessionToken)
+	if !ok {
+		return nil, false
+	}
+	entry := v.(pendingExchangeReplayEntry)
+	if time.Now().After(entry.exp) {
+		pendingExchangeReplayCache.Delete(sessionToken)
+		return nil, false
+	}
+	return entry.payload, true
+}
+
 // ExchangePendingOAuthCompletion redeems a pending OAuth browser session into a frontend-safe payload.
 // POST /api/v1/auth/oauth/pending/exchange
 func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
@@ -1957,6 +1988,12 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 
 	session, err := svc.GetBrowserSession(c.Request.Context(), sessionToken, browserSessionKey)
 	if err != nil {
+		// session 可能刚被并发/重放请求消费：TTL 内返回同款终态响应。
+		if payload, ok := lookupPendingExchangeReplay(sessionToken); ok {
+			clearCookies()
+			response.Success(c, payload)
+			return
+		}
 		clearCookies()
 		response.ErrorFrom(c, err)
 		return
@@ -2090,5 +2127,8 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 	}
 
 	clearCookies()
+	if _, issued := payload["access_token"]; issued {
+		rememberPendingExchangeReplay(sessionToken, payload)
+	}
 	response.Success(c, payload)
 }
