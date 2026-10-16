@@ -40,7 +40,9 @@ const (
 	oidcOAuthNonceCookie        = "oidc_oauth_nonce"
 	oidcOAuthIntentCookieName   = "oidc_oauth_intent"
 	oidcOAuthBindUserCookieName = "oidc_oauth_bind_user"
-	oidcOAuthCookieMaxAgeSec    = 10 * 60 // 10 minutes
+	// 用户可能在 IdP 侧停留很久（注册、找回密码、2FA），10 分钟过紧导致回调时
+	// state cookie 已过期（invalid_state）；放宽到 60 分钟。
+	oidcOAuthCookieMaxAgeSec    = 60 * 60
 	oidcOAuthDefaultRedirectTo  = "/dashboard"
 	oidcOAuthDefaultFrontendCB  = "/auth/oidc/callback"
 )
