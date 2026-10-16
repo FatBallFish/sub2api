@@ -689,6 +689,10 @@ func (s *paymentOrderUserRepoStub) BatchAddConcurrency(context.Context, []int64,
 func (s *paymentOrderUserRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
 	panic("unexpected BatchUpdateLimits call")
 }
+
+func (s *paymentOrderUserRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 func (s *paymentOrderUserRepoStub) ExistsByEmail(context.Context, string) (bool, error) {
 	return false, nil
 }

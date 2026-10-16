@@ -108,6 +108,10 @@ func (s *userHandlerRepoStub) BatchAddConcurrency(context.Context, []int64, int)
 func (s *userHandlerRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
 	return 0, nil
 }
+
+func (s *userHandlerRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 func (s *userHandlerRepoStub) ExistsByEmail(context.Context, string) (bool, error) { return false, nil }
 func (s *userHandlerRepoStub) ExistsByEmailAlias(context.Context, string) (bool, error) {
 	return false, nil

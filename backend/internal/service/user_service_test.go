@@ -233,6 +233,10 @@ func (m *mockUserRepo) BatchAddConcurrency(context.Context, []int64, int) (int, 
 func (m *mockUserRepo) BatchUpdateLimits(context.Context, []int64, *int, *int) (int, error) {
 	return 0, nil
 }
+
+func (m *mockUserRepo) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
 func (m *mockUserRepo) AddGroupToAllowedGroups(context.Context, int64, int64) error { return nil }
 func (m *mockUserRepo) ListUserAuthIdentities(context.Context, int64) ([]UserAuthIdentityRecord, error) {
 	out := make([]UserAuthIdentityRecord, len(m.identities))

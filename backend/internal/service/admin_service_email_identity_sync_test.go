@@ -139,6 +139,10 @@ func (s *emailSyncRepoStub) BatchUpdateLimits(context.Context, []int64, *int, *i
 	return 0, nil
 }
 
+func (s *emailSyncRepoStub) BatchUpdateStatus(context.Context, []int64, string) (int, error) {
+	return 0, nil
+}
+
 func (s *emailSyncRepoStub) AddGroupToAllowedGroups(context.Context, int64, int64) error { return nil }
 
 func (s *emailSyncRepoStub) RemoveGroupFromUserAllowedGroups(context.Context, int64, int64) error {
