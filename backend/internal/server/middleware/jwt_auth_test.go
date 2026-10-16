@@ -61,7 +61,7 @@ func newJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthSer
 
 	userRepo := &stubJWTUserRepo{users: users}
 	authSvc := service.NewAuthService(nil, userRepo, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
-	userSvc := service.NewUserService(userRepo, nil, nil, nil)
+	userSvc := service.NewUserService(userRepo, nil, nil, nil, nil)
 	mw := NewJWTAuthMiddleware(authSvc, userSvc, nil, nil)
 
 	r := gin.New()
@@ -144,7 +144,7 @@ func TestJWTAuth_ValidToken_TouchesLastActive(t *testing.T) {
 
 	userRepo := &stubJWTUserRepo{users: map[int64]*service.User{1: user}}
 	authSvc := service.NewAuthService(nil, userRepo, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
-	userSvc := service.NewUserService(userRepo, nil, nil, nil)
+	userSvc := service.NewUserService(userRepo, nil, nil, nil, nil)
 	toucher := &recordingActivityToucher{}
 
 	r := gin.New()
@@ -253,7 +253,7 @@ func TestJWTAuth_UserLookupErrors(t *testing.T) {
 			userRepo := &stubUserRepo{getByID: func(context.Context, int64) (*service.User, error) {
 				return nil, tc.err
 			}}
-			userSvc := service.NewUserService(userRepo, nil, nil, nil)
+			userSvc := service.NewUserService(userRepo, nil, nil, nil, nil)
 			for _, route := range []struct {
 				name      string
 				handler   gin.HandlerFunc

@@ -932,6 +932,18 @@ func (s *emailBindRefreshTokenCacheStub) DeleteUserRefreshTokens(_ context.Conte
 	return nil
 }
 
+func (s *emailBindRefreshTokenCacheStub) DeleteAllUserRefreshTokens(context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (s *emailBindRefreshTokenCacheStub) SetGlobalSessionInvalidationAt(context.Context, int64) error {
+	return nil
+}
+
+func (s *emailBindRefreshTokenCacheStub) GetGlobalSessionInvalidationAt(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (s *emailBindRefreshTokenCacheStub) DeleteTokenFamily(_ context.Context, familyID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

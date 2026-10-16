@@ -116,6 +116,9 @@ func TestApplyUsageBillingEffects_DeletedAPIKeyStillBillsBalance(t *testing.T) {
 	mock.ExpectBegin()
 	tx, err := db.BeginTx(ctx, nil)
 	require.NoError(t, err)
+	mock.ExpectQuery(selectGlobalPlanForBillingSQL).
+		WithArgs(int64(42), service.GlobalPlanStatusActive, int64(0)).
+		WillReturnError(sql.ErrNoRows)
 	mock.ExpectQuery(conditionalBalanceDeductSQL).
 		WithArgs(10.0, int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(90.0))
