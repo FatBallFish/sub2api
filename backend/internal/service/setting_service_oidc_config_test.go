@@ -267,7 +267,7 @@ func TestGetOIDCConnectConsoleOAuthConfig(t *testing.T) {
 			SettingKeyOIDCConnectTokenAuthMethod:     "client_secret_post",
 		}
 	}
-	cfg := &config.Config{OIDC: config.OIDCConnectConfig{UsePKCE: false, ValidateIDToken: false, AllowedSigningAlgs: "RS256", ClockSkewSeconds: 120}}
+	cfg := &config.Config{OIDC: config.OIDCConnectConfig{UsePKCE: false, ValidateIDToken: false, UsePKCEExplicit: true, ValidateIDTokenExplicit: true, AllowedSigningAlgs: "RS256", ClockSkewSeconds: 120}}
 
 	t.Run("inherits main protocol config and applies console overrides", func(t *testing.T) {
 		values := baseValues()

@@ -1474,6 +1474,18 @@ func (s *wechatOAuthRefreshTokenCacheStub) DeleteUserRefreshTokens(context.Conte
 	return nil
 }
 
+func (s *wechatOAuthRefreshTokenCacheStub) DeleteAllUserRefreshTokens(context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (s *wechatOAuthRefreshTokenCacheStub) SetGlobalSessionInvalidationAt(context.Context, int64) error {
+	return nil
+}
+
+func (s *wechatOAuthRefreshTokenCacheStub) GetGlobalSessionInvalidationAt(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (s *wechatOAuthRefreshTokenCacheStub) DeleteTokenFamily(context.Context, string) error {
 	return nil
 }

@@ -112,6 +112,10 @@ func (s *authRegisterAffiliateRepoStub) AccrueQuota(context.Context, int64, int6
 	panic("unexpected AccrueQuota call")
 }
 
+func (s *authRegisterAffiliateRepoStub) WithdrawQuota(context.Context, int64, float64, string) (*AffiliateWithdrawResult, error) {
+	panic("unexpected WithdrawQuota call")
+}
+
 func (s *authRegisterAffiliateRepoStub) GetAccruedRebateFromInvitee(context.Context, int64, int64) (float64, error) {
 	panic("unexpected GetAccruedRebateFromInvitee call")
 }
@@ -264,6 +268,18 @@ func (s *refreshTokenCacheStub) DeleteRefreshToken(context.Context, string) erro
 
 func (s *refreshTokenCacheStub) DeleteUserRefreshTokens(context.Context, int64) error {
 	return nil
+}
+
+func (s *refreshTokenCacheStub) DeleteAllUserRefreshTokens(context.Context) (int64, error) {
+	return 0, nil
+}
+
+func (s *refreshTokenCacheStub) SetGlobalSessionInvalidationAt(context.Context, int64) error {
+	return nil
+}
+
+func (s *refreshTokenCacheStub) GetGlobalSessionInvalidationAt(context.Context) (int64, error) {
+	return 0, nil
 }
 
 func (s *refreshTokenCacheStub) DeleteTokenFamily(context.Context, string) error {

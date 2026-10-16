@@ -841,6 +841,19 @@ func TestAPIContracts(t *testing.T) {
 						"oidc_connect_userinfo_email_path": "",
 						"oidc_connect_userinfo_id_path": "",
 						"oidc_connect_userinfo_username_path": "",
+					"oauth_signup_bypass_registration": false,
+					"password_login_disabled": false,
+					"oidc_user_sync_enabled": false,
+					"oidc_user_sync_admin_url": "",
+					"oidc_user_sync_realm": "",
+					"oidc_user_sync_client_id": "",
+					"oidc_user_sync_client_secret_configured": false,
+					"oidc_connect_console_enabled": false,
+					"oidc_connect_console_provider_name": "",
+					"oidc_connect_console_client_id": "",
+					"oidc_connect_console_client_secret_configured": false,
+					"oidc_connect_console_redirect_url": "",
+					"oidc_connect_console_frontend_redirect_url": "/auth/oauth/callback",
 						"github_oauth_enabled": false,
 						"github_oauth_client_id": "",
 						"github_oauth_client_secret_configured": false,
@@ -1209,6 +1222,19 @@ func TestAPIContracts(t *testing.T) {
 					"oidc_connect_userinfo_email_path": "",
 					"oidc_connect_userinfo_id_path": "",
 					"oidc_connect_userinfo_username_path": "",
+					"oauth_signup_bypass_registration": false,
+					"password_login_disabled": false,
+					"oidc_user_sync_enabled": false,
+					"oidc_user_sync_admin_url": "",
+					"oidc_user_sync_realm": "",
+					"oidc_user_sync_client_id": "",
+					"oidc_user_sync_client_secret_configured": false,
+					"oidc_connect_console_enabled": false,
+					"oidc_connect_console_provider_name": "",
+					"oidc_connect_console_client_id": "",
+					"oidc_connect_console_client_secret_configured": false,
+					"oidc_connect_console_redirect_url": "",
+					"oidc_connect_console_frontend_redirect_url": "/auth/oauth/callback",
 					"github_oauth_enabled": false,
 					"github_oauth_client_id": "",
 					"github_oauth_client_secret_configured": false,
@@ -1535,7 +1561,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 		RunMode: config.RunModeStandard,
 	}
 
-	userService := service.NewUserService(userRepo, nil, nil, nil)
+	userService := service.NewUserService(userRepo, nil, nil, nil, nil)
 	apiKeyService := service.NewAPIKeyService(apiKeyRepo, userRepo, groupRepo, userSubRepo, nil, apiKeyCache, cfg)
 
 	usageRepo := newStubUsageLogRepo()
@@ -1551,7 +1577,7 @@ func newContractDeps(t *testing.T) *contractDeps {
 	settingService := service.NewSettingService(settingRepo, cfg)
 
 	adminService := service.NewAdminService(nil, userRepo, groupRepo, &accountRepo, proxyRepo, apiKeyRepo, redeemRepo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil)
+	authHandler := handler.NewAuthHandler(cfg, nil, userService, settingService, nil, redeemService, nil, nil, nil)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageHandler := handler.NewUsageHandler(usageService, apiKeyService, nil, nil)
 	adminSettingHandler := adminhandler.NewSettingHandler(settingService, nil, nil, nil, nil, nil, nil)
