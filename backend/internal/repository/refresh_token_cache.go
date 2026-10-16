@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -122,6 +123,27 @@ func (c *refreshTokenCache) DeleteTokenFamily(ctx context.Context, familyID stri
 	}
 	_, err = pipe.Exec(ctx)
 	return err
+}
+
+const globalSessionInvalidationKey = "auth:sessions:invalidated_at"
+
+func (c *refreshTokenCache) SetGlobalSessionInvalidationAt(ctx context.Context, at int64) error {
+	return c.rdb.Set(ctx, globalSessionInvalidationKey, at, 0).Err()
+}
+
+func (c *refreshTokenCache) GetGlobalSessionInvalidationAt(ctx context.Context) (int64, error) {
+	val, err := c.rdb.Get(ctx, globalSessionInvalidationKey).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return 0, nil
+		}
+		return 0, err
+	}
+	parsed, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return parsed, nil
 }
 
 func (c *refreshTokenCache) AddToUserTokenSet(ctx context.Context, userID int64, tokenHash string, ttl time.Duration) error {
