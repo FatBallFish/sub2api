@@ -1,14 +1,11 @@
 package handler
 
 import (
-	"sort"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
-
-const publicGatewayPricingMultiplier = 0.837
 
 type publicPricingResponse struct {
 	Plans  []publicPricingPlan  `json:"plans"`
@@ -42,34 +39,6 @@ type publicTopupPackage struct {
 type publicFAQItem struct {
 	Question string `json:"question"`
 	Answer   string `json:"answer"`
-}
-
-type publicModelPricingResponse struct {
-	Products []publicModelPricingProduct `json:"products"`
-}
-
-type publicModelPricingProduct struct {
-	ID          string                  `json:"id"`
-	Label       string                  `json:"label"`
-	Status      string                  `json:"status"`
-	Description string                  `json:"description"`
-	Multiplier  string                  `json:"multiplier"`
-	RuleText    string                  `json:"rule_text"`
-	Rows        []publicModelPricingRow `json:"rows"`
-}
-
-type publicModelPricingRow struct {
-	Model        string           `json:"model"`
-	Input        publicPricePair  `json:"input"`
-	Output       publicPricePair  `json:"output"`
-	CacheWrite   *publicPricePair `json:"cache_write,omitempty"`
-	CacheRead    *publicPricePair `json:"cache_read,omitempty"`
-	Availability string           `json:"availability"`
-}
-
-type publicPricePair struct {
-	Gateway  float64 `json:"gateway"`
-	Official float64 `json:"official"`
 }
 
 func defaultPublicTopups() []publicTopupPackage {
@@ -111,72 +80,4 @@ func publicPlanFromSubscriptionPlan(plan *dbent.SubscriptionPlan, index int, gro
 		}
 	}
 	return out
-}
-
-func buildPublicModelPricing(billing *service.BillingService) publicModelPricingResponse {
-	products := []publicModelPricingProduct{
-		{ID: "claude", Label: "Claude", Status: "live", Description: "Claude Code compatible routing", Multiplier: "0.837x official USD", RuleText: "Gateway USD price = official USD rate x 0.837"},
-		{ID: "openai", Label: "OpenAI", Status: "live", Description: "Codex and OpenAI compatible models", Multiplier: "0.837x official USD", RuleText: "Gateway USD price = official USD rate x 0.837"},
-		{ID: "gemini", Label: "Gemini", Status: "live", Description: "Gemini CLI compatible models", Multiplier: "0.837x official USD", RuleText: "Gateway USD price = official USD rate x 0.837"},
-	}
-	if billing == nil {
-		return publicModelPricingResponse{Products: products}
-	}
-
-	models := billing.ListSupportedModels()
-	sort.Strings(models)
-	for _, model := range models {
-		productID := publicProductIDForModel(model)
-		if productID == "" {
-			continue
-		}
-		pricing, err := billing.GetModelPricing(model)
-		if err != nil || pricing == nil {
-			continue
-		}
-		row := publicModelPricingRow{
-			Model:        model,
-			Input:        publicPairFromPerToken(pricing.InputPricePerToken),
-			Output:       publicPairFromPerToken(pricing.OutputPricePerToken),
-			Availability: "available",
-		}
-		if pricing.CacheCreationPricePerToken > 0 {
-			pair := publicPairFromPerToken(pricing.CacheCreationPricePerToken)
-			row.CacheWrite = &pair
-		}
-		if pricing.CacheReadPricePerToken > 0 {
-			pair := publicPairFromPerToken(pricing.CacheReadPricePerToken)
-			row.CacheRead = &pair
-		}
-		for i := range products {
-			if products[i].ID == productID {
-				products[i].Rows = append(products[i].Rows, row)
-				break
-			}
-		}
-	}
-
-	return publicModelPricingResponse{Products: products}
-}
-
-func publicPairFromPerToken(officialPerToken float64) publicPricePair {
-	official := officialPerToken * 1_000_000
-	return publicPricePair{
-		Gateway:  official * publicGatewayPricingMultiplier,
-		Official: official,
-	}
-}
-
-func publicProductIDForModel(model string) string {
-	lower := strings.ToLower(model)
-	switch {
-	case strings.Contains(lower, "claude"):
-		return "claude"
-	case strings.HasPrefix(lower, "gpt-") || strings.Contains(lower, "codex") || strings.HasPrefix(lower, "o"):
-		return "openai"
-	case strings.Contains(lower, "gemini"):
-		return "gemini"
-	default:
-		return ""
-	}
 }

@@ -234,25 +234,6 @@ export default {
        }
      },
 
-    modelPricingDisplay: {
-      title: 'Model Pricing Display',
-      description: 'Configure the model categories and model list shown on public and console pricing pages.',
-      help: 'This page only controls display categories and model whitelist. Official prices still come from channel pricing first, then the built-in model price catalog.',
-      unnamedCategory: 'Unnamed category',
-      categoryId: 'Category ID',
-      categoryLabel: 'Category Label',
-      categoryDescription: 'Description',
-      modelScopes: 'Supported Model Scopes',
-      modelScopesHint: 'Used by console pricing to decide whether a selected group supports this category.',
-      models: 'Models',
-      addModel: 'Add Model',
-      modelLabelPlaceholder: 'Display label, optional',
-      noModels: 'No models configured.',
-      addCategory: 'Add Category',
-      loadFailed: 'Failed to load model pricing display config.',
-      saveSuccess: 'Model pricing display config saved.',
-      saveFailed: 'Failed to save model pricing display config.'
-    },
 
     riskControl: {
       engine: 'Audit engine',

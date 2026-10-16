@@ -234,25 +234,6 @@ export default {
       }
     },
 
-    modelPricingDisplay: {
-      title: '模型定价展示',
-      description: '配置公开定价页和控制台定价页展示的模型分类与模型列表。',
-      help: '本页面仅控制展示分类和模型白名单。官方价格仍优先来自渠道定价，其次使用内置模型价格目录。',
-      unnamedCategory: '未命名分类',
-      categoryId: '分类 ID',
-      categoryLabel: '分类名称',
-      categoryDescription: '描述',
-      modelScopes: '支持的模型范围',
-      modelScopesHint: '用于控制台定价页判断当前分组是否支持该分类。',
-      models: '模型',
-      addModel: '添加模型',
-      modelLabelPlaceholder: '展示名称，可选',
-      noModels: '未配置模型。',
-      addCategory: '添加分类',
-      loadFailed: '加载模型定价展示配置失败',
-      saveSuccess: '模型定价展示配置已保存',
-      saveFailed: '保存模型定价展示配置失败'
-    },
 
     riskControl: {
       engine: '审计引擎',
