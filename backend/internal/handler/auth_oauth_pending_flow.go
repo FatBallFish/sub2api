@@ -2011,6 +2011,11 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 			payload["redirect"] = session.RedirectTo
 		}
 	}
+	// 补齐 provider 标识：choice/注册补全等本地流程状态不含该字段，
+	// 前端依赖它渲染「完成 XX 注册」的 Provider 名称。
+	if _, exists := payload["provider"]; !exists {
+		payload["provider"] = strings.TrimSpace(session.ProviderType)
+	}
 	applySuggestedProfileToCompletionResponse(payload, session.UpstreamIdentityClaims)
 
 	canIssueTokenPair := pendingOAuthCompletionCanIssueTokenPair(session, payload)
