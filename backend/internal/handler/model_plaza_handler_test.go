@@ -306,29 +306,48 @@ func TestModelPlazaHandler_VaryKeepsCORSOrigin(t *testing.T) {
 	}
 }
 
+func TestMergeLowestSummaryPriceAppliesGroupRate(t *testing.T) {
+	fp := func(v float64) *float64 { return &v }
+	item := &modelPlazaSummaryItem{Name: "m", Platform: "openai"}
+	g := &service.PlazaGroup{RateMultiplier: 0.5}
+
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: fp(3e-6), OutputPrice: fp(1.5e-5)}, g)
+	require.EqualValues(t, 1.5e-6, *item.InputPrice)
+	require.EqualValues(t, 7.5e-6, *item.OutputPrice)
+
+	lowG := &service.PlazaGroup{RateMultiplier: 0.25}
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: fp(3e-6)}, lowG)
+	require.EqualValues(t, 7.5e-7, *item.InputPrice)
+
+	imgG := &service.PlazaGroup{RateMultiplier: 0.5, ImageRateIndependent: true, ImageRateMultiplier: 0.2}
+	imgItem := &modelPlazaSummaryItem{Name: "img", Platform: "openai"}
+	mergeLowestSummaryPrice(imgItem, &service.ChannelModelPricing{BillingMode: service.BillingModeImage, PerRequestPrice: fp(10)}, imgG)
+	require.EqualValues(t, 2, *imgItem.PerRequestPrice)
+}
+
 func TestMergeLowestSummaryPrice(t *testing.T) {
 	fp := func(v float64) *float64 { return &v }
 	in := fp(3)
 	out := fp(15)
 	item := &modelPlazaSummaryItem{Name: "m", Platform: "anthropic"}
 
-	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: in, OutputPrice: out})
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: in, OutputPrice: out}, nil)
 	require.NotNil(t, item.InputPrice)
 	require.EqualValues(t, 3, *item.InputPrice)
 
 	// 更低的价格覆盖，更高的被忽略；各字段独立。
 	lower := fp(2)
 	higherOut := fp(30)
-	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: lower, OutputPrice: higherOut})
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{InputPrice: lower, OutputPrice: higherOut}, nil)
 	require.EqualValues(t, 2, *item.InputPrice)
 	require.EqualValues(t, 15, *item.OutputPrice)
 
 	// 阶梯档位参与取最小。
 	tier := fp(1)
-	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{Intervals: []service.PricingInterval{{InputPrice: tier, PerRequestPrice: fp(0.4)}}})
+	mergeLowestSummaryPrice(item, &service.ChannelModelPricing{Intervals: []service.PricingInterval{{InputPrice: tier, PerRequestPrice: fp(0.4)}}}, nil)
 	require.EqualValues(t, 1, *item.InputPrice)
 	require.NotNil(t, item.PerRequestPrice)
 	require.EqualValues(t, 0.4, *item.PerRequestPrice)
 
-	mergeLowestSummaryPrice(item, nil) // nil 定价不 panic
+	mergeLowestSummaryPrice(item, nil, nil) // nil 定价不 panic
 }

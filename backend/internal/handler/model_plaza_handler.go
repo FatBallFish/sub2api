@@ -194,15 +194,17 @@ func (h *ModelPlazaHandler) respondAnonymousSummary(c *gin.Context, rt service.M
 	}
 	summary := make(map[summaryKey]*modelPlazaSummaryItem)
 	for i := range visible {
-		for j := range visible[i].Models {
-			m := &visible[i].Models[j]
+		g := &visible[i]
+		for j := range g.Models {
+			m := &g.Models[j]
 			key := summaryKey{platform: m.Platform, name: m.Name}
 			item := summary[key]
 			if item == nil {
 				item = &modelPlazaSummaryItem{Name: m.Name, Platform: m.Platform}
 				summary[key] = item
 			}
-			mergeLowestSummaryPrice(item, m.Pricing)
+			// 广场返回的是基础价，摘要按「最低价」口径必须乘上该分组的生效倍率。
+			mergeLowestSummaryPrice(item, m.Pricing, g)
 		}
 	}
 	out := make([]modelPlazaSummaryItem, 0, len(summary))
@@ -224,28 +226,41 @@ func (h *ModelPlazaHandler) respondAnonymousSummary(c *gin.Context, rt service.M
 }
 
 // mergeLowestSummaryPrice 把一个分组的实付定价并入摘要条目，各价格字段独立取最小。
-func mergeLowestSummaryPrice(item *modelPlazaSummaryItem, pricing *service.ChannelModelPricing) {
+// 倍率口径与老前端一致：token 价乘分组生效倍率；图片/视频在开启独立倍率时
+// 用对应独立倍率计算按次价，否则同样乘分组倍率。
+func mergeLowestSummaryPrice(item *modelPlazaSummaryItem, pricing *service.ChannelModelPricing, g *service.PlazaGroup) {
 	if pricing == nil {
 		return
 	}
-	minPtr := func(dst **float64, v *float64) {
+	rate := 1.0
+	if g != nil {
+		rate = g.RateMultiplier
+	}
+	requestRate := rate
+	switch {
+	case pricing.BillingMode == service.BillingModeVideo && g != nil && g.VideoRateIndependent:
+		requestRate = g.VideoRateMultiplier
+	case pricing.BillingMode == service.BillingModeImage && g != nil && g.ImageRateIndependent:
+		requestRate = g.ImageRateMultiplier
+	}
+	minScaled := func(dst **float64, v *float64, multiplier float64) {
 		if v == nil {
 			return
 		}
-		if *dst == nil || *v < **dst {
-			copied := *v
-			*dst = &copied
+		scaled := *v * multiplier
+		if *dst == nil || scaled < **dst {
+			*dst = &scaled
 		}
 	}
-	minPtr(&item.InputPrice, pricing.InputPrice)
-	minPtr(&item.OutputPrice, pricing.OutputPrice)
-	minPtr(&item.PerRequestPrice, pricing.PerRequestPrice)
+	minScaled(&item.InputPrice, pricing.InputPrice, rate)
+	minScaled(&item.OutputPrice, pricing.OutputPrice, rate)
+	minScaled(&item.PerRequestPrice, pricing.PerRequestPrice, requestRate)
 	for i := range pricing.Intervals {
 		iv := &pricing.Intervals[i]
 		// 多档 token 阶梯按首档口径并入 input/output；按次档位并入单次价。
-		minPtr(&item.InputPrice, iv.InputPrice)
-		minPtr(&item.OutputPrice, iv.OutputPrice)
-		minPtr(&item.PerRequestPrice, iv.PerRequestPrice)
+		minScaled(&item.InputPrice, iv.InputPrice, rate)
+		minScaled(&item.OutputPrice, iv.OutputPrice, rate)
+		minScaled(&item.PerRequestPrice, iv.PerRequestPrice, requestRate)
 	}
 }
 
