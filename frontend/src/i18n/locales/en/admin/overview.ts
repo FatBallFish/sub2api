@@ -542,6 +542,14 @@ export default {
       allGroups: 'All Groups',
       searchGroups: 'Search groups...',
       fuzzySearch: 'Fuzzy search',
+      authIdentityFilter: {
+        title: 'Linked SSO',
+        all: 'SSO: All',
+        linked: 'Linked',
+        notLinked: 'Not linked',
+        wechat: 'WeChat',
+        dingtalk: 'DingTalk'
+      },
       apiKeyGroupFilter: 'API Key Group',
       apiKeyGroupExclusive: 'Exclusive Groups',
       apiKeyGroupPublic: 'Public Groups',

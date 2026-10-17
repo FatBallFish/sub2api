@@ -61,6 +61,25 @@
               />
             </div>
 
+            <!-- Auth Identity Filter (visible when enabled) -->
+            <div v-if="visibleFilters.has('authIdentity')" class="w-full sm:w-40">
+              <Select
+                v-model="filters.authIdentity"
+                :options="[
+                  { value: '', label: t('admin.users.authIdentityFilter.all') },
+                  { value: 'any', label: t('admin.users.authIdentityFilter.linked') },
+                  { value: 'none', label: t('admin.users.authIdentityFilter.notLinked') },
+                  { value: 'oidc', label: 'OIDC' },
+                  { value: 'github', label: 'GitHub' },
+                  { value: 'google', label: 'Google' },
+                  { value: 'linuxdo', label: 'LinuxDo' },
+                  { value: 'wechat', label: t('admin.users.authIdentityFilter.wechat') },
+                  { value: 'dingtalk', label: t('admin.users.authIdentityFilter.dingtalk') }
+                ]"
+                @change="applyFilter"
+              />
+            </div>
+
             <!-- API Key Group Filter (visible when enabled) -->
             <div v-if="visibleFilters.has('apiKeyGroup')" class="w-full sm:w-44">
               <Select
@@ -1171,7 +1190,8 @@ const filters = reactive({
   role: '',
   status: '',
   group: '',  // group name for fuzzy match, '' = all
-  apiKeyGroup: null as number | null  // group id bound to the user's API keys, null = all
+  apiKeyGroup: null as number | null,  // group id bound to the user's API keys, null = all
+  authIdentity: ''  // 关联的三方登录：'' = all, any/none/具体 provider_type
 })
 const activeAttributeFilters = reactive<Record<number, string>>({})
 
@@ -1201,7 +1221,8 @@ const builtInFilters = computed(() => [
   { key: 'role', name: t('admin.users.columns.role'), type: 'select' as const },
   { key: 'status', name: t('admin.users.columns.status'), type: 'select' as const },
   { key: 'group', name: t('admin.users.authorizedGroupFilter'), type: 'select' as const },
-  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const }
+  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const },
+  { key: 'authIdentity', name: t('admin.users.authIdentityFilter.title'), type: 'select' as const }
 ])
 
 // Load saved filters from localStorage
@@ -1218,6 +1239,7 @@ const loadSavedFilters = () => {
     if (savedValues) {
       const parsed = JSON.parse(savedValues)
       if (parsed.role) filters.role = parsed.role
+      if (parsed.authIdentity) filters.authIdentity = parsed.authIdentity
       if (parsed.status) filters.status = parsed.status
       if (parsed.group) filters.group = parsed.group
       if (typeof parsed.apiKeyGroup === 'number') filters.apiKeyGroup = parsed.apiKeyGroup
@@ -1241,6 +1263,7 @@ const saveFiltersToStorage = () => {
       status: filters.status,
       group: filters.group,
       apiKeyGroup: filters.apiKeyGroup,
+      authIdentity: filters.authIdentity,
       attributes: activeAttributeFilters
     }
     localStorage.setItem(FILTER_VALUES_KEY, JSON.stringify(values))
@@ -1657,6 +1680,7 @@ const loadUsers = async () => {
         search: searchQuery.value || undefined,
         group_name: filters.group || undefined,
         api_key_group_id: filters.apiKeyGroup ?? undefined,
+        auth_identity: filters.authIdentity || undefined,
         attributes: Object.keys(attrFilters).length > 0 ? attrFilters : undefined,
         // 始终请求 subscriptions：列隐藏时仍需用于 UserPlatformQuotaModal 的 active-subscription 警示 banner
         include_subscriptions: true,
@@ -1749,6 +1773,7 @@ const toggleBuiltInFilter = (key: string) => {
     if (key === 'status') filters.status = ''
     if (key === 'group') filters.group = ''
     if (key === 'apiKeyGroup') filters.apiKeyGroup = null
+    if (key === 'authIdentity') filters.authIdentity = ''
   } else {
     visibleFilters.add(key)
     if (key === 'group') loadAllGroups()
