@@ -212,6 +212,10 @@ func (s *stubAdminService) BatchUpdateStatus(context.Context, []int64, string) (
 	return 0, nil
 }
 
+func (s *stubAdminService) GetUsersAuthIdentities(ctx context.Context, userIDs []int64) (map[int64][]service.AdminAuthIdentity, error) {
+	return map[int64][]service.AdminAuthIdentity{}, nil
+}
+
 func (s *stubAdminService) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]service.APIKey, int64, error) {
 	return s.apiKeys, int64(len(s.apiKeys)), nil
 }

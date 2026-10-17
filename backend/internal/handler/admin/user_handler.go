@@ -24,6 +24,8 @@ import (
 type UserWithConcurrency struct {
 	dto.AdminUser
 	CurrentConcurrency int `json:"current_concurrency"`
+	// AuthIdentities 仅在 include_auth_identities=true 时返回（关联的三方登录）。
+	AuthIdentities []service.AdminAuthIdentity `json:"auth_identities,omitempty"`
 }
 
 // UserHandler handles admin user management
@@ -172,6 +174,20 @@ func (h *UserHandler) List(c *gin.Context) {
 		return
 	}
 
+	// 「关联的三方登录」列按需加载：仅显式请求时批量取，避免默认 payload 膨胀。
+	var authIdentities map[int64][]service.AdminAuthIdentity
+	if len(users) > 0 && c.DefaultQuery("include_auth_identities", "false") == "true" {
+		ids := make([]int64, len(users))
+		for i := range users {
+			ids[i] = users[i].ID
+		}
+		authIdentities, err = h.adminService.GetUsersAuthIdentities(c.Request.Context(), ids)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+
 	// Batch get current concurrency (nil map if unavailable)
 	var loadInfo map[int64]*service.UserLoadInfo
 	if len(users) > 0 && h.concurrencyService != nil {
@@ -193,6 +209,9 @@ func (h *UserHandler) List(c *gin.Context) {
 		}
 		if info := loadInfo[users[i].ID]; info != nil {
 			out[i].CurrentConcurrency = info.CurrentConcurrency
+		}
+		if authIdentities != nil {
+			out[i].AuthIdentities = authIdentities[users[i].ID]
 		}
 	}
 
