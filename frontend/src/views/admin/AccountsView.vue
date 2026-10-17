@@ -490,6 +490,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -2341,7 +2342,7 @@ const handleExportData = async () => {
           : t('stepUp.notEnabled')
       )
     } else {
-      appStore.showError(error?.message || t('admin.accounts.dataExportFailed'))
+      appStore.showError(extractI18nErrorMessage(error, t, 'admin.accounts', t('admin.accounts.dataExportFailed')))
     }
   } finally {
     exportingData.value = false
@@ -2387,7 +2388,7 @@ const handleDuplicateAccount = async (a: Account) => {
     reload()
   } catch (error: any) {
     console.error('Failed to duplicate account:', error)
-    appStore.showError(error?.message || t('admin.accounts.duplicateFailed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.accounts', t('admin.accounts.duplicateFailed')))
   } finally {
     duplicatingAccountIDs.delete(a.id)
   }
@@ -2410,7 +2411,7 @@ const handleRecoverState = async (a: Account) => {
     appStore.showSuccess(t('admin.accounts.recoverStateSuccess'))
   } catch (error: any) {
     console.error('Failed to recover account state:', error)
-    appStore.showError(error?.message || t('admin.accounts.recoverStateFailed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.accounts', t('admin.accounts.recoverStateFailed')))
   }
 }
 const handleResetQuota = async (a: Account) => {

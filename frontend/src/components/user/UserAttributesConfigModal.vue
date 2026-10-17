@@ -237,6 +237,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -289,7 +290,7 @@ const loadAttributes = async () => {
   try {
     attributes.value = await adminAPI.userAttributes.listDefinitions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.users.attributes.failedToLoad'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users.attributes', t('admin.users.attributes.failedToLoad'), { preferMessage: false }))
   } finally {
     loading.value = false
   }
@@ -395,7 +396,7 @@ const handleDelete = async () => {
     deletingAttribute.value = null
     loadAttributes()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.users.attributes.failedToDelete'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users.attributes', t('admin.users.attributes.failedToDelete'), { preferMessage: false }))
   }
 }
 

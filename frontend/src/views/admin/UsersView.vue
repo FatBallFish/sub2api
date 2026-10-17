@@ -812,6 +812,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -1783,7 +1784,7 @@ const handleToggleStatus = async (user: AdminUser) => {
       row.updated_at = updated.updated_at
     }
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.users.failedToToggle'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users', t('admin.users.failedToToggle'), { preferMessage: false }))
     console.error('Error toggling user status:', error)
   }
 }
@@ -1835,7 +1836,7 @@ const confirmDelete = async () => {
     deletingUser.value = null
     loadUsers()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.users.failedToDelete'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users', t('admin.users.failedToDelete'), { preferMessage: false }))
     console.error('Error deleting user:', error)
   }
 }
@@ -1874,7 +1875,7 @@ const confirmBulkDisable = async () => {
     appStore.showSuccess(t('admin.users.bulkDisable.success', { count: affected }))
     await loadUsers()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.users.bulkDisable.failed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users.bulkDisable', t('admin.users.bulkDisable.failed'), { preferMessage: false }))
     console.error('Error disabling users:', error)
   } finally {
     bulkDisabling.value = false

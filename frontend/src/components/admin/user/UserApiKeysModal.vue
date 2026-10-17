@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, computed, watch, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -224,7 +225,7 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
       appStore.showSuccess(t('admin.users.groupChangedSuccess'))
     }
   } catch (error: any) {
-    appStore.showError(error?.message || t('admin.users.groupChangeFailed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.users', t('admin.users.groupChangeFailed')))
   } finally {
     updatingKeyIds.value.delete(key.id)
   }
