@@ -122,8 +122,8 @@ func (s *OIDCUserSyncService) findKeycloakUser(ctx context.Context, cfg *oidcUse
 		return keycloakUserSummary{}, err
 	}
 	type kcUser struct {
-		ID         string              `json:"id"`
-		Attributes map[string][]string `json:"attributes"`
+		ID         string         `json:"id"`
+		Attributes map[string]any `json:"attributes"`
 	}
 	var users []kcUser
 	resp, err := req.C().SetTimeout(10*time.Second).R().SetContext(ctx).
@@ -144,11 +144,23 @@ func (s *OIDCUserSyncService) findKeycloakUser(ctx context.Context, cfg *oidcUse
 	if err != nil {
 		return keycloakUserSummary{}, err
 	}
-	origin := ""
-	if vals := found.Attributes["origin"]; len(vals) > 0 {
-		origin = strings.TrimSpace(vals[0])
-	}
+	origin := strings.TrimSpace(firstAttributeString(found.Attributes["origin"]))
 	return keycloakUserSummary{ID: found.ID, HasPassword: createdAt != nil, Origin: origin}, nil
+}
+
+// firstAttributeString 归一化 Keycloak 属性值：单值字符串或字符串数组均取第一个。
+func firstAttributeString(v any) string {
+	switch typed := v.(type) {
+	case string:
+		return typed
+	case []any:
+		if len(typed) > 0 {
+			if s, ok := typed[0].(string); ok {
+				return s
+			}
+		}
+	}
+	return ""
 }
 
 type kcCredential struct {
@@ -203,7 +215,8 @@ func (s *OIDCUserSyncService) createKeycloakUser(ctx context.Context, cfg *oidcU
 		"lastName":      "sub2api",
 	}
 	if origin != "" {
-		body["attributes"] = map[string][]string{"origin": {origin}}
+		// origin 为单值属性（非多值数组），与 Keycloak 用户字段的配置保持一致。
+		body["attributes"] = map[string]string{"origin": origin}
 	}
 	resp, err := req.C().SetTimeout(10*time.Second).R().SetContext(ctx).
 		SetHeader("Authorization", "Bearer "+token).
