@@ -97,7 +97,6 @@ const zhTW = {
       userRateBadge: "專屬倍率",
       peakRateBadge: "尖峰時段 {{start}}-{{end}} {{rate}}",
       timePricingBadge: "分時倍率（{{timezone}}）",
-      lowestPrice: "目前最低價",
       limitedDescription: "登入後可查看各分組的詳細價格與倍率。",
       limitedHint: "模型廣場目前僅對登入使用者公開完整價格。下方顯示每個模型目前的最低實付價格，登入後即可查看具體分組、倍率與快取價格。",
       notAvailable: "模型價格頁目前未開放。",

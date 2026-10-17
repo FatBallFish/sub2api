@@ -96,7 +96,6 @@ const en = {
       userRateBadge: "Personal rate",
       peakRateBadge: "Peak {{start}}-{{end}} {{rate}}",
       timePricingBadge: "Time-based rate ({{timezone}})",
-      lowestPrice: "Current lowest price",
       limitedDescription: "Sign in to see detailed prices and multipliers per group.",
       limitedHint: "The model plaza currently shows full pricing to signed-in users only. The table below lists each model's current lowest paid price; sign in to see groups, multipliers and cache pricing.",
       notAvailable: "Model pricing is not available right now.",

@@ -10,9 +10,10 @@ import {
   type PlazaPricingInterval,
   type PlazaTimePricingPeriod,
 } from "../../api/modelPlaza";
-import { formatCurrency } from "../../utils/format";
+import { formatCurrency, formatNumber } from "../../utils/format";
 import { localizedErrorMessage } from "../../utils/localizedError";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isAuthenticated } from "../../utils/authStorage";
 
 const PER_MILLION = 1_000_000;
 
@@ -26,12 +27,21 @@ function formatUSD(value: number) {
  */
 function formatPrice(value: number) {
   for (let digits = 2; digits <= 6; digits += 1) {
-    const formatted = value.toFixed(digits);
-    if (Number(formatted) === value) {
-      return formatUSD(Number(formatted));
+    if (Number(value.toFixed(digits)) === value) {
+      return formatNumber(value, undefined, {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: digits,
+      });
     }
   }
-  return formatUSD(Number(value.toFixed(6)));
+  return formatNumber(Number(value.toFixed(6)), undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  });
 }
 
 /** $/1M token 实付价：基础价 × 生效倍率。 */
@@ -381,44 +391,175 @@ function GroupSection({ group }: { group: ModelPlazaGroup }) {
   );
 }
 
-/** 未公开（要求登录）时的匿名最低价视图（价格已按分组倍率折算）。 */
-function LimitedSummaryTable({ summary }: { summary: ModelPlazaSummaryItem[] }) {
-  const { t } = useTranslation("public");
-  if (summary.length === 0) {
-    return (
-      <div className="border-2 border-dashed border-zinc-100 rounded-[2.5rem] py-20 text-center">
-        <p className="text-sm text-zinc-400">{t("modelPricing.empty")}</p>
-      </div>
-    );
+/** 匿名扁平视图的行：站点价取自倍率最低的公开分组（价格已按该组倍率折算）。 */
+type AnonymousFlatRow = {
+  key: string;
+  name: string;
+  platform: string;
+  /** 按次/图片模型的单次价（已折算），token 模型为空。 */
+  perRequest?: string;
+  paidInput?: string;
+  paidOutput?: string;
+  paidCache?: string;
+  officialInput?: string;
+  officialOutput?: string;
+  officialCache?: string;
+};
+
+/**
+ * 匿名视图行构造：
+ * - require_auth 场景：后端 summary 已按各分组倍率折算并取最低，直接展示；
+ * - 公开可访问场景：本地把分组按生效倍率升序遍历，同模型先见者胜（即最低倍率组），
+ *   仅当低价组无定价时才用更高倍率组的定价补位；价格 = 基础价 × 该组生效倍率。
+ */
+function buildAnonymousRows(data: ModelPlazaResponse | null): AnonymousFlatRow[] {
+  if (!data) return [];
+  if (data.limited) {
+    return (data.summary ?? []).map((item) => ({
+      key: `${item.platform}:${item.name}`,
+      name: item.name,
+      platform: item.platform,
+      paidInput: item.input_price != null ? formatPrice(item.input_price * PER_MILLION) : undefined,
+      paidOutput: item.output_price != null ? formatPrice(item.output_price * PER_MILLION) : undefined,
+      perRequest: item.per_request_price != null ? formatPrice(item.per_request_price) : undefined,
+    }));
   }
+  const groups = [...(data.groups ?? [])].sort((a, b) => effectiveRate(a) - effectiveRate(b));
+  const byKey = new Map<string, { model: PlazaModel; group: ModelPlazaGroup; rate: number }>();
+  for (const g of groups) {
+    for (const m of g.models ?? []) {
+      const key = `${m.platform}:${m.name}`;
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, { model: m, group: g, rate: effectiveRate(g) });
+        continue;
+      }
+      if (existing.model.pricing == null && m.pricing != null) {
+        byKey.set(key, { model: m, group: g, rate: effectiveRate(g) });
+      } else if (existing.model.official_pricing == null && m.official_pricing != null) {
+        existing.model = { ...existing.model, official_pricing: m.official_pricing };
+      }
+    }
+  }
+  const rows: AnonymousFlatRow[] = [];
+  byKey.forEach((entry, key) => {
+    const { model, group, rate } = entry;
+    const official = model.official_pricing;
+    const officialTiers = officialIntervals(model);
+    const firstOfficialTier = officialTiers[0];
+    if (isRequestBilled(model)) {
+      const tiers = requestTiers(model);
+      const perRequest = model.pricing?.per_request_price != null
+        ? formatPrice(model.pricing.per_request_price * requestRate(model, group))
+        : tiers[0]?.per_request_price != null
+          ? formatPrice((tiers[0].per_request_price ?? 0) * requestRate(model, group))
+          : undefined;
+      rows.push({ key, name: model.name, platform: model.platform, perRequest });
+      return;
+    }
+    const tiers = tokenIntervals(model);
+    const firstTier = tiers[0];
+    rows.push({
+      key,
+      name: model.name,
+      platform: model.platform,
+      paidInput: paidPerMillion(firstTier?.input_price ?? model.pricing?.input_price, rate),
+      paidOutput: paidPerMillion(firstTier?.output_price ?? model.pricing?.output_price, rate),
+      paidCache: firstTier?.cache_write_price != null || firstTier?.cache_read_price != null
+        ? `${paidPerMillion(firstTier.cache_write_price, rate)} / ${paidPerMillion(firstTier.cache_read_price, rate)}`
+        : model.pricing?.cache_write_price != null || model.pricing?.cache_read_price != null
+          ? `${paidPerMillion(model.pricing.cache_write_price, rate)} / ${paidPerMillion(model.pricing.cache_read_price, rate)}`
+          : undefined,
+      officialInput: officialPerMillion(firstOfficialTier?.input_price ?? official?.input_price),
+      officialOutput: officialPerMillion(firstOfficialTier?.output_price ?? official?.output_price),
+      officialCache: firstOfficialTier?.cache_write_price != null || firstOfficialTier?.cache_read_price != null || official?.cache_write_price != null || official?.cache_read_price != null
+        ? `${officialPerMillion(firstOfficialTier?.cache_write_price ?? official?.cache_write_price)} / ${officialPerMillion(firstOfficialTier?.cache_read_price ?? official?.cache_read_price)}`
+        : undefined,
+    });
+  });
+  return rows.sort((a, b) => a.platform.localeCompare(b.platform) || a.name.localeCompare(b.name));
+}
+
+/** 匿名视图表格：模型 + 站点价（最低倍率组折算）+ 官方参考价，不含分组与倍率。 */
+function AnonymousPricingTable({ rows, platforms, platform, onPlatformChange }: {
+  rows: AnonymousFlatRow[];
+  platforms: string[];
+  platform: string;
+  onPlatformChange: (next: string) => void;
+}) {
+  const { t } = useTranslation("public");
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-      <table className="w-full border-collapse text-left">
-        <thead>
-          <tr className="border-b border-zinc-200 bg-zinc-50/50">
-            <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{t("modelPricing.model")}</th>
-            <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-900">
-              {t("modelPricing.lowestPrice")}
-              <span className="ml-1.5 font-mono text-[9px] normal-case tracking-normal text-zinc-400">{t("modelPricing.unitPerMillion")}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100">
-          {summary.map((item) => (
-            <tr key={`${item.platform}-${item.name}`} className="transition-colors hover:bg-zinc-50/50">
-              <td className="px-6 py-4">
-                <span className="font-mono text-sm font-medium text-zinc-900">{item.name}</span>
-                {item.platform ? <span className="ml-3 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">{item.platform}</span> : null}
-              </td>
-              <td className="px-6 py-4 text-sm font-bold text-zinc-900">
-                {item.per_request_price != null
-                  ? `${formatPrice(item.per_request_price)} / ${t("modelPricing.perRequest")}`
-                  : `${paidPerMillion(item.input_price, 1)} / ${paidPerMillion(item.output_price, 1)}`}
-              </td>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{t("modelPricing.platformLabel")}</span>
+        <button
+          type="button"
+          onClick={() => onPlatformChange("all")}
+          className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${chipClass(platform === "all")}`}
+        >
+          {t("modelPricing.allOption")}
+        </button>
+        {platforms.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPlatformChange(p)}
+            className={`rounded-full px-3.5 py-1.5 font-mono text-sm font-semibold transition ${chipClass(platform === p)}`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <table className="w-full min-w-[760px] border-collapse text-left">
+          <thead>
+            <tr className="border-b border-zinc-200 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <th rowSpan={2} className="py-4 pl-5 pr-4 align-middle">{t("modelPricing.model")}</th>
+              <th colSpan={3} className="border-l border-zinc-100 px-4 py-4 text-center align-middle text-zinc-900">
+                {t("modelPricing.sitePrice")}
+                <span className="ml-1.5 font-mono text-[9px] normal-case tracking-normal text-zinc-400">{t("modelPricing.unitPerMillion")}</span>
+              </th>
+              <th colSpan={3} className="border-l border-zinc-100 px-4 py-4 text-center align-middle">
+                {t("modelPricing.officialPrice")}
+                <span className="ml-1.5 font-mono text-[9px] normal-case tracking-normal text-zinc-400">{t("modelPricing.unitPerMillion")}</span>
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+            <tr className="border-b border-zinc-200 bg-zinc-50/50 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <th className="border-l border-zinc-100 px-4 py-3">{t("modelPricing.colInput")}</th>
+              <th className="px-4 py-3">{t("modelPricing.colOutput")}</th>
+              <th className="px-4 py-3">{t("modelPricing.colCache")}</th>
+              <th className="border-l border-zinc-100 px-4 py-3">{t("modelPricing.colInput")}</th>
+              <th className="px-4 py-3">{t("modelPricing.colOutput")}</th>
+              <th className="px-4 py-3">{t("modelPricing.colCache")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key} className="transition-colors hover:bg-zinc-50/50">
+                <td className="border-r border-zinc-100 py-4 pl-5 pr-4">
+                  <span className="font-mono text-sm font-medium text-zinc-900">{row.name}</span>
+                  {row.platform ? <span className="ml-2.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">{row.platform}</span> : null}
+                </td>
+                {row.perRequest != null ? (
+                  <td colSpan={3} className="px-4 py-4 font-mono text-sm font-semibold text-zinc-900">
+                    {row.perRequest}
+                    <span className="ml-1 text-xs font-medium text-zinc-400">/ {t("modelPricing.perRequest")}</span>
+                  </td>
+                ) : (
+                  <>
+                    <td className="px-4 py-4 font-mono text-sm font-semibold text-zinc-900">{row.paidInput ?? "-"}</td>
+                    <td className="px-4 py-4 font-mono text-sm font-semibold text-zinc-900">{row.paidOutput ?? "-"}</td>
+                    <td className="px-4 py-4 font-mono text-xs text-zinc-700">{row.paidCache ?? "-"}</td>
+                  </>
+                )}
+                <td className="border-l border-zinc-100 px-4 py-4 font-mono text-sm text-zinc-400">{row.officialInput ?? "-"}</td>
+                <td className="px-4 py-4 font-mono text-sm text-zinc-400">{row.officialOutput ?? "-"}</td>
+                <td className="px-4 py-4 font-mono text-xs text-zinc-400">{row.officialCache ?? "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -595,6 +736,9 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
   const [data, setData] = React.useState<ModelPlazaResponse | null>(null);
   const [error, setError] = React.useState<{ cause: unknown } | null>(null);
   const [filter, setFilter] = useState<FilterState>({ platform: "all", groupId: "all", rate: "all", search: "" });
+  // 匿名视图：不暴露分组与倍率，站点价取倍率最低的公开分组；登录后恢复完整分组视图。
+  const signedIn = isConsole || isAuthenticated();
+  const [anonPlatform, setAnonPlatform] = useState("all");
   usePageTitle(t("modelPricing.heading"));
 
   React.useEffect(() => {
@@ -613,6 +757,20 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
     };
   }, []);
 
+  const anonymousRows = useMemo(
+    () => (signedIn ? [] : buildAnonymousRows(data)),
+    [signedIn, data],
+  );
+  const anonPlatforms = useMemo(() => {
+    const source = data?.limited
+      ? (data.summary ?? []).map((item) => item.platform)
+      : anonymousRows.map((row) => row.platform);
+    return [...new Set(source.filter(Boolean))].sort();
+  }, [data, anonymousRows]);
+  const visibleAnonymousRows = useMemo(
+    () => (anonPlatform === "all" ? anonymousRows : anonymousRows.filter((row) => row.platform === anonPlatform)),
+    [anonymousRows, anonPlatform],
+  );
   const platforms = useMemo(
     () => [...new Set((data?.groups ?? []).map((g) => g.platform).filter(Boolean))].sort(),
     [data],
@@ -641,7 +799,8 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
   }, [data, filter]);
 
   const isNotFound = error !== null && (error.cause as { status?: number })?.status === 404;
-  const isLimited = data?.limited === true;
+  // 匿名视图覆盖两种来源：require_auth 的 limited 摘要与公开访问的本地最低倍率折算。
+  const anonymousView = !signedIn && data !== null && (data.limited === true || (data.groups ?? []).length > 0);
 
   return (
     <div className={isConsole ? "space-y-8" : "pt-32 pb-24 px-8 max-w-7xl mx-auto"}>
@@ -649,17 +808,24 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
         <div className="mb-2">
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{t("modelPricing.heading")}</h1>
           <p className="mt-2 text-zinc-500 max-w-2xl leading-relaxed">
-            {isLimited ? t("modelPricing.limitedDescription") : t("modelPricing.description")}
+            {anonymousView ? t("modelPricing.limitedDescription") : t("modelPricing.description")}
           </p>
         </div>
 
-        {isLimited ? (
+        {anonymousView ? (
           <>
-            <div className="flex items-start gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/70 px-5 py-4">
-              <Info size={20} className="mt-0.5 shrink-0 text-zinc-400" />
-              <p className="text-sm leading-relaxed text-zinc-500">{t("modelPricing.limitedHint")}</p>
-            </div>
-            {data ? <LimitedSummaryTable summary={data.summary ?? []} /> : null}
+            {data?.limited ? (
+              <div className="flex items-start gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/70 px-5 py-4">
+                <Info size={20} className="mt-0.5 shrink-0 text-zinc-400" />
+                <p className="text-sm leading-relaxed text-zinc-500">{t("modelPricing.limitedHint")}</p>
+              </div>
+            ) : null}
+            <AnonymousPricingTable
+              rows={visibleAnonymousRows}
+              platforms={anonPlatforms}
+              platform={anonPlatform}
+              onPlatformChange={setAnonPlatform}
+            />
           </>
         ) : (
           <>

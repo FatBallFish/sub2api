@@ -97,7 +97,6 @@ const ja = {
       userRateBadge: "専用倍率",
       peakRateBadge: "ピーク時間 {{start}}-{{end}} {{rate}}",
       timePricingBadge: "時間帯倍率（{{timezone}}）",
-      lowestPrice: "現在の最安値",
       limitedDescription: "ログインすると各グループの詳細な料金と倍率を確認できます。",
       limitedHint: "モデル広場は現在、ログインユーザーにのみ完全な料金を公開しています。以下には各モデルの現在の最低実費を表示します。ログインするとグループ・倍率・キャッシュ料金を確認できます。",
       notAvailable: "モデル料金ページは現在公開されていません。",
