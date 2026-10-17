@@ -309,6 +309,7 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
       installGuide: "インストールガイド",
     },
     security: {
+      bind: "連携する",
       noneLinked: "サードパーティログインは連携されていません",
       accountTitle: "アカウントとセキュリティ",
       accountDescription: "サードパーティログインの連携とパスワードを管理します。",
@@ -495,6 +496,8 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
     authForgotPasswordFailed: "リセットメールの送信に失敗しました。",
     authResetPasswordFailed: "パスワードのリセットに失敗しました。",
     securityUnbindFailed: "連携解除に失敗しました。再試行してください。",
+
+    securityBindFailed: "連携の開始に失敗しました。再試行してください。",
     securityChangeFailed: "パスワードの変更に失敗しました。",
     publicPricingLoadFailed: "料金情報を読み込めませんでした。",
     modelPricingLoadFailed: "モデル料金を読み込めませんでした。",
