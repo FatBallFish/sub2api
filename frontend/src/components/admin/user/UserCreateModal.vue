@@ -70,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'; import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
@@ -111,7 +112,7 @@ const submit = async () => {
           : t('stepUp.notEnabled')
       )
     } else {
-      appStore.showError(e?.message || t('admin.users.failedToCreate'))
+      appStore.showError(extractI18nErrorMessage(e, t, 'admin.users', t('admin.users.failedToCreate')))
     }
   } finally { loading.value = false }
 }

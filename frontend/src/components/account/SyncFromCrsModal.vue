@@ -241,6 +241,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -356,7 +357,7 @@ const handlePreview = async () => {
     selectedIds.value = new Set(res.new_accounts.map((a) => a.crs_account_id))
     currentStep.value = 'preview'
   } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.crsPreviewFailed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.accounts', t('admin.accounts.crsPreviewFailed')))
   } finally {
     previewing.value = false
   }
@@ -387,7 +388,7 @@ const handleSync = async () => {
     }
     emit('synced')
   } catch (error: any) {
-    appStore.showError(error?.message || t('admin.accounts.syncFailed'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.accounts', t('admin.accounts.syncFailed')))
   } finally {
     syncing.value = false
   }

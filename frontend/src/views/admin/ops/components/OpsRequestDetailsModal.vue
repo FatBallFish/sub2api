@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, ref, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -98,7 +99,7 @@ const fetchData = async () => {
     refreshAccountNames()
   } catch (e: any) {
     console.error('[OpsRequestDetailsModal] Failed to fetch request details', e)
-    appStore.showError(e?.message || t('admin.ops.requestDetails.failedToLoad'))
+    appStore.showError(extractI18nErrorMessage(e, t, 'admin.ops.requestDetails', t('admin.ops.requestDetails.failedToLoad')))
     items.value = []
     total.value = 0
   } finally {

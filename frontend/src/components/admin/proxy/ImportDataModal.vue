@@ -85,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -200,7 +201,7 @@ const handleImport = async () => {
     if (error instanceof SyntaxError) {
       appStore.showError(t('admin.proxies.dataImportParseFailed'))
     } else {
-      appStore.showError(error?.message || t('admin.proxies.dataImportFailed'))
+      appStore.showError(extractI18nErrorMessage(error, t, 'admin.proxies', t('admin.proxies.dataImportFailed')))
     }
   } finally {
     importing.value = false

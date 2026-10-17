@@ -1007,6 +1007,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -1652,7 +1653,7 @@ const handleAssignSubscription = async () => {
     loadSubscriptions()
     loadGlobalPlanAssignments()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAssign'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.subscriptions', t('admin.subscriptions.failedToAssign'), { preferMessage: false }))
     console.error('Error assigning subscription:', error)
   } finally {
     submitting.value = false
@@ -1707,7 +1708,7 @@ const handleExtendSubscription = async () => {
     closeExtendModal()
     await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToAdjust'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.subscriptions', t('admin.subscriptions.failedToAdjust'), { preferMessage: false }))
     console.error('Error adjusting subscription:', error)
   } finally {
     submitting.value = false
@@ -1741,7 +1742,7 @@ const confirmRevoke = async () => {
     revokingGlobalPlan.value = null
     await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToRevoke'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.subscriptions', t('admin.subscriptions.failedToRevoke'), { preferMessage: false }))
     console.error('Error revoking subscription:', error)
   }
 }
@@ -1761,7 +1762,7 @@ const confirmRestore = async () => {
     restoringSubscription.value = null
     loadSubscriptions()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToRestore'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.subscriptions', t('admin.subscriptions.failedToRestore'), { preferMessage: false }))
     console.error('Error restoring subscription:', error)
   }
 }
@@ -1794,7 +1795,7 @@ const confirmResetQuota = async () => {
     resettingGlobalPlan.value = null
     await Promise.all([loadSubscriptions(), loadGlobalPlanAssignments()])
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToResetQuota'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.subscriptions', t('admin.subscriptions.failedToResetQuota'), { preferMessage: false }))
     console.error('Error resetting quota:', error)
   } finally {
     resettingQuota.value = false
