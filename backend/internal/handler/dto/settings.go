@@ -436,6 +436,7 @@ type PublicSettings struct {
 	OIDCOAuthEnabled                    bool                     `json:"oidc_oauth_enabled"`
 	OIDCOAuthProviderName               string                   `json:"oidc_oauth_provider_name"`
 	OIDCConsoleOAuthEnabled             bool                     `json:"oidc_console_oauth_enabled"`
+	PasswordLoginDisabled               bool                     `json:"password_login_disabled"`
 	OIDCConsoleOAuthProviderName        string                   `json:"oidc_console_oauth_provider_name"`
 	GitHubOAuthEnabled                  bool                     `json:"github_oauth_enabled"`
 	GoogleOAuthEnabled                  bool                     `json:"google_oauth_enabled"`
