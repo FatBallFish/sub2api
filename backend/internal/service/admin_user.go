@@ -513,6 +513,38 @@ func (s *adminServiceImpl) BatchUpdateLimits(ctx context.Context, userIDs []int6
 	return affected, nil
 }
 
+// GetUsersAuthIdentities 批量取用户绑定的三方登录身份（排除本地 email 身份），
+// 供管理端用户列表展示「关联的三方登录」列。
+func (s *adminServiceImpl) GetUsersAuthIdentities(ctx context.Context, userIDs []int64) (map[int64][]AdminAuthIdentity, error) {
+	out := make(map[int64][]AdminAuthIdentity, len(userIDs))
+	if s.entClient == nil || len(userIDs) == 0 {
+		return out, nil
+	}
+	records, err := s.entClient.AuthIdentity.Query().
+		Where(
+			authidentity.UserIDIn(userIDs...),
+			authidentity.ProviderTypeNEQ("email"),
+		).
+		Order(dbent.Asc(authidentity.FieldProviderType), dbent.Asc(authidentity.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list user auth identities: %w", err)
+	}
+	for _, r := range records {
+		issuer := ""
+		if r.Issuer != nil {
+			issuer = *r.Issuer
+		}
+		out[r.UserID] = append(out[r.UserID], AdminAuthIdentity{
+			ProviderType:    r.ProviderType,
+			ProviderKey:     r.ProviderKey,
+			ProviderSubject: r.ProviderSubject,
+			Issuer:          issuer,
+		})
+	}
+	return out, nil
+}
+
 // BatchUpdateStatus 批量启用/禁用用户。admin 账号与已是目标状态的用户由 SQL 跳过；
 // 禁用立即生效依赖 auth 缓存失效 + JWT 中间件的 IsActive 校验，与单个更新口径一致。
 func (s *adminServiceImpl) BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error) {

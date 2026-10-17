@@ -608,6 +608,7 @@ export default {
         subscriptions: 'Subscriptions',
         balance: 'Balance',
         balancePlatformQuota: 'Balance (Platform Quota)',
+        authIdentities: 'Linked SSO',
         usage: 'Usage',
         usageAnthropic: 'Usage (Claude)',
         usageOpenAI: 'Usage (OpenAI)',
