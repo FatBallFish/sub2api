@@ -322,7 +322,7 @@ const en = {
       unbind: "Unbind",
       lastMethodHint: "This is the only available sign-in method (local email sign-in is unavailable). Link another sign-in method or set an email password before unbinding.",
       loading: "Loading...",
-      title: "Security",
+      title: "Password",
       description: "Change the password for your account.",
       currentPassword: "Current Password",
       newPassword: "New Password",
@@ -334,7 +334,7 @@ const en = {
       changedDescription: "Your password has been updated and other sessions were signed out.",
     },
     shell: {
-      menuSecurity: "Reset password",
+      menuSecurity: "Account & security",
       driftBanner: "Your identity provider password changed. Reset the console password to keep both in sync.",
       driftBannerAction: "Reset now",
       console: "Console",

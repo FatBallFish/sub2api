@@ -423,6 +423,7 @@ export interface SystemSettings {
   registration_enabled: boolean;
   password_login_disabled: boolean;
   oidc_user_sync_enabled: boolean;
+  oidc_drift_invalidation_enabled: boolean;
   oidc_user_sync_admin_url: string;
   oidc_user_sync_realm: string;
   oidc_user_sync_client_id: string;
@@ -805,6 +806,7 @@ export interface UpdateSettingsRequest {
   email_verify_enabled?: boolean;
   password_login_disabled?: boolean;
   oidc_user_sync_enabled?: boolean;
+  oidc_drift_invalidation_enabled?: boolean;
   oidc_user_sync_admin_url?: string;
   oidc_user_sync_realm?: string;
   oidc_user_sync_client_id?: string;

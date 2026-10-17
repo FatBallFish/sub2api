@@ -122,6 +122,7 @@ type UpdateSettingsRequest struct {
 	OAuthSignupBypassRegistration   bool   `json:"oauth_signup_bypass_registration"`
 	PasswordLoginDisabled           bool   `json:"password_login_disabled"`
 	OIDCUserSyncEnabled             bool   `json:"oidc_user_sync_enabled"`
+	OIDCDriftInvalidationEnabled    bool   `json:"oidc_drift_invalidation_enabled"`
 	OIDCUserSyncAdminURL            string `json:"oidc_user_sync_admin_url"`
 	OIDCUserSyncRealm               string `json:"oidc_user_sync_realm"`
 	OIDCUserSyncClientID            string `json:"oidc_user_sync_client_id"`
@@ -1727,6 +1728,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OAuthSignupBypassRegistration:          req.OAuthSignupBypassRegistration,
 		PasswordLoginDisabled:                  req.PasswordLoginDisabled,
 		OIDCUserSyncEnabled:                    req.OIDCUserSyncEnabled,
+		OIDCDriftInvalidationEnabled:           req.OIDCDriftInvalidationEnabled,
 		OIDCUserSyncAdminURL:                   strings.TrimSpace(req.OIDCUserSyncAdminURL),
 		OIDCUserSyncRealm:                      strings.TrimSpace(req.OIDCUserSyncRealm),
 		OIDCUserSyncClientID:                   strings.TrimSpace(req.OIDCUserSyncClientID),
@@ -2413,6 +2415,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OAuthSignupBypassRegistration:                          updatedSettings.OAuthSignupBypassRegistration,
 		PasswordLoginDisabled:                                  updatedSettings.PasswordLoginDisabled,
 		OIDCUserSyncEnabled:                                    updatedSettings.OIDCUserSyncEnabled,
+		OIDCDriftInvalidationEnabled:                           updatedSettings.OIDCDriftInvalidationEnabled,
 		OIDCUserSyncAdminURL:                                   updatedSettings.OIDCUserSyncAdminURL,
 		OIDCUserSyncRealm:                                      updatedSettings.OIDCUserSyncRealm,
 		OIDCUserSyncClientID:                                   updatedSettings.OIDCUserSyncClientID,
