@@ -216,6 +216,10 @@ func (s *stubAdminService) GetUsersAuthIdentities(ctx context.Context, userIDs [
 	return map[int64][]service.AdminAuthIdentity{}, nil
 }
 
+func (s *stubAdminService) UnbindUserAuthIdentity(ctx context.Context, userID, identityID int64) error {
+	return nil
+}
+
 func (s *stubAdminService) GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]service.APIKey, int64, error) {
 	return s.apiKeys, int64(len(s.apiKeys)), nil
 }

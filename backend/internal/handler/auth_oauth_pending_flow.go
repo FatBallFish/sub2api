@@ -1798,6 +1798,12 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 		strings.TrimSpace(req.InvitationCode),
 		strings.TrimSpace(session.ProviderType),
 	)
+	if err == nil {
+		// pending 创建账号成功：当场同步到 OIDC（建号+设密码）。
+		h.oidcSyncAsync(strings.ToLower(strings.TrimSpace(email)), func(ctx context.Context, svc *service.OIDCUserSyncService, syncEmail string) {
+			svc.SyncLogin(ctx, syncEmail, req.Password)
+		})
+	}
 	if err != nil {
 		if errors.Is(err, service.ErrEmailExists) {
 			existingUser, lookupErr := findUserByNormalizedEmail(c.Request.Context(), client, email)

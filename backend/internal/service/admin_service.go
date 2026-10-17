@@ -24,6 +24,7 @@ type AdminService interface {
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
 	BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error)
 	GetUsersAuthIdentities(ctx context.Context, userIDs []int64) (map[int64][]AdminAuthIdentity, error)
+	UnbindUserAuthIdentity(ctx context.Context, userID, identityID int64) error
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
@@ -198,6 +199,7 @@ type UpdateUserInput struct {
 
 // AdminAuthIdentity 用户已绑定三方登录身份的摘要（不含本地 email 身份）。
 type AdminAuthIdentity struct {
+	ID              int64  `json:"id"`
 	ProviderType    string `json:"provider_type"`
 	ProviderKey     string `json:"provider_key"`
 	ProviderSubject string `json:"provider_subject"`

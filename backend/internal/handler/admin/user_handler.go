@@ -742,6 +742,26 @@ func (h *UserHandler) BatchUpdateStatus(c *gin.Context) {
 	response.Success(c, gin.H{"affected": affected})
 }
 
+// UnbindAuthIdentity 解绑用户的某条三方登录身份。
+// DELETE /api/v1/admin/users/:id/auth-identities/:identityId
+func (h *UserHandler) UnbindAuthIdentity(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "invalid user id")
+		return
+	}
+	identityID, err := strconv.ParseInt(c.Param("identityId"), 10, 64)
+	if err != nil || identityID <= 0 {
+		response.BadRequest(c, "invalid identity id")
+		return
+	}
+	if err := h.adminService.UnbindUserAuthIdentity(c.Request.Context(), userID, identityID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"unbound": true})
+}
+
 // GetUserPlatformQuotas GET /admin/users/:id/platform-quotas
 // admin 视角：D14 lazy 归零 + 暴露 *_window_start 调试字段
 func (h *UserHandler) GetUserPlatformQuotas(c *gin.Context) {
