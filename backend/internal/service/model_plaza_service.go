@@ -101,11 +101,13 @@ func concreteRequestPlatforms() []string {
 	return domain.ConcretePlatformIDs()
 }
 
-// accountDisplayModels 按平台枚举账号侧可供展示的模型名集合：
-// 全站活跃账号的模型白名单（credentials.model_mapping 的 key）按账号平台归类，
-// 其中通过「同步上游模型」自动合并进白名单的条目（存在于该账号的上游模型快照中）
-// 跳过——这类条目是上游站点整单目录的镜像，通常并非运营者想主动展示的清单。
-func (s *ModelPlazaService) accountDisplayModels(ctx context.Context) map[string]map[string]struct{} {
+// accountDisplayModels 按分组归属枚举账号侧可供展示的模型名集合：
+// 仅遍历活跃账号的模型白名单（credentials.model_mapping 的 key），空映射（透传/
+// 未配置模型列表）的账号不贡献任何模型；其中通过「同步上游模型」自动合并进白名单
+// 的条目（存在于该账号的上游模型快照中）跳过——这类条目是上游站点整单目录的
+// 镜像，通常并非运营者想主动展示的清单。结果按「账号所属分组（account_groups）
+// × 账号平台」组织，只有挂在该分组下的账号模型才会进入该分组的展示清单。
+func (s *ModelPlazaService) accountDisplayModels(ctx context.Context) map[int64]map[string]map[string]struct{} {
 	if s.accountRepo == nil {
 		return nil
 	}
@@ -114,11 +116,11 @@ func (s *ModelPlazaService) accountDisplayModels(ctx context.Context) map[string
 		// 账号清单拿不到时退化为仅渠道定价口径，不影响广场主链路。
 		return nil
 	}
-	out := make(map[string]map[string]struct{})
+	out := make(map[int64]map[string]map[string]struct{})
 	for i := range accounts {
 		acc := &accounts[i]
 		platform := strings.TrimSpace(acc.Platform)
-		if platform == "" {
+		if platform == "" || len(acc.GroupIDs) == 0 {
 			continue
 		}
 		var synced map[string]struct{}
@@ -136,10 +138,15 @@ func (s *ModelPlazaService) accountDisplayModels(ctx context.Context) map[string
 			if _, isSynced := synced[name]; isSynced {
 				continue
 			}
-			if out[platform] == nil {
-				out[platform] = make(map[string]struct{})
+			for _, gid := range acc.GroupIDs {
+				if out[gid] == nil {
+					out[gid] = make(map[string]map[string]struct{})
+				}
+				if out[gid][platform] == nil {
+					out[gid][platform] = make(map[string]struct{})
+				}
+				out[gid][platform][name] = struct{}{}
 			}
-			out[platform][name] = struct{}{}
 		}
 	}
 	return out
@@ -252,9 +259,11 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 		}
 	}
 
-	// 账号白名单模型并入各平台分组：渠道定价未配置但账号可服务的模型也进入展示清单，
-	// 展示定价由 fillDisplayPricing 的解析链回落到系统默认价（含分组倍率）。
-	accountModels := s.accountDisplayModels(ctx)
+	// 账号白名单模型并入其所属分组（account_groups）：仅挂在该分组下的账号模型进入
+	// 该分组的展示清单（composite 分组展开具体平台，普通分组按平台隔离）；
+	// 渠道定价未配置但账号可服务的模型也进入展示清单，展示定价由 fillDisplayPricing
+	// 的解析链回落到系统默认价（含分组倍率）。
+	accountModelsByGroup := s.accountDisplayModels(ctx)
 	for _, gid := range order {
 		pg := byGroup[gid]
 		platforms := []string{pg.Platform}
@@ -262,7 +271,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 			platforms = concreteRequestPlatforms()
 		}
 		for _, platform := range platforms {
-			names := accountModels[platform]
+			names := accountModelsByGroup[gid][platform]
 			if len(names) == 0 {
 				continue
 			}
