@@ -78,7 +78,7 @@ describe("ModelPricing page", () => {
 
     // paid in/out per million = 3 / 15 (paid and official columns both match this data)
     expect(screen.getAllByText("$3 / $15").length).toBeGreaterThan(0);
-    expect(screen.getByText("Standard")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Standard", level: 3 })).toBeInTheDocument();
     expect(screen.getByText("Group multiplier: 1.500x")).toBeInTheDocument();
   });
 
