@@ -20,7 +20,7 @@ import StripePayment from "./pages/public/StripePayment";
 import ConsoleLayout from "./layouts/ConsoleLayout";
 import Overview from "./pages/console/Overview";
 import ApiKeys from "./pages/console/ApiKeys";
-import Security from "./pages/console/Security";
+import AccountSecurity from "./pages/console/AccountSecurity";
 import Billing from "./pages/console/Billing";
 import UsageHistory from "./pages/console/UsageHistory";
 import Announcements from "./pages/console/Announcements";
@@ -196,7 +196,7 @@ function AppRoutes({ settings }: { settings: PublicSettings | null }) {
       <Route path="/console" element={<ConsoleGuard />}>
         <Route index element={<Overview />} />
         <Route path="api-keys" element={<ApiKeys />} />
-        <Route path="security" element={<Security />} />
+        <Route path="security" element={<AccountSecurity />} />
         <Route path="playground" element={<Playground />} />
         <Route path="subscription-wallet" element={<Billing />} />
         <Route path="referral" element={<Referral />} />

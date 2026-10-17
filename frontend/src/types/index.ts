@@ -117,6 +117,7 @@ export interface AdminUser extends User {
 }
 
 export interface AdminAuthIdentity {
+  id: number
   provider_type: string
   provider_key: string
   provider_subject: string

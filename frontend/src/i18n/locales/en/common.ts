@@ -310,6 +310,7 @@ export default {
       USER_NOT_ACTIVE: 'Account has been disabled.',
       EMAIL_BLOCKED: 'This email address is not allowed. Please use a different one.',
       PASSWORD_LOGIN_DISABLED: 'Password sign-in is disabled. Please sign in with OIDC.',
+      PASSWORD_INVALIDATED_OIDC: 'This password was changed on the identity provider. Sign in with OIDC and reset it in the console.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:

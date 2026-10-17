@@ -210,6 +210,14 @@ func (h *AuthHandler) emailOAuthCallbackWithProfile(
 		return
 	}
 
+	// GitHub/Google 等三方登录联动：在 OIDC 侧补建账号（不设密码，由用户后续
+	// 自行设置），与其他注册入口保持同一身份源。
+	if provider == "github" || provider == "google" {
+		h.oidcSyncAsync(strings.ToLower(strings.TrimSpace(profile.Email)), func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+			svc.SyncLoginWithoutPassword(ctx, email)
+		})
+	}
+
 	fragment := url.Values{}
 	fragment.Set("access_token", tokenPair.AccessToken)
 	fragment.Set("refresh_token", tokenPair.RefreshToken)

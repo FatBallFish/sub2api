@@ -512,6 +512,13 @@ export default {
         success: 'Disabled {count} users',
         failed: 'Failed to disable users. Please retry.'
       },
+      unbindIdentities: {
+        title: 'Unbind Third-party Login',
+        empty: 'No linked third-party identities',
+        unbind: 'Unbind',
+        success: 'Identity unbound',
+        failed: 'Failed to unbind. Please retry.'
+      },
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',
@@ -616,8 +623,7 @@ export default {
         subscriptions: 'Subscriptions',
         balance: 'Balance',
         balancePlatformQuota: 'Balance (Platform Quota)',
-        authIdentities: 'Linked SSO',
-        usage: 'Usage',
+        authIdentities: 'Linked SSO',        usage: 'Usage',
         usageAnthropic: 'Usage (Claude)',
         usageOpenAI: 'Usage (OpenAI)',
         usageGemini: 'Usage (Gemini)',

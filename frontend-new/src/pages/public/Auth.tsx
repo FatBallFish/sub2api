@@ -662,6 +662,11 @@ export default function Auth() {
 
             {showOAuth ? (
               <>
+                {oidcConsoleOAuthEnabled ? (
+                  <p className="rounded-xl bg-zinc-50 px-4 py-3 text-xs leading-5 text-zinc-500">
+                    {t("oauthMergedHint", { provider: oidcConsoleProviderName })}
+                  </p>
+                ) : null}
                 {passwordLoginDisabled ? null : (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">

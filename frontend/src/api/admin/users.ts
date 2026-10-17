@@ -238,6 +238,11 @@ export async function findBlacklistedEmailUsers(
   return data
 }
 
+/** Unbind one third-party auth identity from a user (admin). */
+export async function unbindAuthIdentity(userId: number, identityId: number): Promise<void> {
+  await apiClient.delete(`/admin/users/${userId}/auth-identities/${identityId}`)
+}
+
 /** Batch enable/disable users. Admin accounts are skipped by the backend. */
 export async function batchUpdateStatus(
   request: BatchUpdateUserStatusRequest
@@ -465,6 +470,7 @@ export const usersAPI = {
   findBlacklistedEmailUsers,
   batchDisable,
   batchUpdateStatus,
+  unbindAuthIdentity,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

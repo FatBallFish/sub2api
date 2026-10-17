@@ -536,6 +536,7 @@ func (s *adminServiceImpl) GetUsersAuthIdentities(ctx context.Context, userIDs [
 			issuer = *r.Issuer
 		}
 		out[r.UserID] = append(out[r.UserID], AdminAuthIdentity{
+			ID:              r.ID,
 			ProviderType:    r.ProviderType,
 			ProviderKey:     r.ProviderKey,
 			ProviderSubject: r.ProviderSubject,
@@ -543,6 +544,27 @@ func (s *adminServiceImpl) GetUsersAuthIdentities(ctx context.Context, userIDs [
 		})
 	}
 	return out, nil
+}
+
+// UnbindUserAuthIdentity 解绑用户的一条三方登录身份（禁止删除本地 email 身份）。
+func (s *adminServiceImpl) UnbindUserAuthIdentity(ctx context.Context, userID, identityID int64) error {
+	if s.entClient == nil {
+		return ErrServiceUnavailable
+	}
+	n, err := s.entClient.AuthIdentity.Delete().
+		Where(
+			authidentity.IDEQ(identityID),
+			authidentity.UserID(userID),
+			authidentity.ProviderTypeNEQ("email"),
+		).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("unbind auth identity: %w", err)
+	}
+	if n == 0 {
+		return infraerrors.NotFound("AUTH_IDENTITY_NOT_FOUND", "auth identity not found")
+	}
+	return nil
 }
 
 // BatchUpdateStatus 批量启用/禁用用户。admin 账号与已是目标状态的用户由 SQL 跳过；

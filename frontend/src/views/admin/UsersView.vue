@@ -748,6 +748,15 @@
                 {{ t('admin.users.groups') }}
               </button>
 
+              <!-- Unbind Third-party Identities -->
+              <button
+                @click="openUnbindModal(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="unlink" size="sm" class="text-gray-400" :stroke-width="2" />
+                {{ t('admin.users.unbindIdentities.title') }}
+              </button>
+
               <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
 
               <!-- Deposit -->
@@ -824,6 +833,59 @@
       @confirm="confirmBulkDisable"
       @cancel="bulkDisableIds = []"
     />
+    <!-- Unbind Third-party Identities Modal -->
+    <div
+      v-if="unbindTarget"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      @click.self="unbindTarget = null"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-dark-800">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+          {{ t('admin.users.unbindIdentities.title') }}
+        </h3>
+        <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ unbindTarget.email }}</p>
+
+        <div v-if="unbindIdentities.length === 0" class="mt-4 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-500 dark:bg-dark-700/50 dark:text-dark-400">
+          {{ t('admin.users.unbindIdentities.empty') }}
+        </div>
+        <div v-else class="mt-4 space-y-2">
+          <div
+            v-for="identity in unbindIdentities"
+            :key="identity.id"
+            class="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3 py-2 dark:border-dark-700"
+          >
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                  {{ identity.provider_type }}
+                </span>
+                <span class="truncate font-mono text-xs text-gray-600 dark:text-gray-400" :title="identity.provider_subject">
+                  {{ identity.provider_subject.length > 22 ? identity.provider_subject.slice(0, 20) + '…' : identity.provider_subject }}
+                </span>
+              </div>
+              <div class="mt-0.5 truncate text-[10px] text-gray-400 dark:text-dark-500" :title="identity.provider_key">
+                {{ identity.provider_key }}
+              </div>
+            </div>
+            <button
+              :disabled="unbindLoadingId === identity.id"
+              @click="confirmUnbindIdentity(identity)"
+              class="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+            >
+              {{ unbindLoadingId === identity.id ? '…' : t('admin.users.unbindIdentities.unbind') }}
+            </button>
+          </div>
+        </div>
+
+        <button
+          class="mt-5 h-10 w-full rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-dark-700 dark:text-gray-300 dark:hover:bg-dark-700"
+          @click="unbindTarget = null"
+        >
+          {{ t('common.close') }}
+        </button>
+      </div>
+    </div>
+
     <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
     <BulkEditUserModal
@@ -1419,6 +1481,33 @@ const bulkDeleteIds = ref<number[]>([])
 const bulkDeleting = ref(false)
 const bulkDisableIds = ref<number[]>([])
 const bulkDisabling = ref(false)
+
+const unbindTarget = ref<AdminUser | null>(null)
+const unbindIdentities = computed(() => unbindTarget.value?.auth_identities ?? [])
+const unbindLoadingId = ref<number | null>(null)
+
+const openUnbindModal = (user: AdminUser) => {
+  unbindTarget.value = user
+}
+
+const confirmUnbindIdentity = async (identity: AdminAuthIdentity) => {
+  if (!unbindTarget.value || unbindLoadingId.value !== null) return
+  unbindLoadingId.value = identity.id
+  try {
+    await adminAPI.users.unbindAuthIdentity(unbindTarget.value.id, identity.id)
+    appStore.showSuccess(t('admin.users.unbindIdentities.success'))
+    if (unbindTarget.value) {
+      unbindTarget.value = {
+        ...unbindTarget.value,
+        auth_identities: (unbindTarget.value.auth_identities ?? []).filter(i => i.id !== identity.id)
+      }
+    }
+  } catch (error: any) {
+    appStore.showError(error.response?.data?.message || t('admin.users.unbindIdentities.failed'))
+  } finally {
+    unbindLoadingId.value = null
+  }
+}
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
