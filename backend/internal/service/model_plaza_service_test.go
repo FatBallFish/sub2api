@@ -532,13 +532,17 @@ func TestListPlazaGroups_MergesAccountWhitelistModels(t *testing.T) {
 	}
 	accounts := []Account{
 		{
+			// 挂在 anthropic 分组（10）下：白名单模型进入该分组。
 			Platform: "anthropic",
+			GroupIDs: []int64{10},
 			Credentials: map[string]any{
 				"model_mapping": map[string]any{"claude-sonnet": "claude-sonnet", "claude-opus": "claude-opus"},
 			},
 		},
 		{
+			// 挂在 openai 分组（11）下；上游快照条目仍需跳过。
 			Platform: "openai",
+			GroupIDs: []int64{11},
 			Credentials: map[string]any{
 				"model_mapping": map[string]any{"gpt-x": "gpt-x", "gpt-noise": "gpt-noise"},
 			},
@@ -550,6 +554,13 @@ func TestListPlazaGroups_MergesAccountWhitelistModels(t *testing.T) {
 						"gpt-noise": map[string]any{"id": "gpt-noise"},
 					},
 				},
+			},
+		},
+		{
+			// 未挂任何分组的账号：模型不应进入任何分组（透传/未配置分组的账号不贡献）。
+			Platform: "deepseek",
+			Credentials: map[string]any{
+				"model_mapping": map[string]any{"deepseek-chat": "deepseek-chat"},
 			},
 		},
 	}
@@ -576,4 +587,12 @@ func TestListPlazaGroups_MergesAccountWhitelistModels(t *testing.T) {
 	}
 	require.True(t, openaiNames["gpt-x"])
 	require.False(t, openaiNames["gpt-noise"], "models synced from upstream must be skipped")
+	// 未挂分组的 deepseek 账号模型不出现在任何分组；anthropic 账号模型不串组。
+	require.NotContains(t, names, "deepseek-chat")
+	require.NotContains(t, openaiNames, "claude-opus")
+	for _, g := range out {
+		for _, m := range g.Models {
+			require.NotEqual(t, "deepseek-chat", m.Name, "ungrouped account models must not leak into any group")
+		}
+	}
 }
