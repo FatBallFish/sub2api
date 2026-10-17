@@ -33,6 +33,34 @@ describe("localizedErrorMessage", () => {
     expect(localizedErrorMessage(error, "consoleLoadFailed", t)).toBe("A custom backend explanation");
   });
 
+  it("localizes binding validation failures from metadata (field + tag)", () => {
+    const error = new ApiError(
+      "Invalid request: Key: 'CreateUserRequest.Email' Error:Field validation for 'email' failed on the 'email' tag",
+      400,
+      { reason: "VALIDATION_FAILED", metadata: { field: "email", tag: "email" } },
+      "VALIDATION_FAILED",
+    );
+
+    expect(localizedErrorMessage(error, "modelPricingLoadFailed", t)).toBe("「邮箱」格式不正确");
+  });
+
+  it("localizes binding validation failures without a known tag via field-only phrasing", () => {
+    const error = new ApiError(
+      "Invalid request: ...",
+      400,
+      { reason: "VALIDATION_FAILED", metadata: { field: "password", tag: "required" } },
+      "VALIDATION_FAILED",
+    );
+
+    expect(localizedErrorMessage(error, "modelPricingLoadFailed", t)).toBe("「密码」不能为空");
+  });
+
+  it("localizes malformed request bodies without field metadata", () => {
+    const error = new ApiError("Invalid request: unexpected end of JSON input", 400, { reason: "VALIDATION_FAILED", metadata: { tag: "json" } }, "VALIDATION_FAILED");
+
+    expect(localizedErrorMessage(error, "modelPricingLoadFailed", t)).toBe("请求内容格式不正确，请检查后重试");
+  });
+
   it("preserves an unknown backend message when a scope is provided", () => {
     const error = new ApiError("Scoped backend explanation", 409, {}, "CUSTOM_DYNAMIC_ERROR");
 
