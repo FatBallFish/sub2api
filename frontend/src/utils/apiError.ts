@@ -100,6 +100,10 @@ export function extractI18nErrorMessage(
 ): string {
   const code = extractApiErrorCode(err)
   if (code) {
+    if (code === 'VALIDATION_FAILED') {
+      const localized = localizedValidationMessage(extractApiErrorMetadata(err), t)
+      if (localized) return localized
+    }
     const key = `${namespace}.${code}`
     const rawMetadata = extractApiErrorMetadata(err) ?? {}
     const metadata = localizeMetadata(rawMetadata, t)
@@ -111,6 +115,39 @@ export function extractI18nErrorMessage(
     if (te && te(key)) return translated
   }
   return extractApiErrorMessage(err, fallback)
+}
+
+/**
+ * 组装 VALIDATION_FAILED（请求体绑定/校验失败）的本地化文案。
+ * 后端 metadata 携带 field（JSON 字段名）与 tag（校验规则名），这里映射为
+ * common.validation 下的字段/规则标签，拼成「字段 + 规则描述」的完整句子；
+ * 无字段信息（如 JSON 语法错误）时返回通用的请求体格式提示。
+ */
+function localizedValidationMessage(
+  metadata: Record<string, unknown> | undefined,
+  t: TranslateFn,
+): string | null {
+  const tryTranslate = (key: string, fallback: string) => {
+    const translated = t(key)
+    if (translated !== key) return translated
+    const te = (t as TranslateWithExistsFn).te
+    if (te && te(key)) return translated
+    return fallback
+  }
+  const tag = typeof metadata?.tag === 'string' ? metadata.tag : ''
+  const field = typeof metadata?.field === 'string' ? metadata.field : ''
+  if (!field) {
+    if (tag === 'json' || tag === 'json_type' || tag === 'invalid') {
+      return tryTranslate('common.validation.invalidBody', '')
+    }
+    return null
+  }
+  const fieldLabel = tryTranslate(`common.validation.fields.${field}`, field)
+  const tagLabel = tryTranslate(`common.validation.tags.${tag}`, '')
+  if (!tagLabel) {
+    return t('common.validation.fieldOnly', { field: fieldLabel })
+  }
+  return t('common.validation.failed', { field: fieldLabel, rule: tagLabel })
 }
 
 /**

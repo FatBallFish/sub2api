@@ -4,7 +4,7 @@ import { PLAYGROUND_ROLE_LABEL_KEYS } from "../api/playground";
 import { ANNOUNCEMENT_CATEGORIES } from "../types/announcements";
 import { CLIENT_CONFIG_DISPLAY_TARGET_KEYS, CLIENT_CONFIG_HINT_KEYS } from "../utils/clientConfig";
 import { BUILT_IN_AGREEMENT_TITLE_KEYS } from "../utils/loginAgreement";
-import { GLOBAL_ERROR_CODES, SCOPED_ERROR_KEYS } from "../utils/localizedError";
+import { GLOBAL_ERROR_CODES, SCOPED_ERROR_KEYS , VALIDATION_FIELD_KEYS, VALIDATION_TAG_KEYS } from "../utils/localizedError";
 import { BILLING_STATUS_LABEL_KEYS } from "../utils/paymentStatus";
 import {
   OVERVIEW_ANNOUNCEMENT_TYPE_LABEL_KEYS,
@@ -169,6 +169,8 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     ...ANNOUNCEMENT_CATEGORIES.map((category) => `console.announcements.categories.${category}`),
     ...GLOBAL_ERROR_CODES.map((code) => `errors.${code}`),
     ...Object.values(SCOPED_ERROR_KEYS).map((key) => `errors.${key}`),
+    ...VALIDATION_FIELD_KEYS.map((field) => `errors.validationFields.${field}`),
+    ...VALIDATION_TAG_KEYS.map((tag) => `errors.validationTags.${tag}`),
   ]);
 }
 
