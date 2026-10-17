@@ -35,7 +35,7 @@ func (h *BackupHandler) GetS3Config(c *gin.Context) {
 func (h *BackupHandler) UpdateS3Config(c *gin.Context) {
 	var req service.BackupS3Config
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	cfg, err := h.backupService.UpdateS3Config(c.Request.Context(), req)
@@ -49,7 +49,7 @@ func (h *BackupHandler) UpdateS3Config(c *gin.Context) {
 func (h *BackupHandler) TestS3Connection(c *gin.Context) {
 	var req service.BackupS3Config
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	err := h.backupService.TestS3Connection(c.Request.Context(), req)
@@ -74,7 +74,7 @@ func (h *BackupHandler) GetSchedule(c *gin.Context) {
 func (h *BackupHandler) UpdateSchedule(c *gin.Context) {
 	var req service.BackupScheduleConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	cfg, err := h.backupService.UpdateSchedule(c.Request.Context(), req)
@@ -233,7 +233,7 @@ func (h *BackupHandler) GetImageStorageConfig(c *gin.Context) {
 func (h *BackupHandler) UpdateImageStorageConfig(c *gin.Context) {
 	var req service.ImageStorageSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	cfg, err := h.imageStorage.Update(c.Request.Context(), req)
@@ -247,7 +247,7 @@ func (h *BackupHandler) UpdateImageStorageConfig(c *gin.Context) {
 func (h *BackupHandler) TestImageStorageConnection(c *gin.Context) {
 	var req service.ImageStorageSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.imageStorage.TestConnection(c.Request.Context(), req); err != nil {

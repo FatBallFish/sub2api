@@ -75,7 +75,7 @@ type GrokExchangeCodeRequest struct {
 func (h *GrokOAuthHandler) ExchangeCode(c *gin.Context) {
 	var req GrokExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tokenInfo, err := h.grokOAuthService.ExchangeCode(c.Request.Context(), &service.GrokExchangeCodeInput{
@@ -113,7 +113,7 @@ type GrokPasswordAuthorizeRequest struct {
 func (h *GrokOAuthHandler) RefreshToken(c *gin.Context) {
 	var req GrokRefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	refreshToken := strings.TrimSpace(req.RefreshToken)
@@ -151,7 +151,7 @@ func (h *GrokOAuthHandler) RefreshToken(c *gin.Context) {
 func (h *GrokOAuthHandler) ValidateSSOToken(c *gin.Context) {
 	var req GrokSSOTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tokenInfo, err := h.grokOAuthService.ValidateSSOToken(c.Request.Context(), req.SSOToken, req.ProxyID)
@@ -167,7 +167,7 @@ func (h *GrokOAuthHandler) ValidateSSOToken(c *gin.Context) {
 func (h *GrokOAuthHandler) AuthorizePassword(c *gin.Context) {
 	var req GrokPasswordAuthorizeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tokenInfo, err := h.grokOAuthService.AuthorizePassword(c.Request.Context(), req.Email, req.Password, req.ProxyID)
@@ -228,7 +228,7 @@ type GrokOAuthReconcileRequest struct {
 func (h *GrokOAuthHandler) ReconcileOAuthAccounts(c *gin.Context) {
 	var req GrokOAuthReconcileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request")
+		response.BindError(c, err)
 		return
 	}
 	dryRun := true
@@ -274,7 +274,7 @@ func (h *GrokOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		GroupIDs    []int64 `json:"group_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tokenInfo, err := h.grokOAuthService.ExchangeCode(c.Request.Context(), &service.GrokExchangeCodeInput{
@@ -359,7 +359,7 @@ type grokSSOImportWorkerResult struct {
 func (h *GrokOAuthHandler) CreateAccountsFromSSO(c *gin.Context) {
 	var req GrokSSOToOAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tokens := normalizeSSOImportTokens(req.SSOTokens, req.SSOToken)

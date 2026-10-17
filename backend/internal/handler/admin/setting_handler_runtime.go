@@ -94,7 +94,7 @@ type UpdateOverloadCooldownSettingsRequest struct {
 func (h *SettingHandler) UpdateOverloadCooldownSettings(c *gin.Context) {
 	var req UpdateOverloadCooldownSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -146,7 +146,7 @@ type UpdateRateLimit429CooldownSettingsRequest struct {
 func (h *SettingHandler) UpdateRateLimit429CooldownSettings(c *gin.Context) {
 	var req UpdateRateLimit429CooldownSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -188,7 +188,7 @@ type UpdateOpenAIImagesOAuthUnavailableCooldownSettingsRequest struct {
 func (h *SettingHandler) UpdateOpenAIImagesOAuthUnavailableCooldownSettings(c *gin.Context) {
 	var req UpdateOpenAIImagesOAuthUnavailableCooldownSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	settings := &service.OpenAIImagesOAuthUnavailableCooldownSettings{CooldownMinutes: req.CooldownMinutes}
@@ -231,7 +231,7 @@ type UpdatePanelRateLimitSettingsRequest struct {
 func (h *SettingHandler) UpdatePanelRateLimitSettings(c *gin.Context) {
 	var req UpdatePanelRateLimitSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -317,7 +317,7 @@ type UpdateRectifierSettingsRequest struct {
 func (h *SettingHandler) UpdateRectifierSettings(c *gin.Context) {
 	var req UpdateRectifierSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -400,7 +400,7 @@ type UpdateBetaPolicySettingsRequest struct {
 func (h *SettingHandler) UpdateBetaPolicySettings(c *gin.Context) {
 	var req UpdateBetaPolicySettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -443,7 +443,7 @@ type UpdateStreamTimeoutSettingsRequest struct {
 func (h *SettingHandler) UpdateStreamTimeoutSettings(c *gin.Context) {
 	var req UpdateStreamTimeoutSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -492,7 +492,7 @@ func (h *SettingHandler) GetWebSearchEmulationConfig(c *gin.Context) {
 func (h *SettingHandler) UpdateWebSearchEmulationConfig(c *gin.Context) {
 	var cfg service.WebSearchEmulationConfig
 	if err := c.ShouldBindJSON(&cfg); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -517,7 +517,7 @@ func (h *SettingHandler) ResetWebSearchUsage(c *gin.Context) {
 		ProviderType string `json:"provider_type"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if req.ProviderType == "" {
@@ -538,7 +538,7 @@ func (h *SettingHandler) TestWebSearchEmulation(c *gin.Context) {
 		Query string `json:"query"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if strings.TrimSpace(req.Query) == "" {

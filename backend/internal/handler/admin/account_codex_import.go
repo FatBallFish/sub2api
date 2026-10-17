@@ -118,7 +118,7 @@ type codexAccountIndex struct {
 func (h *AccountHandler) ImportCodexSession(c *gin.Context) {
 	var req CodexSessionImportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := service.ValidateOpenAILongContextBillingExtra(service.PlatformOpenAI, req.Extra); err != nil {

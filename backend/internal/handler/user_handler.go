@@ -143,7 +143,7 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	var req ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 
 	var req UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -259,7 +259,7 @@ func (h *UserHandler) StartIdentityBinding(c *gin.Context) {
 
 	var req StartIdentityBindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *UserHandler) BindEmailIdentity(c *gin.Context) {
 
 	var req BindEmailIdentityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -364,7 +364,7 @@ func (h *UserHandler) SendEmailBindingCode(c *gin.Context) {
 
 	var req SendEmailBindingCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -392,7 +392,7 @@ func (h *UserHandler) SendNotifyEmailCode(c *gin.Context) {
 
 	var req SendNotifyEmailCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -422,7 +422,7 @@ func (h *UserHandler) VerifyNotifyEmail(c *gin.Context) {
 
 	var req VerifyNotifyEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -464,7 +464,7 @@ func (h *UserHandler) RemoveNotifyEmail(c *gin.Context) {
 
 	var req RemoveNotifyEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -507,7 +507,7 @@ func (h *UserHandler) ToggleNotifyEmail(c *gin.Context) {
 
 	var req ToggleNotifyEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

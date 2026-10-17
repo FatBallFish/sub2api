@@ -517,12 +517,12 @@ func settingsAuditRequest(req UpdateSettingsRequest) UpdateSettingsRequest {
 func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	var sentFields map[string]json.RawMessage
 	if err := c.ShouldBindBodyWith(&sentFields, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	var req UpdateSettingsRequest
 	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	auditReq := settingsAuditRequest(req)

@@ -271,7 +271,7 @@ func (h *OpsHandler) CreateAlertRule(c *gin.Context) {
 
 	var raw map[string]json.RawMessage
 	if err := c.ShouldBindBodyWith(&raw, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 	validated, err := validateOpsAlertRulePayload(raw)
@@ -282,7 +282,7 @@ func (h *OpsHandler) CreateAlertRule(c *gin.Context) {
 
 	var rule service.OpsAlertRule
 	if err := c.ShouldBindBodyWith(&rule, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *OpsHandler) UpdateAlertRule(c *gin.Context) {
 
 	var raw map[string]json.RawMessage
 	if err := c.ShouldBindBodyWith(&raw, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 	validated, err := validateOpsAlertRulePayload(raw)
@@ -336,7 +336,7 @@ func (h *OpsHandler) UpdateAlertRule(c *gin.Context) {
 
 	var rule service.OpsAlertRule
 	if err := c.ShouldBindBodyWith(&rule, binding.JSON); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -433,7 +433,7 @@ func (h *OpsHandler) UpdateAlertEventStatus(c *gin.Context) {
 		Status string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 	payload.Status = strings.TrimSpace(payload.Status)
@@ -481,7 +481,7 @@ func (h *OpsHandler) CreateAlertSilence(c *gin.Context) {
 		Reason   string  `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 	until, err := time.Parse(time.RFC3339, strings.TrimSpace(payload.Until))

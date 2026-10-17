@@ -32,7 +32,7 @@ func resolveSMTPUseTLS(requested *bool, savedConfig *service.SMTPConfig) bool {
 func (h *SettingHandler) TestSMTPConnection(c *gin.Context) {
 	var req TestSMTPRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -100,7 +100,7 @@ type SendTestEmailRequest struct {
 func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	var req SendTestEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -239,7 +239,7 @@ func (h *SettingHandler) UpdateEmailTemplate(c *gin.Context) {
 	}
 	var req dto.UpdateEmailTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	tmpl, err := h.notificationEmailService.UpdateTemplate(c.Request.Context(), c.Param("event"), c.Param("locale"), req.Subject, req.HTML)
@@ -274,7 +274,7 @@ func (h *SettingHandler) PreviewEmailTemplate(c *gin.Context) {
 	}
 	var req dto.PreviewEmailTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	preview, err := h.notificationEmailService.PreviewTemplate(c.Request.Context(), service.NotificationEmailPreviewInput{

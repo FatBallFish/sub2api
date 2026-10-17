@@ -147,7 +147,7 @@ type OpenAIExchangeCodeRequest struct {
 func (h *OpenAIOAuthHandler) ExchangeCode(c *gin.Context) {
 	var req OpenAIExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -202,7 +202,7 @@ func (h *OpenAIOAuthHandler) RefreshToken(c *gin.Context) {
 	}
 	var req OpenAIRefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	refreshToken := strings.TrimSpace(req.RefreshToken)
@@ -325,7 +325,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 		GroupIDs    []int64 `json:"group_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -381,7 +381,7 @@ func (h *OpenAIOAuthHandler) CreateAccountFromOAuth(c *gin.Context) {
 func (h *OpenAIOAuthHandler) CreateAccountFromCodexPAT(c *gin.Context) {
 	var req OpenAICodexPATCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := service.ValidateOpenAILongContextBillingExtra(service.PlatformOpenAI, req.Extra); err != nil {
@@ -584,7 +584,7 @@ func (h *OpenAIOAuthHandler) CreateShadow(c *gin.Context) {
 
 	var req CreateShadowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

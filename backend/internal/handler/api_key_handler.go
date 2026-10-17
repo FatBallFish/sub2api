@@ -215,11 +215,12 @@ func (h *APIKeyHandler) Create(c *gin.Context) {
 
 	var req CreateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := validateAPIKeyCreateRequest(req); err != nil {
-		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative, and expires_in_days must be greater than zero")
+		response.ErrorWithDetails(c, 400, err.Error(), response.ReasonValidationFailed,
+			map[string]string{"field": "rate_limits", "tag": "gte=0"})
 		return
 	}
 
@@ -270,11 +271,12 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 
 	var req UpdateAPIKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := validateAPIKeyUpdateRequest(req); err != nil {
-		response.BadRequest(c, "Invalid request: numeric limits must be finite and non-negative")
+		response.ErrorWithDetails(c, 400, err.Error(), response.ReasonValidationFailed,
+			map[string]string{"field": "rate_limits", "tag": "gte=0"})
 		return
 	}
 
