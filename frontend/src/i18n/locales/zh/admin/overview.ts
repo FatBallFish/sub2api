@@ -542,6 +542,14 @@ export default {
       allGroups: '全部分组',
       searchGroups: '搜索分组...',
       fuzzySearch: '模糊搜索',
+      authIdentityFilter: {
+        title: '关联的三方登录',
+        all: '三方登录：全部',
+        linked: '已关联',
+        notLinked: '未关联',
+        wechat: '微信',
+        dingtalk: '钉钉'
+      },
       apiKeyGroupFilter: 'API Key 分组',
       apiKeyGroupExclusive: '专用分组',
       apiKeyGroupPublic: '公开分组',

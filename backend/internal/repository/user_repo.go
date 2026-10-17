@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"sort"
 	"strings"
 	"time"
@@ -553,6 +554,18 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 		q = q.Where(dbuser.HasAllowedGroupsWith(
 			dbgroup.NameContainsFold(filters.GroupName),
 		))
+	}
+
+	switch filters.AuthIdentity {
+	case "any":
+		q = q.Where(dbuser.HasAuthIdentitiesWith(authidentity.ProviderTypeNEQ("email")))
+	case "none":
+		q = q.Where(dbuser.Not(dbuser.HasAuthIdentitiesWith(authidentity.ProviderTypeNEQ("email"))))
+	case "oidc", "github", "google", "linuxdo", "wechat", "dingtalk":
+		q = q.Where(dbuser.HasAuthIdentitiesWith(authidentity.ProviderTypeEQ(filters.AuthIdentity)))
+	case "":
+	default:
+		return nil, nil, infraerrors.BadRequest("INVALID_AUTH_IDENTITY_FILTER", "invalid auth identity filter: "+filters.AuthIdentity)
 	}
 
 	if filters.APIKeyGroupID > 0 {
