@@ -74,6 +74,9 @@ type UserListFilters struct {
 	// group types since it matches the key's group directly, not allowed_groups.
 	APIKeyGroupID int64
 	Attributes    map[int64]string // Custom attribute filters: attributeID -> value
+	// AuthIdentity 过滤「关联的三方登录」：any=已绑定任意三方身份（排除本地 email），
+	// none=未绑定，或具体 provider_type（oidc/github/google/linuxdo/wechat/dingtalk）。
+	AuthIdentity string
 	// IncludeSubscriptions controls whether ListWithFilters should load active subscriptions.
 	// For large datasets this can be expensive; admin list pages should enable it on demand.
 	// nil means not specified (default: load subscriptions for backward compatibility).

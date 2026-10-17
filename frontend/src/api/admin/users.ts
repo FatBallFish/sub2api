@@ -85,6 +85,7 @@ export async function list(
     attributes?: Record<number, string>  // attributeId -> value
     include_subscriptions?: boolean
     include_auth_identities?: boolean
+    auth_identity?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
   },
@@ -103,6 +104,7 @@ export async function list(
     api_key_group_id: filters?.api_key_group_id,
     include_subscriptions: filters?.include_subscriptions,
     include_auth_identities: filters?.include_auth_identities,
+    auth_identity: filters?.auth_identity,
     sort_by: filters?.sort_by,
     sort_order: filters?.sort_order
   }
