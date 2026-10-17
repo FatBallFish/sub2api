@@ -312,6 +312,7 @@ const en = {
       installGuide: "Install Guide",
     },
     security: {
+      noneLinked: "No third-party sign-in is linked yet",
       accountTitle: "Account & Security",
       accountDescription: "Manage third-party sign-in links and your password.",
       linkedTitle: "Linked sign-ins",
@@ -319,7 +320,7 @@ const en = {
       linked: "Linked",
       notLinked: "Not linked",
       unbind: "Unbind",
-      lastMethodHint: "This is the last available sign-in method and cannot be unbound",
+      lastMethodHint: "This is the only available sign-in method (local email sign-in is unavailable). Link another sign-in method or set an email password before unbinding.",
       loading: "Loading...",
       title: "Security",
       description: "Change the password for your account.",
