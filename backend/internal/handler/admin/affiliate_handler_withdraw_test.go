@@ -129,7 +129,7 @@ func TestAffiliateHandlerWithdrawQuota_RejectsBadRequests(t *testing.T) {
 	}{
 		{name: "non-numeric user id", userID: "abc", key: testWithdrawIdempotencyKey, body: `{"amount":1}`},
 		{name: "non-positive user id", userID: "0", key: testWithdrawIdempotencyKey, body: `{"amount":1}`},
-		{name: "malformed json", userID: "42", key: testWithdrawIdempotencyKey, body: `{"amount":`},
+		{name: "malformed json", userID: "42", key: testWithdrawIdempotencyKey, body: `{"amount":`, wantReason: "VALIDATION_FAILED"},
 		{name: "missing idempotency key", userID: "42", body: `{"amount":1}`, wantReason: "IDEMPOTENCY_KEY_REQUIRED"},
 		{name: "invalid idempotency key", userID: "42", key: "has space", body: `{"amount":1}`, wantReason: "IDEMPOTENCY_KEY_INVALID"},
 		{name: "zero amount", userID: "42", key: testWithdrawIdempotencyKey, body: `{"amount":0}`, wantReason: "AFFILIATE_WITHDRAW_AMOUNT_INVALID"},

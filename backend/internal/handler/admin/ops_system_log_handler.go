@@ -119,7 +119,7 @@ func (h *OpsHandler) CleanupSystemLogs(c *gin.Context) {
 
 	var req opsSystemLogCleanupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 

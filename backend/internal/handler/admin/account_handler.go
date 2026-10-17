@@ -972,7 +972,7 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 	var req CheckMixedChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1016,7 +1016,7 @@ func (h *AccountHandler) CheckMixedChannel(c *gin.Context) {
 func (h *AccountHandler) Create(c *gin.Context) {
 	var req CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := service.ValidateOpenAILongContextBillingExtra(req.Platform, req.Extra); err != nil {
@@ -1157,7 +1157,7 @@ func (h *AccountHandler) Update(c *gin.Context) {
 
 	var req UpdateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
@@ -1352,7 +1352,7 @@ func (h *AccountHandler) RecoverState(c *gin.Context) {
 func (h *AccountHandler) SyncFromCRS(c *gin.Context) {
 	var req SyncFromCRSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1383,7 +1383,7 @@ func (h *AccountHandler) SyncFromCRS(c *gin.Context) {
 func (h *AccountHandler) PreviewFromCRS(c *gin.Context) {
 	var req PreviewFromCRSRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1605,7 +1605,7 @@ func (h *AccountHandler) ApplyOAuthCredentials(c *gin.Context) {
 
 	var req ApplyOAuthCredentialsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1778,7 +1778,7 @@ func (h *AccountHandler) BatchDelete(c *gin.Context) {
 		AccountIDs []int64 `json:"account_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1913,7 +1913,7 @@ func (h *AccountHandler) BatchClearError(c *gin.Context) {
 		AccountIDs []int64 `json:"account_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if len(req.AccountIDs) == 0 {
@@ -1981,7 +1981,7 @@ func (h *AccountHandler) BatchRefresh(c *gin.Context) {
 		AccountIDs []int64 `json:"account_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if len(req.AccountIDs) == 0 {
@@ -2075,7 +2075,7 @@ func (h *AccountHandler) BatchCreate(c *gin.Context) {
 		Accounts []CreateAccountRequest `json:"accounts" binding:"required,min=1"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	for _, item := range req.Accounts {
@@ -2222,7 +2222,7 @@ type BatchUpdateCredentialsRequest struct {
 func (h *AccountHandler) BatchUpdateCredentials(c *gin.Context) {
 	var req BatchUpdateCredentialsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2304,7 +2304,7 @@ func (h *AccountHandler) BatchUpdateCredentials(c *gin.Context) {
 func (h *AccountHandler) BulkUpdate(c *gin.Context) {
 	var req BulkUpdateAccountsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if req.RateMultiplier != nil && *req.RateMultiplier < 0 {
@@ -2451,7 +2451,7 @@ type ExchangeCodeRequest struct {
 func (h *OAuthHandler) ExchangeCode(c *gin.Context) {
 	var req ExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2473,7 +2473,7 @@ func (h *OAuthHandler) ExchangeCode(c *gin.Context) {
 func (h *OAuthHandler) ExchangeSetupTokenCode(c *gin.Context) {
 	var req ExchangeCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2501,7 +2501,7 @@ type CookieAuthRequest struct {
 func (h *OAuthHandler) CookieAuth(c *gin.Context) {
 	var req CookieAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2523,7 +2523,7 @@ func (h *OAuthHandler) CookieAuth(c *gin.Context) {
 func (h *OAuthHandler) SetupTokenCookieAuth(c *gin.Context) {
 	var req CookieAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2689,7 +2689,7 @@ type BatchUsageRequest struct {
 func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 	var req BatchTodayStatsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2735,7 +2735,7 @@ func (h *AccountHandler) GetBatchTodayStats(c *gin.Context) {
 func (h *AccountHandler) GetBatchUsage(c *gin.Context) {
 	var req BatchUsageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -2776,7 +2776,7 @@ func (h *AccountHandler) SetSchedulable(c *gin.Context) {
 
 	var req SetSchedulableRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -3094,7 +3094,7 @@ func (h *AccountHandler) SyncUpstreamModelsPreview(c *gin.Context) {
 		ModelMapping map[string]string `json:"model_mapping"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	modelMapping := make(map[string]any, len(req.ModelMapping))

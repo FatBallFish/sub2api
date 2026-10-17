@@ -67,7 +67,7 @@ func (h *AffiliateHandler) UpdateUserSettings(c *gin.Context) {
 
 	var req UpdateAffiliateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -135,7 +135,7 @@ type BatchSetRateRequest struct {
 func (h *AffiliateHandler) BatchSetRate(c *gin.Context) {
 	var req BatchSetRateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if len(req.UserIDs) == 0 {
@@ -222,7 +222,7 @@ func (h *AffiliateHandler) WithdrawQuota(c *gin.Context) {
 
 	var req WithdrawQuotaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

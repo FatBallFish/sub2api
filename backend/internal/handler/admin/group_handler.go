@@ -428,7 +428,7 @@ func (h *GroupHandler) CreateCompositeRoute(c *gin.Context) {
 	}
 	var req CompositeRouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	route, err := h.adminService.CreateCompositeRoute(c.Request.Context(), groupID, compositeRouteRequestToInput(req, true))
@@ -455,7 +455,7 @@ func (h *GroupHandler) UpdateCompositeRoute(c *gin.Context) {
 	}
 	var req CompositeRouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	route, err := h.adminService.UpdateCompositeRoute(c.Request.Context(), groupID, routeID, compositeRouteRequestToInput(req, true))
@@ -499,7 +499,7 @@ func (h *GroupHandler) PreviewCompositeRoute(c *gin.Context) {
 	}
 	var req CompositeRoutePreviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	decision, err := h.adminService.PreviewCompositeRoute(c.Request.Context(), groupID, service.CompositeRoutePreviewRequest{
@@ -643,7 +643,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	}
 	var req CreateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if h.isSimpleMode() && req.Platform == service.PlatformComposite {
@@ -805,7 +805,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 
 	var req UpdateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if h.isSimpleMode() {
@@ -1056,7 +1056,7 @@ func (h *GroupHandler) BatchSetGroupRateMultipliers(c *gin.Context) {
 
 	var req BatchSetGroupRateMultipliersRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1087,7 +1087,7 @@ func (h *GroupHandler) BatchSetGroupRPMOverrides(c *gin.Context) {
 
 	var req BatchSetGroupRPMOverridesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -1135,7 +1135,7 @@ func (h *GroupHandler) UpdateSortOrder(c *gin.Context) {
 	}
 	var req UpdateSortOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

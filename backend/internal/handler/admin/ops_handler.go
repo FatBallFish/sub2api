@@ -684,7 +684,7 @@ func (h *OpsHandler) UpdateErrorResolution(c *gin.Context) {
 
 	var req opsResolveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	uid := subject.UserID

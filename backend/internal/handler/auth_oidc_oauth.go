@@ -1386,7 +1386,7 @@ type oidcTokenExchangeRequest struct {
 func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
 	var req oidcTokenExchangeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
