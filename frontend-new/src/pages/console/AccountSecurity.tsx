@@ -118,9 +118,13 @@ function AccountSecurity() {
           </div>
         ) : (
           <div className="mt-4 space-y-2">
+            {DISPLAY_PROVIDERS.every((provider) => !identities[provider]?.bound) ? (
+              <div className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">{t("security.noneLinked")}</div>
+            ) : null}
             {DISPLAY_PROVIDERS.map((provider) => {
               const summary = identities[provider];
-              if (!summary) return null;
+              // 仅展示已绑定的三方身份；未绑定的类型不占位。
+              if (!summary || !summary.bound) return null;
               return (
                 <div
                   key={provider}
@@ -146,15 +150,19 @@ function AccountSecurity() {
                     ) : null}
                   </div>
                   {summary.bound ? (
-                    <button
-                      type="button"
-                      disabled={unbinding !== null || summary.can_unbind === false}
+                    <span
+                      className="shrink-0 self-start sm:self-auto"
                       title={summary.can_unbind === false ? t("security.lastMethodHint") : undefined}
-                      onClick={() => void unbind(provider)}
-                      className="shrink-0 self-start rounded-lg bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
                     >
-                      {unbinding === provider ? "…" : t("security.unbind")}
-                    </button>
+                      <button
+                        type="button"
+                        disabled={unbinding !== null || summary.can_unbind === false}
+                        onClick={() => void unbind(provider)}
+                        className="rounded-lg bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {unbinding === provider ? "…" : t("security.unbind")}
+                      </button>
+                    </span>
                   ) : null}
                 </div>
               );

@@ -2131,6 +2131,13 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 			return
 		}
 		h.authService.RecordSuccessfulLogin(c.Request.Context(), loginUser.ID)
+		// intent=login 的老身份自动登录也在此完成：补 drift 检测，OIDC 侧改密后
+		// 本地旧密码立即作废（异步执行，不阻塞发 token）。
+		if strings.EqualFold(strings.TrimSpace(session.ProviderType), "oidc") {
+			h.oidcSyncAsync(loginUser.Email, func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+				svc.CheckDrift(ctx, email)
+			})
+		}
 		payload["access_token"] = tokenPair.AccessToken
 		payload["refresh_token"] = tokenPair.RefreshToken
 		payload["expires_in"] = tokenPair.ExpiresIn

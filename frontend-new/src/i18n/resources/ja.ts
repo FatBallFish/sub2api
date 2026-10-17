@@ -309,6 +309,7 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
       installGuide: "インストールガイド",
     },
     security: {
+      noneLinked: "サードパーティログインは連携されていません",
       accountTitle: "アカウントとセキュリティ",
       accountDescription: "サードパーティログインの連携とパスワードを管理します。",
       linkedTitle: "サードパーティログイン",
@@ -316,7 +317,7 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
       linked: "連携済み",
       notLinked: "未連携",
       unbind: "解除",
-      lastMethodHint: "これは最後のログイン方法のため解除できません",
+      lastMethodHint: "これは現在唯一のログイン方法です（ローカルメールが利用不可）。他のログイン方法を連携するか、メールパスワードを設定してから解除してください",
       loading: "読み込み中…",
       title: "セキュリティ",
       description: "アカウントのパスワードを変更します。",
