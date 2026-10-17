@@ -396,6 +396,9 @@ func (s *OIDCUserSyncService) CheckDrift(ctx context.Context, email string) {
 	if !s.syncableUser(email) {
 		return
 	}
+	// drift 检测本身始终执行（标记 drift 供前端 banner 提醒）；
+	// 「自动作废本地旧密码」仅在系统设置开启时生效。
+	invalidateEnabled := s.settingSvc == nil || s.settingSvc.IsOIDCDriftInvalidationEnabled(ctx)
 	userID := s.localUserID(ctx, email)
 	if userID == 0 {
 		return
@@ -421,7 +424,7 @@ func (s *OIDCUserSyncService) CheckDrift(ctx context.Context, email string) {
 		return
 	}
 	update := s.entClient.User.UpdateOneID(userID).SetOidcPasswordDrift(drift)
-	if drift && local.OidcPasswordDrift == false {
+	if drift && local.OidcPasswordDrift == false && invalidateEnabled {
 		// Keycloak 侧密码比快照新：本地旧密码已不可信，立即作废
 		// （写入随机哈希，用户需经 OIDC 登录后在控制台重置，重置会双写回
 		// Keycloak 并刷新快照，drift 随之解除）。

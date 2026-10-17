@@ -438,6 +438,8 @@ export default {
           clientSecretPlaceholder: '********',
           clientSecretConfiguredPlaceholder: '********',
           clientSecretHint: 'Secret of a service account client granted manage-users',
+          driftInvalidation: 'Invalidate local password on OIDC-side change',
+          driftInvalidationHint: 'When the Keycloak credential is newer than our snapshot, immediately invalidate the stale sub2api password (drift flag and console banner are unaffected)',
         },
         console: {
           title: 'Console (new frontend) standalone OIDC login',

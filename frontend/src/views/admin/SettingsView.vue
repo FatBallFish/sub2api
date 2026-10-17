@@ -3847,6 +3847,19 @@
                     </div>
                     <Toggle v-model="form.oidc_user_sync_enabled" />
                   </div>
+                  <div class="mb-4 flex items-center justify-between">
+                    <div>
+                      <label
+                        class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
+                        {{ t("admin.settings.oidc.userSync.driftInvalidation") }}
+                      </label>
+                      <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.oidc.userSync.driftInvalidationHint") }}
+                      </p>
+                    </div>
+                    <Toggle v-model="form.oidc_drift_invalidation_enabled" />
+                  </div>
                   <div
                     v-if="form.oidc_user_sync_enabled"
                     class="grid grid-cols-1 gap-6 lg:grid-cols-2"
@@ -10243,6 +10256,7 @@ const form = reactive<SettingsForm>({
   oauth_signup_bypass_registration: false,
   password_login_disabled: false,
   oidc_user_sync_enabled: false,
+  oidc_drift_invalidation_enabled: true,
   oidc_user_sync_admin_url: "",
   oidc_user_sync_realm: "",
   oidc_user_sync_client_id: "",
@@ -11969,6 +11983,7 @@ async function saveSettings() {
       oauth_signup_bypass_registration: form.oauth_signup_bypass_registration,
       password_login_disabled: form.password_login_disabled,
       oidc_user_sync_enabled: form.oidc_user_sync_enabled,
+      oidc_drift_invalidation_enabled: form.oidc_drift_invalidation_enabled,
       oidc_user_sync_admin_url: form.oidc_user_sync_admin_url,
       oidc_user_sync_realm: form.oidc_user_sync_realm,
       oidc_user_sync_client_id: form.oidc_user_sync_client_id,

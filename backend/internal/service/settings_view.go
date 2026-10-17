@@ -18,6 +18,7 @@ type SystemSettings struct {
 
 	// OIDC 账号同步（Keycloak）配置
 	OIDCUserSyncEnabled                 bool
+	OIDCDriftInvalidationEnabled        bool
 	OIDCUserSyncAdminURL                string
 	OIDCUserSyncRealm                   string
 	OIDCUserSyncClientID                string

@@ -119,6 +119,7 @@ type SystemSettings struct {
 	OAuthSignupBypassRegistration      bool   `json:"oauth_signup_bypass_registration"`
 	PasswordLoginDisabled              bool   `json:"password_login_disabled"`
 	OIDCUserSyncEnabled                bool   `json:"oidc_user_sync_enabled"`
+	OIDCDriftInvalidationEnabled       bool   `json:"oidc_drift_invalidation_enabled"`
 	OIDCUserSyncAdminURL               string `json:"oidc_user_sync_admin_url"`
 	OIDCUserSyncRealm                  string `json:"oidc_user_sync_realm"`
 	OIDCUserSyncClientID               string `json:"oidc_user_sync_client_id"`

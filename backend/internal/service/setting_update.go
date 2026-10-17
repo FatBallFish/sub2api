@@ -166,6 +166,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyOAuthSignupBypassRegistration] = strconv.FormatBool(settings.OAuthSignupBypassRegistration)
 	updates[SettingKeyPasswordLoginDisabled] = strconv.FormatBool(settings.PasswordLoginDisabled)
 	updates[SettingKeyOIDCUserSyncEnabled] = strconv.FormatBool(settings.OIDCUserSyncEnabled)
+	updates[SettingKeyOIDCDriftInvalidationEnabled] = strconv.FormatBool(settings.OIDCDriftInvalidationEnabled)
 	updates[SettingKeyOIDCUserSyncAdminURL] = strings.TrimSpace(settings.OIDCUserSyncAdminURL)
 	updates[SettingKeyOIDCUserSyncRealm] = strings.TrimSpace(settings.OIDCUserSyncRealm)
 	updates[SettingKeyOIDCUserSyncClientID] = strings.TrimSpace(settings.OIDCUserSyncClientID)

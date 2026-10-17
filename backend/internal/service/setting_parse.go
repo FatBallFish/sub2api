@@ -60,6 +60,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPasswordLoginDisabled:                     "false",
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyOIDCUserSyncEnabled:                       "false",
+		SettingKeyOIDCDriftInvalidationEnabled:              "true",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
 		SettingKeyOIDCUserSyncAdminURL:                      "",
 		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
@@ -354,6 +355,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		PasswordLoginDisabled:                  settings[SettingKeyPasswordLoginDisabled] == "true",
 		TotpEnabled:                            settings[SettingKeyTotpEnabled] == "true",
 		OIDCUserSyncEnabled:                    settings[SettingKeyOIDCUserSyncEnabled] == "true",
+		OIDCDriftInvalidationEnabled:           settings[SettingKeyOIDCDriftInvalidationEnabled] == "true",
 		PasskeyEnabled:                         s.passkeySettingEnabled(settings),
 		OIDCUserSyncAdminURL:                   strings.TrimSpace(settings[SettingKeyOIDCUserSyncAdminURL]),
 		SessionBindingEnabled:                  settings[SettingKeySessionBindingEnabled] == "true", // 默认关闭

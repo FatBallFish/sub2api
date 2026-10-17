@@ -319,7 +319,7 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
       unbind: "解除",
       lastMethodHint: "これは現在唯一のログイン方法です（ローカルメールが利用不可）。他のログイン方法を連携するか、メールパスワードを設定してから解除してください",
       loading: "読み込み中…",
-      title: "セキュリティ",
+      title: "パスワード",
       description: "アカウントのパスワードを変更します。",
       currentPassword: "現在のパスワード",
       newPassword: "新しいパスワード",
