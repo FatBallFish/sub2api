@@ -100,6 +100,49 @@ function isGlobalErrorCode(code: string): code is GlobalErrorCode {
   return GLOBAL_ERROR_CODE_SET.has(code);
 }
 
+/** Binding-validation field labels covered by errors.validationFields.* (finite contract for the i18n scanner). */
+export const VALIDATION_FIELD_KEYS = [
+  "email", "password", "username", "notes", "role", "status", "balance", "concurrency",
+  "page", "page_size", "id", "user_id", "user_ids", "group_id", "group_ids", "account_id",
+  "api_key", "name", "title", "content", "amount", "model", "platform", "type", "code",
+  "plan_id", "order_id", "rate_limits", "expires_in_days", "quota",
+] as const;
+
+/** Binding-validation rule labels covered by errors.validationTags.* (finite contract for the i18n scanner). */
+export const VALIDATION_TAG_KEYS = [
+  "required", "email", "min", "max", "minlength", "maxlength", "oneof", "uuid", "url", "uri",
+  "datetime", "number", "boolean", "gt", "gte", "lt", "lte", "group_platform", "concrete_platform",
+] as const;
+
+interface APIEnvelopeLike {
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Compose the localized message for binding/validation failures
+ * (reason=VALIDATION_FAILED). The backend metadata carries the offending
+ * field (JSON name) and the validator tag; both map to label tables under
+ * the errors namespace. Malformed bodies without a field fall back to the
+ * generic invalid-body phrasing.
+ */
+function localizedValidationMessage(payload: unknown, t: TFunction): string | null {
+  const metadata = (payload as APIEnvelopeLike | undefined)?.metadata;
+  const tag = typeof metadata?.tag === "string" ? metadata.tag : "";
+  const field = typeof metadata?.field === "string" ? metadata.field : "";
+  if (!field) {
+    if (tag === "json" || tag === "json_type" || tag === "invalid") {
+      return t("validationInvalidBody", { ns: "errors" });
+    }
+    return null;
+  }
+  const fieldLabel = t(`validationFields.${field}`, { ns: "errors", defaultValue: field });
+  const tagLabel = t(`validationTags.${tag}`, { ns: "errors", defaultValue: "" });
+  if (!tagLabel) {
+    return t("validationFieldOnly", { ns: "errors", field: fieldLabel });
+  }
+  return t("validationFailed", { ns: "errors", field: fieldLabel, rule: tagLabel });
+}
+
 export function localizedErrorMessage(
   error: unknown,
   fallbackKey: ErrorFallbackKey,
@@ -109,6 +152,11 @@ export function localizedErrorMessage(
     ? { t: translatorOrOptions }
     : translatorOrOptions;
   const t = options.t ?? i18n.t;
+
+  if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
+    const localized = localizedValidationMessage(error.payload, t);
+    if (localized) return localized;
+  }
 
   if (error instanceof ApiError && error.code) {
     const scopedKey = options.scope
