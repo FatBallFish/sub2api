@@ -180,7 +180,7 @@ func (h *SubscriptionHandler) GetProgress(c *gin.Context) {
 func (h *SubscriptionHandler) Assign(c *gin.Context) {
 	var req AssignSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *SubscriptionHandler) AssignGlobalPlan(c *gin.Context) {
 	}
 	var req AssignGlobalPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	adminID := getAdminIDFromContext(c)
@@ -242,7 +242,7 @@ func (h *SubscriptionHandler) ExtendGlobalPlan(c *gin.Context) {
 	}
 	var req AdjustSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	subscription, err := h.globalPlanService.Adjust(c.Request.Context(), subscriptionID, req.Days, time.Now().UTC())
@@ -297,7 +297,7 @@ func (h *SubscriptionHandler) RevokeGlobalPlan(c *gin.Context) {
 func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 	var req BulkAssignSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -324,7 +324,7 @@ func (h *SubscriptionHandler) BulkAssign(c *gin.Context) {
 func (h *SubscriptionHandler) BulkAction(c *gin.Context) {
 	var req service.BulkSubscriptionActionInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -347,7 +347,7 @@ func (h *SubscriptionHandler) Extend(c *gin.Context) {
 
 	var req AdjustSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -384,7 +384,7 @@ func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 	}
 	var req ResetSubscriptionQuotaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if !req.Daily && !req.Weekly && !req.Monthly {

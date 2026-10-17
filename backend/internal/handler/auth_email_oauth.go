@@ -345,7 +345,7 @@ type completeEmailOAuthRequest struct {
 func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider string) {
 	var req completeEmailOAuthRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

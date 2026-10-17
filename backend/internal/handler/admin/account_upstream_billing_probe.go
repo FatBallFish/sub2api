@@ -36,7 +36,7 @@ func (h *AccountHandler) UpdateUpstreamBillingProbeSettings(c *gin.Context) {
 	}
 	var req service.UpstreamBillingProbeSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.upstreamBillingProbe.UpdateSettings(c.Request.Context(), &req); err != nil {
@@ -63,7 +63,7 @@ func (h *AccountHandler) SetUpstreamBillingProbeEnabled(c *gin.Context) {
 	}
 	var req upstreamBillingProbeEnabledRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.upstreamBillingProbe.SetAccountEnabled(c.Request.Context(), accountID, *req.Enabled); err != nil {
@@ -98,7 +98,7 @@ func (h *AccountHandler) ProbeUpstreamBillingBatch(c *gin.Context) {
 	}
 	var req upstreamBillingProbeBatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if len(req.AccountIDs) == 0 || len(req.AccountIDs) > service.UpstreamBillingProbeMaxBatchSize {

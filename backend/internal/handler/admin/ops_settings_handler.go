@@ -43,7 +43,7 @@ func (h *OpsHandler) UpdateEmailNotificationConfig(c *gin.Context) {
 
 	var req service.OpsEmailNotificationConfigUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h *OpsHandler) UpdateAlertRuntimeSettings(c *gin.Context) {
 
 	var req service.OpsAlertRuntimeSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h *OpsHandler) UpdateRuntimeLogConfig(c *gin.Context) {
 
 	var req service.OpsRuntimeLogConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func (h *OpsHandler) UpdateAdvancedSettings(c *gin.Context) {
 
 	var req service.OpsAdvancedSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 
@@ -260,7 +260,7 @@ func (h *OpsHandler) UpdateMetricThresholds(c *gin.Context) {
 
 	var req service.OpsMetricThresholds
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 

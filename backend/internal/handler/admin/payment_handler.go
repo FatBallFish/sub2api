@@ -237,7 +237,7 @@ func (h *PaymentHandler) ProcessRefund(c *gin.Context) {
 
 	var req AdminProcessRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -358,7 +358,7 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 func (h *PaymentHandler) CreatePlan(c *gin.Context) {
 	var req service.CreatePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	plan, err := h.configService.CreatePlan(c.Request.Context(), req)
@@ -378,7 +378,7 @@ func (h *PaymentHandler) UpdatePlan(c *gin.Context) {
 	}
 	var req service.UpdatePlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	plan, err := h.configService.UpdatePlan(c.Request.Context(), id, req)
@@ -421,7 +421,7 @@ func (h *PaymentHandler) ListProviders(c *gin.Context) {
 func (h *PaymentHandler) CreateProvider(c *gin.Context) {
 	var req service.CreateProviderInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	inst, err := h.configService.CreateProviderInstance(c.Request.Context(), req)
@@ -447,7 +447,7 @@ func (h *PaymentHandler) UpdateProvider(c *gin.Context) {
 	}
 	var req service.UpdateProviderInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	inst, err := h.configService.UpdateProviderInstance(c.Request.Context(), id, req)
@@ -499,7 +499,7 @@ func (h *PaymentHandler) CreateCreemProduct(c *gin.Context) {
 	}
 	var req service.CreateCreemBindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	binding, err := h.configService.CreateCreemBinding(c.Request.Context(), providerID, req)
@@ -521,7 +521,7 @@ func (h *PaymentHandler) UpdateCreemProduct(c *gin.Context) {
 	}
 	var req service.UpdateCreemBindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	binding, err := h.configService.UpdateCreemBinding(c.Request.Context(), providerID, bindingID, req)
@@ -594,7 +594,7 @@ func (h *PaymentHandler) GetConfig(c *gin.Context) {
 func (h *PaymentHandler) UpdateConfig(c *gin.Context) {
 	var req service.UpdatePaymentConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.configService.UpdatePaymentConfig(c.Request.Context(), req); err != nil {

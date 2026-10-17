@@ -155,7 +155,7 @@ func (h *DashboardHandler) BackfillAggregation(c *gin.Context) {
 
 	var req DashboardAggregationBackfillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+		response.BindError(c, err)
 		return
 	}
 	start, err := time.Parse(time.RFC3339, req.Start)
@@ -585,7 +585,7 @@ func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
 func (h *DashboardHandler) GetBatchUsersUsage(c *gin.Context) {
 	var req BatchUsersUsageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 
@@ -634,7 +634,7 @@ type BatchAPIKeysUsageRequest struct {
 func (h *DashboardHandler) GetBatchAPIKeysUsage(c *gin.Context) {
 	var req BatchAPIKeysUsageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

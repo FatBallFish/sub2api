@@ -51,7 +51,7 @@ func (h *AccountHandler) UpdateGrokMediaEligibility(c *gin.Context) {
 
 	var req updateGrokMediaEligibilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 

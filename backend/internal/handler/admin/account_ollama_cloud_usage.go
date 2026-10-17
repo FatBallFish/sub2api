@@ -36,7 +36,7 @@ func (h *AccountHandler) UpdateOllamaCloudUsageSettings(c *gin.Context) {
 	}
 	var req service.OllamaCloudUsageSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.ollamaCloudUsage.UpdateSettings(c.Request.Context(), &req); err != nil {
@@ -77,7 +77,7 @@ func (h *AccountHandler) SaveOllamaCloudUsageSession(c *gin.Context) {
 	}
 	var req ollamaCloudUsageSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	state, err := h.ollamaCloudUsage.SaveSession(c.Request.Context(), accountID, req.Session)
@@ -114,7 +114,7 @@ func (h *AccountHandler) SetOllamaCloudUsageAutoRefresh(c *gin.Context) {
 	}
 	var req ollamaCloudUsageAutoRefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	state, err := h.ollamaCloudUsage.SetAutoRefresh(c.Request.Context(), accountID, *req.Enabled)

@@ -32,7 +32,7 @@ func (h *AccountHandler) UpdateOpenCodeGoUsageSettings(c *gin.Context) {
 	}
 	var req service.OpenCodeGoUsageSettings
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	if err := h.opencodeGoUsage.UpdateSettings(c.Request.Context(), &req); err != nil {
@@ -73,7 +73,7 @@ func (h *AccountHandler) SetOpenCodeGoUsageAutoRefresh(c *gin.Context) {
 	}
 	var req openCodeGoUsageAutoRefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.BindError(c, err)
 		return
 	}
 	state, err := h.opencodeGoUsage.SetAutoRefresh(c.Request.Context(), accountID, *req.Enabled)
