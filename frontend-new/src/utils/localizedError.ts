@@ -5,6 +5,9 @@ import en, { type ErrorFallbackKey, type ErrorTranslationKey } from "../i18n/res
 
 export type ErrorScope = keyof typeof en.errors.scoped;
 
+/** validation 命名空间（errors.validation.*）的叶子键。 */
+export type ValidationMessageKey = string;
+
 export interface LocalizedErrorOptions {
   scope?: ErrorScope;
   t?: TFunction;
@@ -131,16 +134,16 @@ function localizedValidationMessage(payload: unknown, t: TFunction): string | nu
   const field = typeof metadata?.field === "string" ? metadata.field : "";
   if (!field) {
     if (tag === "json" || tag === "json_type" || tag === "invalid") {
-      return t("validationInvalidBody", { ns: "errors" });
+      return t("invalidBody", { ns: "validation" });
     }
     return null;
   }
-  const fieldLabel = t(`validationFields.${field}`, { ns: "errors", defaultValue: field });
-  const tagLabel = t(`validationTags.${tag}`, { ns: "errors", defaultValue: "" });
+  const fieldLabel = t(`fields.${field}` as ValidationMessageKey, { ns: "validation", defaultValue: field });
+  const tagLabel = t(`tags.${tag}` as ValidationMessageKey, { ns: "validation", defaultValue: "" });
   if (!tagLabel) {
-    return t("validationFieldOnly", { ns: "errors", field: fieldLabel });
+    return t("fieldOnly", { ns: "validation", field: fieldLabel });
   }
-  return t("validationFailed", { ns: "errors", field: fieldLabel, rule: tagLabel });
+  return t("failed", { ns: "validation", field: fieldLabel, rule: tagLabel });
 }
 
 export function localizedErrorMessage(

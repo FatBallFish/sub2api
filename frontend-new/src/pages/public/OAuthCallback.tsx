@@ -118,10 +118,11 @@ function isPendingChoiceStep(completion: PendingOAuthCompletion): boolean {
   return pendingChoiceSteps.has(step);
 }
 
-function providerLabel(provider: OAuthProvider) {
+function providerLabel(provider: OAuthProvider, settings?: PublicSettings | null) {
   if (provider === "google") return "Google";
   if (provider === "github") return "GitHub";
-  return "OIDC";
+  // OIDC 用管理员配置的 Provider 展示名（如 Mikiko CC New），缺省回退 OIDC。
+  return settings?.oidc_console_oauth_provider_name?.trim() || "OIDC";
 }
 
 export default function OAuthCallback() {
@@ -238,11 +239,15 @@ export default function OAuthCallback() {
           // Upstream identity is new (or its email is unverified): ask whether to
           // bind an existing local account or create a new one, mirroring the
           // classic frontend chooser.
+          setProvider(pendingProvider);
           setChoiceEmail(resolvedEmail || (completion.existing_account_email || "").trim());
           setCreateAccountAllowed(completion.create_account_allowed !== false);
           setBindEmail(resolvedEmail || "");
           setPendingRequiresEmailVerification(completion.email_verification_required === true
             || (pendingProvider !== "github" && pendingProvider !== "google"));
+          getPublicSettings()
+            .then((publicSettings) => setSettings(publicSettings))
+            .catch(() => undefined);
           setState("choice");
           return;
         }
@@ -540,9 +545,9 @@ export default function OAuthCallback() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
-                {providerLabel(provider)} OAuth
+                {providerLabel(provider, settings)} OAuth
               </p>
-              <h1 className="mt-2 text-xl font-semibold text-zinc-950">{t("oauth.completeSignup", { provider: providerLabel(provider) })}</h1>
+              <h1 className="mt-2 text-xl font-semibold text-zinc-950">{t("oauth.completeSignup", { provider: providerLabel(provider, settings) })}</h1>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
                 {t("oauth.signupDescription")}
               </p>

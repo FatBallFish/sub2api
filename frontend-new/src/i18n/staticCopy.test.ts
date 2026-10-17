@@ -169,8 +169,8 @@ function dynamicTranslationKeys(overrides: Partial<DynamicTranslationContracts> 
     ...ANNOUNCEMENT_CATEGORIES.map((category) => `console.announcements.categories.${category}`),
     ...GLOBAL_ERROR_CODES.map((code) => `errors.${code}`),
     ...Object.values(SCOPED_ERROR_KEYS).map((key) => `errors.${key}`),
-    ...VALIDATION_FIELD_KEYS.map((field) => `errors.validationFields.${field}`),
-    ...VALIDATION_TAG_KEYS.map((tag) => `errors.validationTags.${tag}`),
+    ...VALIDATION_FIELD_KEYS.map((field) => `validation.fields.${field}`),
+    ...VALIDATION_TAG_KEYS.map((tag) => `validation.tags.${tag}`),
   ]);
 }
 

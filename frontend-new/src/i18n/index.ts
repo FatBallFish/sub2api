@@ -104,7 +104,7 @@ async function initializeInstance(
         fallbackLng: "en",
         supportedLngs: [...SUPPORTED_LOCALES],
         defaultNS: "common",
-        ns: ["common", "public", "auth", "console", "errors"],
+        ns: ["common", "public", "auth", "console", "errors", "validation"],
         returnNull: false,
         interpolation: {
           escapeValue: false,

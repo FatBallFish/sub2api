@@ -177,6 +177,8 @@ describe("OAuthCallback", () => {
         email_verification_required: true,
         create_account_allowed: true,
       }))
+      // choice 分支会顺带拉取公开设置（OIDC Provider 展示名），插入对应 mock。
+      .mockResolvedValueOnce(response({ email_verify_enabled: false }))
       .mockResolvedValueOnce(response({
         access_token: "bound-access",
         refresh_token: "bound-refresh",
@@ -197,7 +199,7 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
     expect(localStorage.getItem("auth_token")).toBe("bound-access");
-    expect(fetchMock).toHaveBeenNthCalledWith(2,
+    expect(fetchMock).toHaveBeenNthCalledWith(3,
       "/api/v1/auth/oauth/pending/bind-login",
       expect.objectContaining({
         method: "POST",
