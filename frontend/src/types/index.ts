@@ -112,6 +112,15 @@ export interface AdminUser extends User {
   restrict_public_groups?: boolean
   // 当前并发数（仅管理员列表接口返回）
   current_concurrency?: number
+  // 关联的三方登录身份（仅管理员列表接口 include_auth_identities=true 时返回）
+  auth_identities?: AdminAuthIdentity[]
+}
+
+export interface AdminAuthIdentity {
+  provider_type: string
+  provider_key: string
+  provider_subject: string
+  issuer?: string
 }
 
 export interface LoginRequest {

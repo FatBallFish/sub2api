@@ -318,6 +318,23 @@
             <span class="text-sm text-gray-700 dark:text-gray-300">{{ value || '-' }}</span>
           </template>
 
+          <template #cell-auth_identities="{ row }">
+            <div v-if="row.auth_identities?.length" class="flex max-w-xs flex-col gap-1">
+              <div
+                v-for="identity in row.auth_identities"
+                :key="`${identity.provider_type}:${identity.provider_subject}`"
+                class="flex items-center gap-1.5"
+                :title="identityTitle(identity)"
+              >
+                <span class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                  {{ identity.provider_type }}
+                </span>
+                <span class="font-mono text-xs text-gray-600 dark:text-gray-400">{{ shortSubject(identity.provider_subject) }}</span>
+              </div>
+            </div>
+            <span v-else class="text-sm text-gray-400">-</span>
+          </template>
+
           <template #cell-notes="{ value }">
             <div class="max-w-xs">
               <span
@@ -823,7 +840,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
+import type { AdminUser, AdminAuthIdentity, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
 import type { PlatformQuotaItem } from '@/api/admin/users'
 import type { Column } from '@/components/common/types'
@@ -905,6 +922,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'email', label: t('admin.users.columns.user'), sortable: true },
   { key: 'id', label: t('admin.users.columns.id'), sortable: true },
   { key: 'username', label: t('admin.users.columns.username'), sortable: true },
+  { key: 'auth_identities', label: t('admin.users.columns.authIdentities'), sortable: false },
   { key: 'notes', label: t('admin.users.columns.notes'), sortable: false },
   // Dynamic attribute columns
   ...attributeColumns.value,
@@ -939,7 +957,8 @@ const hiddenColumns = reactive<Set<string>>(new Set())
 const DEFAULT_HIDDEN_COLUMNS = [
   'notes', 'groups', 'subscriptions', 'usage', 'concurrency',
   'usage_anthropic', 'usage_openai', 'usage_gemini', 'usage_antigravity',
-  'balance_platform_quota'
+  'balance_platform_quota',
+  'auth_identities'
 ]
 const REMOVED_COLUMNS = new Set(['last_login_at'])
 // 强制可见列：加载时会被强制移出 hiddenColumns，并在列设置 UI 上 disabled。
@@ -952,10 +971,11 @@ const HIDDEN_COLUMNS_KEY = 'user-hidden-columns'
 // 并在 VERSION_NEW_HIDDEN_COLUMNS 中登记该版本新增的 key。
 // 这样老用户升级后这些新列会被自动隐藏一次，而不会影响他们对其它老列的偏好。
 const COLUMN_SETTINGS_VERSION_KEY = 'user-column-settings-version'
-const COLUMN_SETTINGS_VERSION = 3
+const COLUMN_SETTINGS_VERSION = 4
 const VERSION_NEW_HIDDEN_COLUMNS: Record<number, string[]> = {
   2: ['usage_anthropic', 'usage_openai', 'usage_gemini', 'usage_antigravity'],
-  3: ['balance_platform_quota']
+  3: ['balance_platform_quota'],
+  4: ['auth_identities']
 }
 
 // Load saved column settings
@@ -1350,6 +1370,14 @@ const handleSelectedKeysUpdate = (keys: Array<string | number>) => {
 const getUserSelectionLabel = (user: AdminUser) =>
   t('admin.users.bulkLimits.selectUser', { email: user.email })
 
+const shortSubject = (subject: string) =>
+  subject.length > 12 ? `${subject.slice(0, 10)}…` : subject
+
+const identityTitle = (identity: AdminAuthIdentity) => {
+  const issuer = identity.issuer || identity.provider_key
+  return `${identity.provider_type} · ${identity.provider_subject}${issuer ? ` · ${issuer}` : ''}`
+}
+
 // User attribute definitions and values
 const attributeDefinitions = ref<UserAttributeDefinition[]>([])
 const userAttributeValues = ref<Record<number, Record<number, string>>>({})
@@ -1632,6 +1660,7 @@ const loadUsers = async () => {
         attributes: Object.keys(attrFilters).length > 0 ? attrFilters : undefined,
         // 始终请求 subscriptions：列隐藏时仍需用于 UserPlatformQuotaModal 的 active-subscription 警示 banner
         include_subscriptions: true,
+        include_auth_identities: true,
         sort_by: sortState.sort_by,
         sort_order: sortState.sort_order
       },

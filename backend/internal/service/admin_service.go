@@ -27,6 +27,7 @@ type AdminService interface {
 	// BatchDisableUsers 批量禁用普通用户，返回实际禁用的人数。
 	BatchDisableUsers(ctx context.Context, userIDs []int64) (int, error)
 	BatchUpdateStatus(ctx context.Context, userIDs []int64, status string) (int, error)
+	GetUsersAuthIdentities(ctx context.Context, userIDs []int64) (map[int64][]AdminAuthIdentity, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
@@ -197,6 +198,14 @@ type UpdateUserInput struct {
 	GroupRates map[int64]*float64
 	// ActorAdminID 执行本次操作的管理员ID(来自JWT)，仅用于权限敏感操作的审计日志。
 	ActorAdminID int64
+}
+
+// AdminAuthIdentity 用户已绑定三方登录身份的摘要（不含本地 email 身份）。
+type AdminAuthIdentity struct {
+	ProviderType    string `json:"provider_type"`
+	ProviderKey     string `json:"provider_key"`
+	ProviderSubject string `json:"provider_subject"`
+	Issuer          string `json:"issuer,omitempty"`
 }
 
 type AdminBindAuthIdentityInput struct {

@@ -586,6 +586,7 @@ export default {
         subscriptions: '订阅分组',
         balance: '余额',
         balancePlatformQuota: '余额(平台配额)',
+        authIdentities: '关联的三方登录',
         usage: '用量',
         usageAnthropic: '用量 (Claude)',
         usageOpenAI: '用量 (OpenAI)',
