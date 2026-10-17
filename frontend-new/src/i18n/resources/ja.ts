@@ -226,6 +226,8 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
     signIn: "ログイン",
     working: "処理中...",
     orContinueWith: "または次の方法で続行",
+    loginEntranceClosed: "ログイン入口は現在閉じられています。管理者にお問い合わせください",
+    redirectingToProvider: "{{name}} ログインへ遷移しています…",
     settingsLoadingError: "認証設定を読み込んでいます。しばらくしてからもう一度お試しください。",
     agreementRequiredError: "続行するには現在のサービス規約に同意してください。",
     captchaRequiredError: "続行する前にセキュリティ検証を完了してください。",
