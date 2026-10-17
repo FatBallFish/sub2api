@@ -97,7 +97,6 @@ const zhCN = {
       userRateBadge: "专属倍率",
       peakRateBadge: "高峰时段 {{start}}-{{end}} {{rate}}",
       timePricingBadge: "分时倍率（{{timezone}}）",
-      lowestPrice: "当前最低价",
       limitedDescription: "登录后可查看各分组的详细价格与倍率。",
       limitedHint: "模型广场当前仅对登录用户公开完整价格。下方展示每个模型当前的最低实付价格，登录后即可查看具体分组、倍率与缓存价格。",
       notAvailable: "模型价格页当前未开放。",
