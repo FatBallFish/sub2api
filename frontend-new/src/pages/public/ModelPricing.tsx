@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Info, Lightning, MagnifyingGlass, SlidersHorizontal } from "@phosphor-icons/react";
+import { Info, Lightning, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { useTranslation } from "react-i18next";
 import {
   getModelPlaza,
@@ -21,7 +21,7 @@ function formatUSD(value: number) {
 
 function formatPerMillion(value: number | null | undefined) {
   if (value == null) return "-";
-  return formatCurrency(value * PER_MILLION, "USD");
+  return formatUSD(value * PER_MILLION);
 }
 
 function formatPairPerMillion(input: number | null | undefined, output: number | null | undefined) {
@@ -43,20 +43,15 @@ function isRequestBilled(model: PlazaModel) {
   return mode === "per_request" || mode === "image" || mode === "video";
 }
 
-function intervalRows(model: PlazaModel): PlazaPricingInterval[] {
-  if (!model.pricing?.intervals?.length) return [];
-  return model.pricing.intervals;
-}
-
-/** token 模型行：实付（后端已合成分组倍率）+ 官方参考。 */
+/** token 模型行：实付（后端已合成分组倍率）+ 官方参考；多档时模型格纵向合并。 */
 function TokenModelRows({ model }: { model: PlazaModel }) {
   const { t } = useTranslation("public");
-  const intervals = intervalRows(model);
+  const intervals = model.pricing?.intervals ?? [];
   const official = model.official_pricing;
   return (
     <>
       <tr className="transition-colors hover:bg-zinc-50/50">
-        <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900" rowSpan={Math.max(1, intervals.length)}>
+        <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900" rowSpan={intervals.length + 1}>
           {model.name}
         </td>
         <td className="px-6 py-4 text-sm font-bold text-zinc-900">
@@ -69,7 +64,7 @@ function TokenModelRows({ model }: { model: PlazaModel }) {
           {formatPairPerMillion(model.pricing?.cache_write_price, model.pricing?.cache_read_price)}
         </td>
       </tr>
-      {intervals.map((iv) => (
+      {intervals.map((iv: PlazaPricingInterval) => (
         <tr key={`${model.name}-tier-${iv.min_tokens}`} className="bg-zinc-50/40 transition-colors hover:bg-zinc-50/70">
           <td className="px-6 py-3 text-xs" colSpan={4}>
             <span className="mr-3 inline-flex items-center rounded-full bg-zinc-200/70 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">
@@ -90,34 +85,47 @@ function TokenModelRows({ model }: { model: PlazaModel }) {
   );
 }
 
-/** 按次/图片/视频模型行。 */
+/** 按次/图片/视频模型行：多档位时模型格纵向合并。 */
 function RequestModelRows({ model }: { model: PlazaModel }) {
   const { t } = useTranslation("public");
   const pricing = model.pricing;
   const tiers = pricing?.intervals?.filter((iv) => iv.per_request_price != null) ?? [];
-  const flatPrice = pricing?.per_request_price ?? null;
   const official = model.official_pricing;
-  return (
-    <>
-      {flatPrice != null ? (
-        <tr className="transition-colors hover:bg-zinc-50/50">
-          <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900">{model.name}</td>
-          <td className="px-6 py-4 text-sm font-bold text-zinc-900">
+  const modelCell = (rowSpan?: number) => (
+    <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900" rowSpan={rowSpan}>
+      {model.name}
+    </td>
+  );
+  if (tiers.length === 0) {
+    const flatPrice = pricing?.per_request_price ?? null;
+    return (
+      <tr className="transition-colors hover:bg-zinc-50/50">
+        {modelCell()}
+        <td className="px-6 py-4 text-sm font-bold text-zinc-900">
+          {flatPrice != null ? (
             <span className="inline-flex items-center gap-1.5">
               <Lightning size={13} weight="fill" className="text-amber-500" />
               {formatUSD(flatPrice)}
+              <span className="text-xs font-medium text-zinc-400">/ {t("modelPricing.perRequest")}</span>
             </span>
-            <span className="ml-1.5 text-xs font-medium text-zinc-400">/ {t("modelPricing.perRequest")}</span>
-          </td>
-          <td className="px-6 py-4 text-sm text-zinc-400">-</td>
-          <td className="px-6 py-4 font-mono text-sm text-zinc-500">-</td>
-        </tr>
-      ) : null}
-      {tiers.map((iv) => (
+          ) : (
+            "-"
+          )}
+        </td>
+        <td className="px-6 py-4 text-sm text-zinc-400">{official ? formatPairPerMillion(official.input_price, official.output_price) : "-"}</td>
+        <td className="px-6 py-4 font-mono text-sm text-zinc-500">-</td>
+      </tr>
+    );
+  }
+  return (
+    <>
+      {tiers.map((iv, index) => (
         <tr key={`${model.name}-tier-${iv.tier_label || iv.min_tokens}`} className="transition-colors hover:bg-zinc-50/50">
-          <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900">{model.name}</td>
+          {index === 0 ? modelCell(tiers.length) : null}
           <td className="px-6 py-4 text-sm font-bold text-zinc-900">
-            <span className="mr-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">{iv.tier_label}</span>
+            {iv.tier_label ? (
+              <span className="mr-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">{iv.tier_label}</span>
+            ) : null}
             {formatUSD(iv.per_request_price ?? 0)}
             <span className="ml-1.5 text-xs font-medium text-zinc-400">/ {t("modelPricing.perRequest")}</span>
           </td>
@@ -125,14 +133,6 @@ function RequestModelRows({ model }: { model: PlazaModel }) {
           <td className="px-6 py-4 font-mono text-sm text-zinc-500">-</td>
         </tr>
       ))}
-      {flatPrice == null && tiers.length === 0 ? (
-        <tr className="transition-colors hover:bg-zinc-50/50">
-          <td className="px-6 py-4 font-mono text-sm font-medium text-zinc-900">{model.name}</td>
-          <td className="px-6 py-4 text-sm text-zinc-400">-</td>
-          <td className="px-6 py-4 text-sm text-zinc-400">{official ? formatPairPerMillion(official.input_price, official.output_price) : "-"}</td>
-          <td className="px-6 py-4 font-mono text-sm text-zinc-500">-</td>
-        </tr>
-      ) : null}
     </>
   );
 }
@@ -155,9 +155,13 @@ function GroupPricingTable({ group }: { group: ModelPlazaGroup }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-zinc-100">
-          {models.map((model) => (
-            <TokenModelRows key={`${model.platform}-${model.name}`} model={model} />
-          ))}
+          {models.map((model) =>
+            isRequestBilled(model) ? (
+              <RequestModelRows key={`${model.platform}-${model.name}`} model={model} />
+            ) : (
+              <TokenModelRows key={`${model.platform}-${model.name}`} model={model} />
+            ),
+          )}
         </tbody>
       </table>
     </div>
@@ -246,7 +250,25 @@ type FilterState = {
   search: string;
 };
 
-function FilterBar({
+type FilterGroup = { id: number; name: string; platform: string; rate: number };
+
+// React key 常量（避免在 JSX 表达式里写字符串字面量，i18n 扫描器会误报）。
+const KEY_PLATFORM_ALL = "platform-all";
+const KEY_GROUP_ALL = "group-all";
+const KEY_RATE_ALL = "rate-all";
+
+function chipClass(active: boolean) {
+  return active
+    ? "bg-zinc-900 text-white shadow-md shadow-zinc-300"
+    : "bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:ring-zinc-400 hover:text-zinc-900";
+}
+
+/**
+ * 级联筛选（与老前端模型广场同款 facet 交互）：
+ * 平台/分组/倍率三维互为约束——某选项可点 ⟺ 在其余两维当前选择下仍有分组命中；
+ * 不可点项置灰而非隐藏，「全部」恒可点作为解除本维约束的出口。
+ */
+function FilterCascade({
   platforms,
   groups,
   rates,
@@ -254,63 +276,136 @@ function FilterBar({
   onChange,
 }: {
   platforms: string[];
-  groups: ModelPlazaGroup[];
+  groups: FilterGroup[];
   rates: number[];
   filter: FilterState;
   onChange: (next: FilterState) => void;
 }) {
   const { t } = useTranslation("public");
-  const selectClass =
-    "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 outline-none transition focus:border-zinc-400";
+
+  const platformEnabled = (platform: string) =>
+    groups.some(
+      (g) =>
+        g.platform === platform &&
+        (filter.groupId === "all" || g.id === filter.groupId) &&
+        (filter.rate === "all" || g.rate === filter.rate),
+    );
+  const groupEnabled = (g: FilterGroup) =>
+    (filter.platform === "all" || g.platform === filter.platform) &&
+    (filter.rate === "all" || g.rate === filter.rate);
+  const rateEnabled = (rate: number) =>
+    groups.some(
+      (g) =>
+        g.rate === rate &&
+        (filter.platform === "all" || g.platform === filter.platform) &&
+        (filter.groupId === "all" || g.id === filter.groupId),
+    );
+
+  const row = (label: string, children: React.ReactNode) => (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+      <span className="w-16 shrink-0 pt-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">{label}</span>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+
+  const chip = (
+    active: boolean,
+    disabled: boolean,
+    key: string,
+    label: React.ReactNode,
+    onClick: () => void,
+    extraClass = "",
+  ) => (
+    <button
+      key={key}
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${chipClass(active)} ${extraClass} ${
+        disabled ? "cursor-not-allowed opacity-40 grayscale" : ""
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-        <SlidersHorizontal size={14} />
-        {t("modelPricing.filter")}
-      </span>
-      <select
-        className={selectClass}
-        value={filter.platform}
-        onChange={(e) => onChange({ ...filter, platform: e.target.value, groupId: "all" })}
-      >
-        <option value="all">{t("modelPricing.allPlatforms")}</option>
-        {platforms.map((platform) => (
-          <option key={platform} value={platform}>{platform}</option>
-        ))}
-      </select>
-      <select
-        className={selectClass}
-        value={filter.groupId}
-        onChange={(e) => onChange({ ...filter, groupId: e.target.value === "all" ? "all" : Number(e.target.value) })}
-      >
-        <option value="all">{t("modelPricing.allGroups")}</option>
-        {groups
-          .filter((g) => filter.platform === "all" || g.platform === filter.platform)
-          .map((group) => (
-            <option key={group.id} value={group.id}>
-              {group.name} · {formatMultiplier(effectiveRate(group))}
-            </option>
-          ))}
-      </select>
-      <select
-        className={selectClass}
-        value={String(filter.rate)}
-        onChange={(e) => onChange({ ...filter, rate: e.target.value === "all" ? "all" : Number(e.target.value) })}
-      >
-        <option value="all">{t("modelPricing.allRates")}</option>
-        {rates.map((rate) => (
-          <option key={rate} value={rate}>{formatMultiplier(rate)}</option>
-        ))}
-      </select>
-      <div className="relative ml-auto">
-        <MagnifyingGlass size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-        <input
-          className="w-56 rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-300 focus:border-zinc-400"
-          placeholder={t("modelPricing.searchPlaceholder")}
-          value={filter.search}
-          onChange={(e) => onChange({ ...filter, search: e.target.value })}
-        />
-      </div>
+    <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      {row(
+        t("modelPricing.platformLabel"),
+        <>
+          {chip(filter.platform === "all", false, KEY_PLATFORM_ALL, t("modelPricing.allOption"), () =>
+            onChange({ ...filter, platform: "all", groupId: "all" }),
+          )}
+          {platforms.map((platform) =>
+            chip(
+              filter.platform === platform,
+              !platformEnabled(platform),
+              `platform-${platform}`,
+              platform,
+              () => onChange({ ...filter, platform, groupId: "all" }),
+              "font-mono",
+            ),
+          )}
+        </>,
+      )}
+      {row(
+        t("modelPricing.groupLabel"),
+        <>
+          {chip(filter.groupId === "all", false, KEY_GROUP_ALL, t("modelPricing.allOption"), () =>
+            onChange({ ...filter, groupId: "all" }),
+          )}
+          {groups.map((g) =>
+            chip(
+              filter.groupId === g.id,
+              !groupEnabled(g),
+              `group-${g.id}`,
+              <span title={`${g.platform} · ${formatMultiplier(g.rate)}`}>{g.name}</span>,
+              () => onChange({ ...filter, groupId: filter.groupId === g.id ? "all" : g.id }),
+            ),
+          )}
+        </>,
+      )}
+      {row(
+        t("modelPricing.rateLabel"),
+        <>
+          {chip(filter.rate === "all", false, KEY_RATE_ALL, t("modelPricing.allOption"), () =>
+            onChange({ ...filter, rate: "all" }),
+          )}
+          {rates.map((rate) =>
+            chip(
+              filter.rate === rate,
+              !rateEnabled(rate),
+              `rate-${rate}`,
+              formatMultiplier(rate),
+              () => onChange({ ...filter, rate: filter.rate === rate ? "all" : rate }),
+              "font-mono",
+            ),
+          )}
+        </>,
+      )}
+      {row(
+        t("modelPricing.modelLabel"),
+        <div className="relative w-full sm:w-72">
+          <MagnifyingGlass size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input
+            className="w-full rounded-full border border-zinc-200 bg-white py-1.5 pl-9 pr-9 text-sm text-zinc-800 outline-none transition placeholder:text-zinc-300 focus:border-zinc-400"
+            placeholder={t("modelPricing.searchPlaceholder")}
+            value={filter.search}
+            onChange={(e) => onChange({ ...filter, search: e.target.value })}
+          />
+          {filter.search ? (
+            <button
+              type="button"
+              aria-label={t("modelPricing.clearSearch")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-zinc-700"
+              onClick={() => onChange({ ...filter, search: "" })}
+            >
+              <X size={13} weight="bold" />
+            </button>
+          ) : null}
+        </div>,
+      )}
     </div>
   );
 }
@@ -342,9 +437,13 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
     () => [...new Set((data?.groups ?? []).map((g) => g.platform).filter(Boolean))].sort(),
     [data],
   );
-  const rates = useMemo(
-    () => [...new Set((data?.groups ?? []).map(effectiveRate))].sort((a, b) => a - b),
+  const filterGroups = useMemo<FilterGroup[]>(
+    () => (data?.groups ?? []).map((g) => ({ id: g.id, name: g.name, platform: g.platform, rate: effectiveRate(g) })),
     [data],
+  );
+  const rates = useMemo(
+    () => [...new Set(filterGroups.map((g) => g.rate))].sort((a, b) => a - b),
+    [filterGroups],
   );
 
   const filteredGroups = useMemo(() => {
@@ -404,7 +503,7 @@ export default function ModelPricing({ isConsole = false }: { isConsole?: boolea
               </div>
             ) : (
               <>
-                <FilterBar platforms={platforms} groups={data.groups ?? []} rates={rates} filter={filter} onChange={setFilter} />
+                <FilterCascade platforms={platforms} groups={filterGroups} rates={rates} filter={filter} onChange={setFilter} />
                 <div className="space-y-10">
                   {filteredGroups.map((group) => (
                     <GroupSection key={group.id} group={group} />
