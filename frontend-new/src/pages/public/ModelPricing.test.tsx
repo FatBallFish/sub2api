@@ -76,10 +76,13 @@ describe("ModelPricing page", () => {
       expect(screen.getByText("claude-sonnet-4")).toBeInTheDocument();
     });
 
-    // paid in/out per million = 3 / 15 (paid and official columns both match this data)
-    expect(screen.getAllByText("$3 / $15").length).toBeGreaterThan(0);
+    // paid = base × group rate (1.5x): 4.5 / 22.5 per million; official stays 3 / 15
+    expect(screen.getByText("$4.50")).toBeInTheDocument();
+    expect(screen.getByText("$22.50")).toBeInTheDocument();
+    expect(screen.getAllByText("$3").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$15").length).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "Standard", level: 3 })).toBeInTheDocument();
-    expect(screen.getByText("Group multiplier: 1.500x")).toBeInTheDocument();
+    expect(screen.getByText("Group multiplier: 1.5x")).toBeInTheDocument();
   });
 
   it("shows the anonymous lowest-price summary when the plaza requires auth", async () => {
