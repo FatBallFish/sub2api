@@ -27,6 +27,10 @@ export interface PublicSettings {
   contact_info?: string;
   hide_ccs_import_button?: boolean;
   oidc_console_oauth_enabled?: boolean;
+  oidc_oauth_enabled?: boolean;
+  linuxdo_oauth_enabled?: boolean;
+  wechat_oauth_enabled?: boolean;
+  dingtalk_oauth_enabled?: boolean;
   password_login_disabled?: boolean;
   oidc_console_oauth_provider_name?: string;
   login_agreement_enabled?: boolean;

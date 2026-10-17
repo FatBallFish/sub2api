@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { changePassword } from "../../api/auth";
 import { getConsoleBootstrap } from "../../api/console";
 import { apiRequest, getJSON } from "../../api/client";
+import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import type { ConsoleBootstrap } from "../../types/console";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { errorMessage, resolveLocalizedMessage, type LocalizedMessage } from "../../utils/localizedMessage";
@@ -17,6 +18,8 @@ interface IdentitySummary {
   provider_key?: string;
   can_unbind?: boolean;
   note_key?: string;
+  bind_start_path?: string;
+  can_bind?: boolean;
 }
 
 type IdentitySummarySet = Record<string, IdentitySummary>;
@@ -30,6 +33,8 @@ function AccountSecurity() {
   const [identities, setIdentities] = useState<IdentitySummarySet | null>(null);
   const [unbinding, setUnbinding] = useState<string | null>(null);
   const [unbindError, setUnbindError] = useState<LocalizedMessage | null>(null);
+  const [settings, setSettings] = useState<PublicSettings | null>(null);
+  const [binding, setBinding] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -50,6 +55,13 @@ function AccountSecurity() {
       })
       .catch(() => {
         if (active) setBootstrap(null);
+      });
+    getPublicSettings()
+      .then((data) => {
+        if (active) setSettings(data);
+      })
+      .catch(() => {
+        if (active) setSettings(null);
       });
     getJSON<Record<string, unknown> & { identities?: IdentitySummarySet }>("/user/profile")
       .then((profile) => {
@@ -80,6 +92,43 @@ function AccountSecurity() {
       setUnbindError(errorMessage(reason, "securityUnbindFailed"));
     } finally {
       setUnbinding(null);
+    }
+  };
+
+  // 系统配置可绑定的平台：未配置的 OAuth 入口不展示绑定按钮。
+  const providerConfigured = (provider: string): boolean => {
+    switch (provider) {
+      case "oidc":
+        return settings?.oidc_oauth_enabled === true || settings?.oidc_console_oauth_enabled === true;
+      case "linuxdo":
+        return settings?.linuxdo_oauth_enabled === true;
+      case "wechat":
+        return settings?.wechat_oauth_enabled === true;
+      case "dingtalk":
+        return settings?.dingtalk_oauth_enabled === true;
+      default:
+        return false;
+    }
+  };
+
+  // 绑定：调 bind/start 拿 authorize_url 后浏览器跳转，授权回调后回到本页。
+  const bind = async (provider: string) => {
+    if (binding !== null) return;
+    setBinding(provider);
+    setUnbindError(null);
+    try {
+      const result = await apiRequest<{ authorize_url?: string; use_browser_redirect?: boolean }>(
+        "/user/auth-identities/bind/start",
+        { method: "POST", body: JSON.stringify({ provider, redirect_to: "/console/security" }) },
+      );
+      if (result.authorize_url) {
+        window.location.href = result.authorize_url;
+        return;
+      }
+    } catch (reason) {
+      setUnbindError(errorMessage(reason, "securityBindFailed"));
+    } finally {
+      setBinding(null);
     }
   };
 
@@ -118,13 +167,16 @@ function AccountSecurity() {
           </div>
         ) : (
           <div className="mt-4 space-y-2">
-            {DISPLAY_PROVIDERS.every((provider) => !identities[provider]?.bound) ? (
+            {DISPLAY_PROVIDERS.every((provider) => {
+              const summary = identities[provider];
+              return !summary || (!summary.bound && !providerConfigured(provider));
+            }) ? (
               <div className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">{t("security.noneLinked")}</div>
             ) : null}
             {DISPLAY_PROVIDERS.map((provider) => {
               const summary = identities[provider];
-              // 仅展示已绑定的三方身份；未绑定的类型不占位。
-              if (!summary || !summary.bound) return null;
+              // 已绑定的展示；未绑定但系统配置了该 OAuth 入口的也展示（附绑定按钮）。
+              if (!summary || (!summary.bound && !providerConfigured(provider))) return null;
               return (
                 <div
                   key={provider}
@@ -163,7 +215,16 @@ function AccountSecurity() {
                         {unbinding === provider ? "…" : t("security.unbind")}
                       </button>
                     </span>
-                  ) : null}
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={binding !== null}
+                      onClick={() => void bind(provider)}
+                      className="shrink-0 self-start rounded-lg bg-zinc-950 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 sm:self-auto"
+                    >
+                      {binding === provider ? "…" : t("security.bind")}
+                    </button>
+                  )}
                 </div>
               );
             })}
