@@ -97,6 +97,7 @@ export function extractI18nErrorMessage(
   t: TranslateFn,
   namespace: string,
   fallback: string,
+  options?: { preferMessage?: boolean },
 ): string {
   const code = extractApiErrorCode(err)
   if (code) {
@@ -114,6 +115,9 @@ export function extractI18nErrorMessage(
     const te = (t as TranslateWithExistsFn).te
     if (te && te(key)) return translated
   }
+  // preferMessage=false 时跳过原始英文 message，直接回落本地化 fallback
+  // （用于原「仅认 response.data.detail」的调用点，保持其错误提示本地化的旧行为）。
+  if (options?.preferMessage === false) return fallback
   return extractApiErrorMessage(err, fallback)
 }
 

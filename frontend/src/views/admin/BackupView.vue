@@ -414,6 +414,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api'
@@ -819,7 +820,7 @@ async function createBackup() {
     if (error?.response?.status === 409) {
       appStore.showWarning(t('admin.backup.operations.alreadyInProgress'))
     } else {
-      appStore.showError(error?.message || t('errors.networkError'))
+      appStore.showError(extractI18nErrorMessage(error, t, 'errors', t('errors.networkError')))
     }
     creatingBackup.value = false
   }
@@ -871,7 +872,7 @@ async function restoreBackup(id: string) {
     if (error?.status === 409 || error?.response?.status === 409) {
       appStore.showWarning(t('admin.backup.operations.restoreRunning'))
     } else {
-      appStore.showError(error?.message || t('errors.networkError'))
+      appStore.showError(extractI18nErrorMessage(error, t, 'errors', t('errors.networkError')))
     }
   }
 }

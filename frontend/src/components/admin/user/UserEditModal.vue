@@ -83,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -166,7 +167,7 @@ const handleUpdateUser = async () => {
           : t('stepUp.notEnabled')
       )
     } else {
-      appStore.showError(e?.message || t('admin.users.failedToUpdate'))
+      appStore.showError(extractI18nErrorMessage(e, t, 'admin.users', t('admin.users.failedToUpdate')))
     }
   } finally { submitting.value = false }
 }

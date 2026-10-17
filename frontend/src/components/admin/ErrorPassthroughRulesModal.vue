@@ -430,6 +430,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -612,7 +613,7 @@ const handleSubmit = async () => {
     closeFormModal()
     loadRules()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.errorPassthrough.failedToSave'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.errorPassthrough', t('admin.errorPassthrough.failedToSave'), { preferMessage: false }))
     console.error('Error saving rule:', error)
   } finally {
     submitting.value = false
@@ -624,7 +625,7 @@ const toggleEnabled = async (rule: ErrorPassthroughRule) => {
     const updated = await adminAPI.errorPassthrough.toggleEnabled(rule.id, !rule.enabled)
     rule.enabled = updated.enabled
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.errorPassthrough.failedToToggle'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.errorPassthrough', t('admin.errorPassthrough.failedToToggle'), { preferMessage: false }))
     console.error('Error toggling rule:', error)
   }
 }
@@ -639,7 +640,7 @@ const confirmDelete = async () => {
     deletingRule.value = null
     loadRules()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.errorPassthrough.failedToDelete'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.errorPassthrough', t('admin.errorPassthrough.failedToDelete'), { preferMessage: false }))
     console.error('Error deleting rule:', error)
   }
 }

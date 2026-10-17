@@ -611,6 +611,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -1058,7 +1059,7 @@ const handleGenerateCodes = async () => {
     generateForm.custom_expiry_days = 7
     loadCodes()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToGenerate'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.redeem', t('admin.redeem.failedToGenerate'), { preferMessage: false }))
     console.error('Error generating codes:', error)
   } finally {
     generating.value = false
@@ -1091,7 +1092,7 @@ const handleExportCodes = async () => {
 
     appStore.showSuccess(t('admin.redeem.codesExported'))
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToExport'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.redeem', t('admin.redeem.failedToExport'), { preferMessage: false }))
     console.error('Error exporting codes:', error)
   }
 }
@@ -1111,7 +1112,7 @@ const confirmDelete = async () => {
     deletingCode.value = null
     loadCodes()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToDelete'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.redeem', t('admin.redeem.failedToDelete'), { preferMessage: false }))
     console.error('Error deleting code:', error)
   }
 }
@@ -1133,7 +1134,7 @@ const confirmDeleteUnused = async () => {
     showDeleteUnusedDialog.value = false
     loadCodes()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToDeleteUnused'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.redeem', t('admin.redeem.failedToDeleteUnused'), { preferMessage: false }))
     console.error('Error deleting unused codes:', error)
   }
 }
@@ -1168,7 +1169,7 @@ const handleBatchUpdate = async () => {
     clearSelectedCodes()
     loadCodes()
   } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.redeem.failedToBatchUpdate'))
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.redeem', t('admin.redeem.failedToBatchUpdate'), { preferMessage: false }))
     console.error('Error batch updating codes:', error)
   } finally {
     batchUpdating.value = false

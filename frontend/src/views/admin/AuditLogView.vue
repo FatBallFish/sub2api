@@ -352,6 +352,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type AuditLog } from '@/api/admin'
@@ -541,7 +542,7 @@ async function fetchLogs() {
     logs.value = res.items
     total.value = res.total
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.audit.loadFailed'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.audit', t('admin.audit.loadFailed')))
   } finally {
     loading.value = false
   }
@@ -589,7 +590,7 @@ async function openDetail(id: number) {
   try {
     detail.value = await adminAPI.audit.get(id)
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.audit.loadFailed'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.audit', t('admin.audit.loadFailed')))
     detailVisible.value = false
   } finally {
     detailLoading.value = false
@@ -623,7 +624,7 @@ async function openClearDialog() {
       return
     }
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.audit.loadFailed'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.audit', t('admin.audit.loadFailed')))
     return
   } finally {
     checkingTotpStatus.value = false
@@ -651,7 +652,7 @@ async function submitClear() {
     appStore.showSuccess(t('admin.audit.clearConfirm.success', { count: res.deleted }))
     search()
   } catch (err: any) {
-    appStore.showError(err?.message || t('admin.audit.clearConfirm.failed'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.audit.clearConfirm', t('admin.audit.clearConfirm.failed')))
     clearTotpCode.value = ''
   } finally {
     clearing.value = false

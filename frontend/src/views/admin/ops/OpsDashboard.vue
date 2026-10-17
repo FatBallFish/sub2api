@@ -141,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useDebounceFn, useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -589,7 +590,7 @@ async function refreshOverviewWithCancel(fetchSeq: number, signal: AbortSignal) 
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     overview.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadOverview'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadOverview')))
   }
 }
 
@@ -603,7 +604,7 @@ async function refreshSwitchTrendWithCancel(fetchSeq: number, signal: AbortSigna
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     switchTrend.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadSwitchTrend'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadSwitchTrend')))
   } finally {
     if (fetchSeq === dashboardFetchSeq) {
       loadingSwitchTrend.value = false
@@ -621,7 +622,7 @@ async function refreshThroughputTrendWithCancel(fetchSeq: number, signal: AbortS
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     throughputTrend.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadThroughputTrend'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadThroughputTrend')))
   } finally {
     if (fetchSeq === dashboardFetchSeq) {
       loadingTrend.value = false
@@ -665,7 +666,7 @@ async function refreshLatencyHistogramWithCancel(fetchSeq: number, signal: Abort
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     latencyHistogram.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadLatencyHistogram'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadLatencyHistogram')))
   } finally {
     if (fetchSeq === dashboardFetchSeq) {
       loadingLatency.value = false
@@ -683,7 +684,7 @@ async function refreshErrorTrendWithCancel(fetchSeq: number, signal: AbortSignal
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     errorTrend.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadErrorTrend'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadErrorTrend')))
   } finally {
     if (fetchSeq === dashboardFetchSeq) {
       loadingErrorTrend.value = false
@@ -701,7 +702,7 @@ async function refreshErrorDistributionWithCancel(fetchSeq: number, signal: Abor
   } catch (err: any) {
     if (fetchSeq !== dashboardFetchSeq || isCanceledRequest(err)) return
     errorDistribution.value = null
-    appStore.showError(err?.message || t('admin.ops.failedToLoadErrorDistribution'))
+    appStore.showError(extractI18nErrorMessage(err, t, 'admin.ops', t('admin.ops.failedToLoadErrorDistribution')))
   } finally {
     if (fetchSeq === dashboardFetchSeq) {
       loadingErrorDistribution.value = false
