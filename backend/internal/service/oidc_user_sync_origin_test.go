@@ -126,7 +126,7 @@ func TestSyncLoginCreatesKeycloakUserWithOrigin(t *testing.T) {
 	require.Equal(t, email, body["username"])
 	attrs, ok := body["attributes"].(map[string]any)
 	require.True(t, ok, "create body should carry attributes")
-	require.Equal(t, []any{"mikikocc"}, attrs["origin"])
+	require.Equal(t, "mikikocc", attrs["origin"], "origin must be a single-value attribute")
 	// 新建账号无密码 → 立即补写
 	require.Equal(t, map[string]string{"created-1": "pw-1"}, kc.resetPasswords)
 }
