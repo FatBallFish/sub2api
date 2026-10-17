@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/imroc/req/v3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // OIDCUserSyncService 在用户账密登录/改密时把账号同步到 Keycloak（Admin REST API）。
@@ -312,6 +313,42 @@ func (s *OIDCUserSyncService) SyncLogin(ctx context.Context, email, password str
 	s.recordSyncResult(ctx, userID, snap, false)
 }
 
+// SyncLoginWithoutPassword 触发式同步的轻量形态：仅在 Keycloak 侧不存在该用户时
+// 建号（携带 origin 标识），不写入密码——供 GitHub/Google 等其他三方登录联动建号，
+// 密码留给用户后续自行设置。
+func (s *OIDCUserSyncService) SyncLoginWithoutPassword(ctx context.Context, email string) {
+	if !s.syncableUser(email) {
+		return
+	}
+	userID := s.localUserID(ctx, email)
+	if userID == 0 {
+		return
+	}
+	cfg, err := s.config(ctx)
+	if err != nil {
+		syncLog("not configured", err)
+		return
+	}
+	found, err := s.findKeycloakUser(ctx, cfg, email)
+	if err != nil {
+		syncLog("lookup failed", err)
+		return
+	}
+	kcID := found.ID
+	if kcID == "" {
+		kcID, err = s.createKeycloakUser(ctx, cfg, email, oidcSyncUserOrigin)
+		if err != nil {
+			syncLog("create user failed", err)
+			return
+		}
+	}
+	var snap *int64
+	if createdAt, err := s.passwordCredentialCreatedAt(ctx, cfg, kcID); err == nil {
+		snap = createdAt
+	}
+	s.recordSyncResult(ctx, userID, snap, false)
+}
+
 // SyncPasswordChange 本站改密/重置成功后的双写：覆盖 Keycloak 密码并刷新快照。
 // 仅当 Keycloak 侧用户的 origin 属性为 mikikocc（即由本站同步创建的账号）时才推送；
 // 用户不存在、无 origin 或值不一致时跳过，不动本地同步标记。
@@ -383,7 +420,18 @@ func (s *OIDCUserSyncService) CheckDrift(ctx context.Context, email string) {
 	if drift == local.OidcPasswordDrift {
 		return
 	}
-	if _, err := s.entClient.User.UpdateOneID(userID).SetOidcPasswordDrift(drift).Save(ctx); err != nil {
+	update := s.entClient.User.UpdateOneID(userID).SetOidcPasswordDrift(drift)
+	if drift && local.OidcPasswordDrift == false {
+		// Keycloak 侧密码比快照新：本地旧密码已不可信，立即作废
+		// （写入随机哈希，用户需经 OIDC 登录后在控制台重置，重置会双写回
+		// Keycloak 并刷新快照，drift 随之解除）。
+		if randomPassword, randErr := randomHexString(32); randErr == nil {
+			if hashed, hashErr := HashPasswordBcrypt(randomPassword); hashErr == nil {
+				update = update.SetPasswordHash(hashed)
+			}
+		}
+	}
+	if _, err := update.Save(ctx); err != nil {
 		syncLog("update drift flag failed", err)
 	}
 }
@@ -425,6 +473,15 @@ func truncateSyncLog(body string, max int) string {
 		return body
 	}
 	return body[:max] + "..."
+}
+
+// HashPasswordBcrypt 包级 bcrypt 加密（OIDCUserSyncService 不依赖 AuthService）。
+func HashPasswordBcrypt(password string) (string, error) {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedBytes), nil
 }
 
 func queryEscape(v string) string { return url.QueryEscape(v) }

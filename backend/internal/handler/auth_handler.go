@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"strings"
 	"sync"
@@ -207,6 +209,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+
+	// 注册即同步：邮箱验证码注册的用户当场在 OIDC 建号并写入注册密码，
+	// 不必等下次账密登录才触发同步。
+	h.oidcSyncAsync(strings.ToLower(strings.TrimSpace(req.Email)), func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+		svc.SyncLogin(ctx, email, req.Password)
+	})
 
 	h.respondWithTokenPair(c, user)
 }
@@ -688,11 +696,21 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
+	// 幂等重放：token 一次性消费，若客户端重试（网络超时/StrictMode 等）第一次已
+	// 成功，直接按成功返回，避免「实际改密成功却报 invalid token」覆盖成功结果。
+	if lookupPasswordResetReplay(req.Email, req.Token) {
+		response.Success(c, ResetPasswordResponse{
+			Message: "Your password has been reset successfully. You can now log in with your new password.",
+		})
+		return
+	}
+
 	// Reset password
 	if err := h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	rememberPasswordResetReplay(req.Email, req.Token)
 	h.oidcSyncAsync(strings.ToLower(strings.TrimSpace(req.Email)), func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
 		svc.SyncPasswordChange(ctx, email, req.NewPassword)
 	})
@@ -700,6 +718,33 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	response.Success(c, ResetPasswordResponse{
 		Message: "Your password has been reset successfully. You can now log in with your new password.",
 	})
+}
+
+// passwordResetReplayCache 成功改密的 (email, token) 短时重放缓存。
+var passwordResetReplayCache sync.Map // key: email + "\x00" + sha256(token) → struct{}，TTL 由 remember 时的时间戳控制
+
+const passwordResetReplayTTL = 2 * time.Minute
+
+func passwordResetReplayKey(email, token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return strings.ToLower(strings.TrimSpace(email)) + "\x00" + hex.EncodeToString(sum[:])
+}
+
+func rememberPasswordResetReplay(email, token string) {
+	passwordResetReplayCache.Store(passwordResetReplayKey(email, token), time.Now().Add(passwordResetReplayTTL))
+}
+
+func lookupPasswordResetReplay(email, token string) bool {
+	key := passwordResetReplayKey(email, token)
+	expiry, ok := passwordResetReplayCache.Load(key)
+	if !ok {
+		return false
+	}
+	if time.Now().After(expiry.(time.Time)) {
+		passwordResetReplayCache.Delete(key)
+		return false
+	}
+	return true
 }
 
 // ==================== Token Refresh Endpoints ====================

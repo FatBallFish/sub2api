@@ -309,6 +309,7 @@ export default {
     errors: {
       USER_NOT_ACTIVE: '账号已被禁用',
       PASSWORD_LOGIN_DISABLED: '账密登录已关闭，请使用 OIDC 登录。',
+      PASSWORD_INVALIDATED_OIDC: '该密码已在统一认证服务侧修改，请使用 OIDC 登录后在控制台重置密码。',
     },
     registrationFailed: '注册失败，请重试。',
     emailDomainRegistrationLimit:

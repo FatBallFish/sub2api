@@ -553,6 +553,12 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 
 	// 验证密码
 	if !s.CheckPassword(password, user.PasswordHash) {
+		if user.OidcPasswordDrift {
+			// 密码已在统一认证（OIDC）侧修改并被本地作废：引导用户经 OIDC 登录
+			// 后在控制台重置密码（重置会双写回 OIDC 并解除 drift）。
+			return "", nil, infraerrors.Forbidden("PASSWORD_INVALIDATED_OIDC",
+				"this password was changed on the identity provider; sign in with OIDC and reset the password in the console")
+		}
 		return "", nil, ErrInvalidCredentials
 	}
 

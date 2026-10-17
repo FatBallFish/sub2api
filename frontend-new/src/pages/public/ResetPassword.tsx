@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { resetPassword } from "../../api/auth";
@@ -12,18 +12,24 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token")?.trim() || "";
-  const [email, setEmail] = useState("");
+  // 重置链接已绑定邮箱（邮件链接携带 email 参数）：只读展示，不可编辑；
+  // 兼容缺 email 的老链接，回退为手动输入。
+  const linkEmail = searchParams.get("email")?.trim() || "";
+  const [email, setEmail] = useState(linkEmail);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<LocalizedMessage | null>(null);
+  const submitInFlightRef = useRef(false);
 
   const canSubmit = token !== "" && email.trim() !== "" && password.length >= 6 && password === confirmPassword;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (submitting || !canSubmit) return;
+    // 防重放双发：token 一次性消费，第二次请求必然报错并覆盖成功结果。
+    if (submitting || !canSubmit || submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -31,7 +37,7 @@ export default function ResetPassword() {
       setDone(true);
     } catch (reason) {
       setError(errorMessage(reason, "authResetPasswordFailed", "auth"));
-    } finally {
+      submitInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -74,8 +80,10 @@ export default function ResetPassword() {
               {t("email")}
               <input
                 autoComplete="email"
-                className="mt-2 h-11 w-full rounded-md border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-950"
+                className={`mt-2 h-11 w-full rounded-md border px-3 text-sm outline-none focus:border-zinc-950 ${linkEmail ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-500" : "border-zinc-200"}`}
+                disabled={linkEmail !== ""}
                 onChange={(event) => setEmail(event.target.value)}
+                readOnly={linkEmail !== ""}
                 required
                 type="email"
                 value={email}

@@ -22,6 +22,7 @@ import { getPublicSettings, type PublicSettings } from "../../api/settings";
 import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/auth/CaptchaChallenge";
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { isAuthenticated } from "../../utils/authStorage";
 import {
   errorMessage,
   rawMessage,
@@ -277,6 +278,13 @@ export default function OAuthCallback() {
           : translationMessage("errors:oauthCallbackFailed"));
         setState("error");
       } catch (error) {
+        // pending session 已被消费/过期（常见：用户在 OIDC 流程中打开忘记密码等
+        // 新链接并完成了登录，再回到本页）。此时若本地已有有效会话，静默跳转，
+        // 不展示报错。
+        if ((error as { code?: string })?.code === "PENDING_AUTH_SESSION_NOT_FOUND" && isAuthenticated()) {
+          navigate(redirectTo || "/console", { replace: true });
+          return;
+        }
         setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
         setState("error");
       }

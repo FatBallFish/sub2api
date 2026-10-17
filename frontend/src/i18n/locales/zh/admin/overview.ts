@@ -512,6 +512,13 @@ export default {
         success: '已禁用 {count} 个用户',
         failed: '批量禁用失败，请重试。'
       },
+      unbindIdentities: {
+        title: '解绑三方登录',
+        empty: '该用户没有绑定的三方登录',
+        unbind: '解绑',
+        success: '已解绑',
+        failed: '解绑失败，请重试'
+      },
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',
@@ -594,8 +601,7 @@ export default {
         subscriptions: '订阅分组',
         balance: '余额',
         balancePlatformQuota: '余额(平台配额)',
-        authIdentities: '关联的三方登录',
-        usage: '用量',
+        authIdentities: '关联的三方登录',        usage: '用量',
         usageAnthropic: '用量 (Claude)',
         usageOpenAI: '用量 (OpenAI)',
         usageGemini: '用量 (Gemini)',
