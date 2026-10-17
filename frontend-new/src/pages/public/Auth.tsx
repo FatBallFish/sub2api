@@ -85,6 +85,14 @@ export default function Auth() {
   const oidcConsoleProviderName = settings?.oidc_console_oauth_provider_name?.trim() || "OIDC";
   const oauthButtonCount = [googleOAuthEnabled, githubOAuthEnabled, oidcConsoleOAuthEnabled].filter(Boolean).length;
   const showOAuth = oauthButtonCount > 0;
+  // 关闭账密登录时：仅展示三方入口；无入口则提示登录入口已关闭。
+  const passwordLoginDisabled = settings?.password_login_disabled === true;
+  const onlyOidcEntrance = passwordLoginDisabled
+    && oauthButtonCount === 1
+    && oidcConsoleOAuthEnabled
+    && !googleOAuthEnabled
+    && !githubOAuthEnabled;
+  const loginEntranceClosed = passwordLoginDisabled && oauthButtonCount === 0;
   const loginAgreementDocuments = agreementDocuments(settings);
   const loginAgreementEnabled = settings?.login_agreement_enabled === true && loginAgreementDocuments.length > 0;
   const loginAgreementMode = settings?.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
@@ -128,6 +136,18 @@ export default function Auth() {
       active = false;
     };
   }, [navigate, redirectTo]);
+
+  // 关账密且唯一入口为 OIDC 时自动发起登录；需要用户先同意协议或完成
+  // 交互式验证码时退回按钮模式，避免静默绕过用户同意。
+  const oidcAutoRedirectStartedRef = useRef(false);
+  const [oidcRedirecting, setOidcRedirecting] = useState(false);
+  useEffect(() => {
+    if (!settingsLoaded || !onlyOidcEntrance || oidcAutoRedirectStartedRef.current) return;
+    if (agreementRequired || captchaConfigurationInvalid || actionCaptchaRequired) return;
+    oidcAutoRedirectStartedRef.current = true;
+    setOidcRedirecting(true);
+    startOAuth("oidc-console", redirectTo, initialAffiliateCode);
+  }, [settingsLoaded, onlyOidcEntrance, agreementRequired, captchaConfigurationInvalid, actionCaptchaRequired, redirectTo, initialAffiliateCode]);
 
   if (isAuthenticated()) {
     return (
@@ -409,26 +429,36 @@ export default function Auth() {
             <p className="text-sm leading-relaxed text-zinc-500">{subtitle}</p>
           </div>
 
-          <div className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 text-sm font-bold">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => switchMode("login")}
-              className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
-            >
-              {t("loginTab")}
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => switchMode("register")}
-              className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
-            >
-              {t("registerTab")}
-            </button>
-          </div>
+          {passwordLoginDisabled ? null : (
+            <div className="grid grid-cols-2 rounded-xl bg-zinc-100 p-1 text-sm font-bold">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => switchMode("login")}
+                className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "login" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+              >
+                {t("loginTab")}
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => switchMode("register")}
+                className={`rounded-lg py-2 transition-colors disabled:cursor-not-allowed ${mode === "register" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+              >
+                {t("registerTab")}
+              </button>
+            </div>
+          )}
 
+          {loginEntranceClosed ? (
+            <div className="space-y-6">
+              <div className="rounded-xl bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-500">
+                {t("loginEntranceClosed")}
+              </div>
+            </div>
+          ) : (
           <div className="space-y-6">
+            {passwordLoginDisabled ? null : (
             <AnimatePresence mode="wait">
               {mode === "login" ? (
                 <motion.form
@@ -612,6 +642,7 @@ export default function Auth() {
                 </motion.form>
               )}
             </AnimatePresence>
+            )}
 
             {loginAgreementEnabled ? (
               <LoginAgreementPrompt
@@ -631,6 +662,7 @@ export default function Auth() {
 
             {showOAuth ? (
               <>
+                {passwordLoginDisabled ? null : (
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-zinc-100" />
@@ -639,7 +671,13 @@ export default function Auth() {
                     <span className="bg-white px-2">{t("orContinueWith")}</span>
                   </div>
                 </div>
+                )}
 
+                {oidcRedirecting ? (
+                  <div className="rounded-xl bg-zinc-50 px-4 py-3 text-center text-sm font-medium text-zinc-500">
+                    {t("redirectingToProvider", { name: oidcConsoleProviderName })}
+                  </div>
+                ) : (
                 <div className={`grid gap-4 ${oauthButtonCount > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                   {googleOAuthEnabled ? (
                     <button
@@ -675,10 +713,11 @@ export default function Auth() {
                     </button>
                   ) : null}
                 </div>
+                )}
               </>
             ) : null}
           </div>
-
+          )}
         </div>
       </div>
     </div>

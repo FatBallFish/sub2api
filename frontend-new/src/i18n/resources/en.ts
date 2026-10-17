@@ -229,6 +229,8 @@ const en = {
     signIn: "Sign in",
     working: "Working...",
     orContinueWith: "Or continue with",
+    loginEntranceClosed: "Login is currently closed. Please contact the administrator.",
+    redirectingToProvider: "Redirecting to {{name}} sign-in…",
     settingsLoadingError: "Authentication settings are still loading. Please try again.",
     agreementRequiredError: "Accept the current service terms before continuing.",
     captchaRequiredError: "Complete the security verification before continuing.",

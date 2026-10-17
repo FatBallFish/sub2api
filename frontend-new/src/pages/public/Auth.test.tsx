@@ -121,6 +121,89 @@ describe("Auth page", () => {
     aliyunHarness.reset.mockReset();
   });
 
+  it("hides the password form and shows the closed notice when password login is disabled without oauth entries", async () => {
+    await i18n.changeLanguage("en");
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { password_login_disabled: true } }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Login is currently closed. Please contact the administrator.")).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create account" })).not.toBeInTheDocument();
+  });
+
+  it("auto-redirects to the single OIDC entrance when password login is disabled", async () => {
+    await i18n.changeLanguage("en");
+    await withMutableWindowLocation(async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            password_login_disabled: true,
+            oidc_console_oauth_enabled: true,
+            oidc_console_oauth_provider_name: "Mikiko CC New",
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/login"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(window.location.href).toContain("/api/v1/auth/oauth/oidc-console/start");
+      });
+      expect(screen.getByText("Redirecting to Mikiko CC New sign-in…")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows third-party buttons without the password form when password login is disabled with multiple entries", async () => {
+    await i18n.changeLanguage("en");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: {
+          password_login_disabled: true,
+          oidc_console_oauth_enabled: true,
+          github_oauth_enabled: true,
+        },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Auth />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "GitHub" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "OIDC" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Or continue with")).not.toBeInTheDocument();
+  });
+
   it("toggles password visibility on the login form without clearing the value", async () => {
     await i18n.changeLanguage("en");
     globalThis.fetch = vi.fn().mockResolvedValue({
