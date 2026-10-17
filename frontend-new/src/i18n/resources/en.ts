@@ -312,6 +312,7 @@ const en = {
       installGuide: "Install Guide",
     },
     security: {
+      bind: "Link",
       noneLinked: "No third-party sign-in is linked yet",
       accountTitle: "Account & Security",
       accountDescription: "Manage third-party sign-in links and your password.",
@@ -498,6 +499,8 @@ const en = {
     authForgotPasswordFailed: "Failed to send the reset email.",
     authResetPasswordFailed: "Failed to reset the password.",
     securityUnbindFailed: "Failed to unbind. Please retry.",
+
+    securityBindFailed: "Failed to start linking. Please retry.",
     securityChangeFailed: "Failed to change the password.",
     publicPricingLoadFailed: "Unable to load pricing.",
     modelPricingLoadFailed: "Unable to load model pricing.",
