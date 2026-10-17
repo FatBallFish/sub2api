@@ -44,6 +44,22 @@ func (s *SettingService) IsOIDCUserSyncEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsOIDCDriftInvalidationEnabled 检查是否在检测到 OIDC 侧改密（drift）后自动作废本地旧密码。
+// 未配置时默认开启（与引入该行为时的语义一致）。
+func (s *SettingService) IsOIDCDriftInvalidationEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return true
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyOIDCDriftInvalidationEnabled)
+	if err != nil {
+		return true
+	}
+	if strings.TrimSpace(value) == "" {
+		return true
+	}
+	return value == "true"
+}
+
 // IsPasswordLoginDisabled 检查是否关闭本站账密登录（admin 豁免在登录处理层实现）。
 func (s *SettingService) IsPasswordLoginDisabled(ctx context.Context) bool {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyPasswordLoginDisabled)

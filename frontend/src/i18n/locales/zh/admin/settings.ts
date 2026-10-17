@@ -435,6 +435,8 @@ export default {
           clientSecretPlaceholder: '********',
           clientSecretConfiguredPlaceholder: '********',
           clientSecretHint: '具有 manage-users 权限的 service account client 密钥',
+          driftInvalidation: 'OIDC 侧改密后自动作废本地密码',
+          driftInvalidationHint: '检测到 Keycloak 侧密码比本地新时，立即作废 sub2api 旧密码（drift 标记与控制台提醒不受此开关影响）',
         },
         console: {
           title: '新前端（console）独立 OIDC 登录',
