@@ -145,16 +145,16 @@ run_pnpm() {
     CI=true corepack pnpm@10.26.1 "$@"
     return
   fi
-  die "pnpm is required for the old frontend build. Install pnpm or enable corepack."
+  die "pnpm is required for the frontend builds. Install pnpm or enable corepack."
 }
 
 run_new_frontend_install() {
   if [[ "$SKIP_INSTALL" == true ]]; then
     return
   fi
-  if [[ -f "$ROOT_DIR/frontend-new/package-lock.json" ]]; then
-    log "installing new frontend dependencies with npm ci"
-    npm --prefix "$ROOT_DIR/frontend-new" ci
+  if [[ -f "$ROOT_DIR/frontend-new/pnpm-lock.yaml" ]]; then
+    log "installing new frontend dependencies with pnpm"
+    run_pnpm --dir "$ROOT_DIR/frontend-new" install --frozen-lockfile
   fi
 }
 
@@ -253,7 +253,7 @@ package_new_frontend() {
   reset_stage "$stage"
 
   log "building new user frontend"
-  npm --prefix "$ROOT_DIR/frontend-new" run build
+  run_pnpm --dir "$ROOT_DIR/frontend-new" run build
 
   [[ -f "$ROOT_DIR/frontend-new/dist/index.html" ]] || die "new frontend dist not found"
   cp -R "$ROOT_DIR/frontend-new/dist/." "$stage/"
