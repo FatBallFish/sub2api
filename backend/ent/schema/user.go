@@ -43,6 +43,10 @@ func (User) Fields() []ent.Field {
 		field.String("password_hash").
 			MaxLen(255).
 			NotEmpty(),
+		// 本地密码是否由用户/管理员主动设置（区别于 OAuth 建号、drift 作废时的随机占位哈希）。
+		// 为 true 时邮箱+密码可作为独立登录方式，也是可解绑最后一个三方身份的依据之一。
+		field.Bool("password_user_set").
+			Default(false),
 		field.String("role").
 			MaxLen(20).
 			Default(domain.RoleUser),

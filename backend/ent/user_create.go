@@ -89,6 +89,20 @@ func (_c *UserCreate) SetPasswordHash(v string) *UserCreate {
 	return _c
 }
 
+// SetPasswordUserSet sets the "password_user_set" field.
+func (_c *UserCreate) SetPasswordUserSet(v bool) *UserCreate {
+	_c.mutation.SetPasswordUserSet(v)
+	return _c
+}
+
+// SetNillablePasswordUserSet sets the "password_user_set" field if the given value is not nil.
+func (_c *UserCreate) SetNillablePasswordUserSet(v *bool) *UserCreate {
+	if v != nil {
+		_c.SetPasswordUserSet(*v)
+	}
+	return _c
+}
+
 // SetRole sets the "role" field.
 func (_c *UserCreate) SetRole(v string) *UserCreate {
 	_c.mutation.SetRole(v)
@@ -687,6 +701,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.PasswordUserSet(); !ok {
+		v := user.DefaultPasswordUserSet
+		_c.mutation.SetPasswordUserSet(v)
+	}
 	if _, ok := _c.mutation.Role(); !ok {
 		v := user.DefaultRole
 		_c.mutation.SetRole(v)
@@ -777,6 +795,9 @@ func (_c *UserCreate) check() error {
 		if err := user.PasswordHashValidator(v); err != nil {
 			return &ValidationError{Name: "password_hash", err: fmt.Errorf(`ent: validator failed for field "User.password_hash": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.PasswordUserSet(); !ok {
+		return &ValidationError{Name: "password_user_set", err: errors.New(`ent: missing required field "User.password_user_set"`)}
 	}
 	if _, ok := _c.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
@@ -892,6 +913,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 		_node.PasswordHash = value
+	}
+	if value, ok := _c.mutation.PasswordUserSet(); ok {
+		_spec.SetField(user.FieldPasswordUserSet, field.TypeBool, value)
+		_node.PasswordUserSet = value
 	}
 	if value, ok := _c.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
@@ -1332,6 +1357,18 @@ func (u *UserUpsert) SetPasswordHash(v string) *UserUpsert {
 // UpdatePasswordHash sets the "password_hash" field to the value that was provided on create.
 func (u *UserUpsert) UpdatePasswordHash() *UserUpsert {
 	u.SetExcluded(user.FieldPasswordHash)
+	return u
+}
+
+// SetPasswordUserSet sets the "password_user_set" field.
+func (u *UserUpsert) SetPasswordUserSet(v bool) *UserUpsert {
+	u.Set(user.FieldPasswordUserSet, v)
+	return u
+}
+
+// UpdatePasswordUserSet sets the "password_user_set" field to the value that was provided on create.
+func (u *UserUpsert) UpdatePasswordUserSet() *UserUpsert {
+	u.SetExcluded(user.FieldPasswordUserSet)
 	return u
 }
 
@@ -1800,6 +1837,20 @@ func (u *UserUpsertOne) SetPasswordHash(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdatePasswordHash() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdatePasswordHash()
+	})
+}
+
+// SetPasswordUserSet sets the "password_user_set" field.
+func (u *UserUpsertOne) SetPasswordUserSet(v bool) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetPasswordUserSet(v)
+	})
+}
+
+// UpdatePasswordUserSet sets the "password_user_set" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdatePasswordUserSet() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdatePasswordUserSet()
 	})
 }
 
@@ -2494,6 +2545,20 @@ func (u *UserUpsertBulk) SetPasswordHash(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdatePasswordHash() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdatePasswordHash()
+	})
+}
+
+// SetPasswordUserSet sets the "password_user_set" field.
+func (u *UserUpsertBulk) SetPasswordUserSet(v bool) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetPasswordUserSet(v)
+	})
+}
+
+// UpdatePasswordUserSet sets the "password_user_set" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdatePasswordUserSet() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdatePasswordUserSet()
 	})
 }
 

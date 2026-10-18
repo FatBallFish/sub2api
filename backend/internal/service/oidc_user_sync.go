@@ -430,7 +430,7 @@ func (s *OIDCUserSyncService) CheckDrift(ctx context.Context, email string) {
 		// Keycloak 并刷新快照，drift 随之解除）。
 		if randomPassword, randErr := randomHexString(32); randErr == nil {
 			if hashed, hashErr := HashPasswordBcrypt(randomPassword); hashErr == nil {
-				update = update.SetPasswordHash(hashed)
+				update = update.SetPasswordHash(hashed).SetPasswordUserSet(false)
 			}
 		}
 	}
