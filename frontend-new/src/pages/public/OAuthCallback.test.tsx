@@ -291,6 +291,43 @@ describe("OAuthCallback", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("asks for profile adoption, then completes an identity-bound bind on confirm", async () => {
+    // 第一跳：上游带昵称建议 → adoption_required，session 未消费。
+    // 确认：携带采用决定重发 exchange → identity_bound 终态 → 回到发起页。
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({
+        adoption_required: true,
+        provider: "oidc",
+        suggested_display_name: "893721708@qq.com",
+        redirect: "/console/security",
+      }))
+      .mockResolvedValueOnce(response({
+        auth_result: "identity_bound",
+        provider: "oidc",
+        redirect: "/console/security",
+      }));
+    globalThis.fetch = fetchMock;
+
+    renderCallback();
+
+    const checkbox = await screen.findByRole("checkbox");
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText("893721708@qq.com")).toBeInTheDocument();
+
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and continue" }));
+
+    expect(await screen.findByText("Security landed")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/auth/oauth/pending/exchange",
+      expect.objectContaining({
+        body: JSON.stringify({ adopt_display_name: false, adopt_avatar: false }),
+      }),
+    );
+    expect(localStorage.getItem("auth_token")).toBeNull();
+  });
+
   it("persists a deferred exchange token after a strict-mode style unmount (single exchange)", async () => {
     let resolveExchange!: (value: ReturnType<typeof response>) => void;
     const exchangePromise = new Promise<ReturnType<typeof response>>((resolve) => {

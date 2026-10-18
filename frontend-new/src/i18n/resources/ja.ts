@@ -291,6 +291,11 @@ login: "ログイン", register: "アカウント作成", oauth: "OAuth ログ�
       bindLoginHint: "既存アカウントにログインして、この OAuth ログインを連携します。",
       logInAndBind: "ログインして連携",
       backToOptions: "選択に戻る",
+      adoptionTitle: "プロフィールの確認",
+      adoptionHint: "サードパーティログインの表示名・アバターをこのアカウントに適用しますか？",
+      adoptDisplayName: "この表示名を採用",
+      adoptAvatar: "このアバターを採用",
+      adoptionConfirm: "確認して続行",
     },
   },
   console: {
