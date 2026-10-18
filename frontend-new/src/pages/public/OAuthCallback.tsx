@@ -23,6 +23,7 @@ import CaptchaChallenge, { type CaptchaChallengeHandle } from "../../components/
 import StandaloneLanguageSwitcher from "../../components/StandaloneLanguageSwitcher";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { isAuthenticated } from "../../utils/authStorage";
+import { sanitizeSilentSsoFallback } from "../../utils/silentSso";
 import {
   errorMessage,
   rawMessage,
@@ -214,6 +215,12 @@ export default function OAuthCallback() {
       const params = parseFragmentParams();
       const fragmentError = params.get("error");
       if (fragmentError) {
+        // 静默登录（prompt=none）失败：login_required 等错误不做任何展示，
+        // 直接回到发起入口页，让用户走正常登录流程。
+        if (params.get("silent") === "1") {
+          navigate(sanitizeSilentSsoFallback(params.get("fallback")), { replace: true });
+          return;
+        }
         setMessage(rawMessage(params.get("error_description") || params.get("error_message") || fragmentError));
         setState("error");
         return;

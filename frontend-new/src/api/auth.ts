@@ -168,11 +168,19 @@ export function clearOAuthAffiliateCode() {
   }
 }
 
+export interface StartOAuthOptions {
+  /** 静默登录：IdP 无会话时直接返回 login_required 而非弹登录框。 */
+  prompt?: "none";
+  /** 静默登录失败后的回退页（同源相对路径）。 */
+  fallback?: string;
+}
+
 export function startOAuth(
   provider: OAuthProvider,
   redirect = "/console",
   affiliateCode?: string,
   proof?: CaptchaProof | null,
+  options?: StartOAuthOptions,
 ) {
   const params = new URLSearchParams({ redirect });
   const trimmedAffiliateCode = normalizeOAuthAffiliateCode(affiliateCode);
@@ -186,6 +194,12 @@ export function startOAuth(
   }
   if (trimmedAffiliateCode) {
     params.set("aff_code", trimmedAffiliateCode);
+  }
+  if (options?.prompt) {
+    params.set("prompt", options.prompt);
+  }
+  if (options?.fallback) {
+    params.set("fallback", options.fallback);
   }
   const startPath = `/auth/oauth/${provider}/start?${params.toString()}`;
   if (proof) {
