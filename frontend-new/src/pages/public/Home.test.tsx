@@ -121,6 +121,74 @@ describe("Home page", () => {
     });
   });
 
+  it("heals a token-without-user session on sso=silent and goes straight to the console", async () => {
+    // 历史版本 OIDC 登录只落地 token、缺 auth_user：静默入口应先补齐档案再直达。
+    localStorage.setItem("auth_token", "stale-token");
+    localStorage.setItem("token_expires_at", String(Date.now() + 60_000));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { id: 7, email: "healed@example.com", username: "healed" },
+      }),
+    });
+
+    await withMutableWindowLocation(async () => {
+      const initialHref = window.location.href;
+      render(
+        <MemoryRouter initialEntries={["/?sso=silent"]}>
+          <LocationProbe />
+          <Home />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("location-probe")).toHaveTextContent("/console");
+      });
+      expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+        id: 7,
+        email: "healed@example.com",
+      });
+      // 会话补齐后不再重复发起 OIDC 授权。
+      expect(window.location.href).not.toContain("/api/v1/auth/oauth/oidc-console/start");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(initialHref).not.toContain("/api/v1/auth/oauth/oidc-console/start");
+    });
+  });
+
+  it("falls back to the silent OIDC attempt when the stale session profile cannot be healed", async () => {
+    localStorage.setItem("auth_token", "stale-token");
+    localStorage.setItem("token_expires_at", String(Date.now() + 60_000));
+    globalThis.fetch = vi.fn()
+      // /auth/me 失败（服务器 500，非 401，避免触发登录重定向副作用）。
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ success: false, message: "boom" }),
+      })
+      // 随后的公开设置拉取：OIDC 入口开启。
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, data: { oidc_console_oauth_enabled: true } }),
+      });
+
+    await withMutableWindowLocation(async () => {
+      render(
+        <MemoryRouter initialEntries={["/?sso=silent"]}>
+          <LocationProbe />
+          <Home />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(window.location.href).toContain("/api/v1/auth/oauth/oidc-console/start");
+      });
+      expect(window.location.href).toContain("prompt=none");
+    });
+  });
+
   it("does nothing for sso=silent when the console OIDC entrance is disabled", async () => {
     await withMutableWindowLocation(async () => {
       const initialHref = window.location.href;
