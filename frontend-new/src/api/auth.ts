@@ -216,6 +216,9 @@ export interface PendingOAuthCompletion extends Partial<AuthResponse> {
   requires_2fa?: boolean;
   temp_token?: string;
   user_email_masked?: string;
+  adoption_required?: boolean;
+  suggested_display_name?: string;
+  suggested_avatar_url?: string;
 }
 
 export interface PendingOAuthBindLoginRequest {
@@ -229,8 +232,14 @@ export interface CompleteOAuthRegistrationRequest {
   invitation_code?: string;
 }
 
-export function exchangePendingOAuthCompletion() {
-  return postJSON<PendingOAuthCompletion>("/auth/oauth/pending/exchange", {});
+/** OAuth 资料采用决定：是否把上游昵称/头像写入本账号资料（交换时随请求提交）。 */
+export interface OAuthAdoptionDecision {
+  adopt_display_name?: boolean;
+  adopt_avatar?: boolean;
+}
+
+export function exchangePendingOAuthCompletion(decision?: OAuthAdoptionDecision) {
+  return postJSON<PendingOAuthCompletion>("/auth/oauth/pending/exchange", decision ?? {});
 }
 
 // Binds the pending OAuth identity to an existing local account by signing in
