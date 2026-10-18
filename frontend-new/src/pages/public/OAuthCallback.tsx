@@ -226,6 +226,13 @@ export default function OAuthCallback() {
           finishWithTokens(completion, completion.redirect || "/console");
           return;
         }
+        if (completion.auth_result === "identity_bound") {
+          // 已登录用户主动绑定三方身份完成：不换发 token（沿用现有会话），
+          // 直接回到发起绑定的页面（默认账号与安全）。
+          clearOAuthAffiliateCode();
+          navigate(sanitizeRedirectPath(completion.redirect || "/console/security"), { replace: true });
+          return;
+        }
 
         const pendingProvider: OAuthProvider = completion.provider === "github"
           ? "github"

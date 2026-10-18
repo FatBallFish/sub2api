@@ -637,7 +637,7 @@ func TestGetProfileIdentitySummaries_UsesBindStartRoute(t *testing.T) {
 	)
 	require.Equal(
 		t,
-		"/api/v1/auth/oauth/oidc/bind/start?intent=bind_current_user&redirect=%2Fsettings%2Fprofile",
+		"/api/v1/auth/oauth/oidc-console/bind/start?intent=bind_current_user&redirect=%2Fsettings%2Fprofile",
 		summaries.OIDC.BindStartPath,
 	)
 	require.Equal(

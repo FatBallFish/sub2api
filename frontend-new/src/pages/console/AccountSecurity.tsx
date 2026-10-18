@@ -122,6 +122,9 @@ function AccountSecurity() {
         { method: "POST", body: JSON.stringify({ provider, redirect_to: "/console/security" }) },
       );
       if (result.authorize_url) {
+        // authorize_url 是后端的 GET 导航地址，浏览器跳转不会带 Authorization 头；
+        // 先用当前会话换取短时 bind-token cookie，跳转后后端靠它识别绑定目标用户。
+        await apiRequest("/auth/oauth/bind-token", { method: "POST" });
         window.location.href = result.authorize_url;
         return;
       }

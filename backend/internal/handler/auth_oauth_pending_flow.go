@@ -2148,5 +2148,10 @@ func (h *AuthHandler) ExchangePendingOAuthCompletion(c *gin.Context) {
 	if _, issued := payload["access_token"]; issued {
 		rememberPendingExchangeReplay(sessionToken, payload)
 	}
+	// intent=bind_current_user 不发 token pair（用户本就有会话），
+	// 显式标记绑定结果让前端区分「绑定成功」与「需要继续交互/失败」。
+	if strings.EqualFold(strings.TrimSpace(session.Intent), oauthIntentBindCurrentUser) {
+		payload["auth_result"] = "identity_bound"
+	}
 	response.Success(c, payload)
 }
