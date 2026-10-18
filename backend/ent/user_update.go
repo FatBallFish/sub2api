@@ -95,6 +95,20 @@ func (_u *UserUpdate) SetNillablePasswordHash(v *string) *UserUpdate {
 	return _u
 }
 
+// SetPasswordUserSet sets the "password_user_set" field.
+func (_u *UserUpdate) SetPasswordUserSet(v bool) *UserUpdate {
+	_u.mutation.SetPasswordUserSet(v)
+	return _u
+}
+
+// SetNillablePasswordUserSet sets the "password_user_set" field if the given value is not nil.
+func (_u *UserUpdate) SetNillablePasswordUserSet(v *bool) *UserUpdate {
+	if v != nil {
+		_u.SetPasswordUserSet(*v)
+	}
+	return _u
+}
+
 // SetRole sets the "role" field.
 func (_u *UserUpdate) SetRole(v string) *UserUpdate {
 	_u.mutation.SetRole(v)
@@ -1157,6 +1171,9 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PasswordUserSet(); ok {
+		_spec.SetField(user.FieldPasswordUserSet, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)
 	}
@@ -2025,6 +2042,20 @@ func (_u *UserUpdateOne) SetPasswordHash(v string) *UserUpdateOne {
 func (_u *UserUpdateOne) SetNillablePasswordHash(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetPasswordHash(*v)
+	}
+	return _u
+}
+
+// SetPasswordUserSet sets the "password_user_set" field.
+func (_u *UserUpdateOne) SetPasswordUserSet(v bool) *UserUpdateOne {
+	_u.mutation.SetPasswordUserSet(v)
+	return _u
+}
+
+// SetNillablePasswordUserSet sets the "password_user_set" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillablePasswordUserSet(v *bool) *UserUpdateOne {
+	if v != nil {
+		_u.SetPasswordUserSet(*v)
 	}
 	return _u
 }
@@ -3120,6 +3151,9 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.PasswordHash(); ok {
 		_spec.SetField(user.FieldPasswordHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PasswordUserSet(); ok {
+		_spec.SetField(user.FieldPasswordUserSet, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.Role(); ok {
 		_spec.SetField(user.FieldRole, field.TypeString, value)

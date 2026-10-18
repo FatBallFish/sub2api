@@ -203,14 +203,14 @@ function AccountSecurity() {
                   </div>
                   {summary.bound ? (
                     <span
-                      className="shrink-0 self-start sm:self-auto"
+                      className={`shrink-0 self-start sm:self-auto ${summary.can_unbind === false ? "cursor-help" : ""}`}
                       title={summary.can_unbind === false ? t("security.lastMethodHint") : undefined}
                     >
                       <button
                         type="button"
                         disabled={unbinding !== null || summary.can_unbind === false}
                         onClick={() => void unbind(provider)}
-                        className="rounded-lg bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="rounded-lg bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {unbinding === provider ? "…" : t("security.unbind")}
                       </button>

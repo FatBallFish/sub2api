@@ -17,6 +17,7 @@ type User struct {
 	AvatarByteSize int
 	AvatarSHA256   string
 	PasswordHash   string
+	PasswordUserSet bool // 密码由用户/管理员主动设置（非建号/drift 作废的随机占位哈希）
 	Role           string
 	Balance        float64
 	FrozenBalance  float64

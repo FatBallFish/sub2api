@@ -304,7 +304,9 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User, field
 		updateOp = updateOp.SetNotes(userIn.Notes)
 	}
 	if fields.PasswordHash {
-		updateOp = updateOp.SetPasswordHash(userIn.PasswordHash)
+		// 走到这里的密码均来自用户/管理员主动设置（改密、重置、管理员改用户），
+		// 标记为用户已知，供解绑最后一个三方登录时判定邮箱密码登录可用。
+		updateOp = updateOp.SetPasswordHash(userIn.PasswordHash).SetPasswordUserSet(true)
 	}
 	if fields.Role {
 		updateOp = updateOp.SetRole(userIn.Role)
@@ -1278,6 +1280,7 @@ func (r *userRepository) UpdateEmailWithAliasGuard(
 	if _, err := client.User.UpdateOneID(userID).
 		SetEmail(email).
 		SetPasswordHash(passwordHash).
+		SetPasswordUserSet(true).
 		Save(ctx); err != nil {
 		return translatePersistenceError(err, service.ErrUserNotFound, service.ErrEmailExists)
 	}

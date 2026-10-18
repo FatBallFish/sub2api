@@ -80,6 +80,11 @@ func PasswordHash(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldPasswordHash, v))
 }
 
+// PasswordUserSet applies equality check predicate on the "password_user_set" field. It's identical to PasswordUserSetEQ.
+func PasswordUserSet(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldPasswordUserSet, v))
+}
+
 // Role applies equality check predicate on the "role" field. It's identical to RoleEQ.
 func Role(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldRole, v))
@@ -453,6 +458,16 @@ func PasswordHashEqualFold(v string) predicate.User {
 // PasswordHashContainsFold applies the ContainsFold predicate on the "password_hash" field.
 func PasswordHashContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldPasswordHash, v))
+}
+
+// PasswordUserSetEQ applies the EQ predicate on the "password_user_set" field.
+func PasswordUserSetEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldPasswordUserSet, v))
+}
+
+// PasswordUserSetNEQ applies the NEQ predicate on the "password_user_set" field.
+func PasswordUserSetNEQ(v bool) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldPasswordUserSet, v))
 }
 
 // RoleEQ applies the EQ predicate on the "role" field.

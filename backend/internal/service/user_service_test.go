@@ -484,6 +484,32 @@ func TestGetProfileIdentitySummaries_DoesNotTreatOAuthOnlyCompatEmailAsAlternati
 	require.Empty(t, repo.unboundProviders)
 }
 
+func TestGetProfileIdentitySummaries_AllowsUnbindWhenUserSetPasswordExists(t *testing.T) {
+	// OIDC 建号后用户在站内改过密码（PasswordUserSet=true），解绑后仍可邮箱+密码登录。
+	repo := &mockUserRepo{
+		getByIDUser: &User{
+			ID:              12,
+			Email:           "oidc-with-password@example.com",
+			SignupSource:    "oidc",
+			PasswordUserSet: true,
+		},
+		identities: []UserAuthIdentityRecord{
+			{
+				ProviderType:    "oidc",
+				ProviderKey:     "https://issuer.example.com",
+				ProviderSubject: "oidc-subject-with-password",
+			},
+		},
+	}
+	svc := NewUserService(repo, nil, nil, nil, nil)
+
+	summaries, err := svc.GetProfileIdentitySummaries(context.Background(), 12, repo.getByIDUser)
+
+	require.NoError(t, err)
+	require.True(t, summaries.OIDC.Bound)
+	require.True(t, summaries.OIDC.CanUnbind)
+}
+
 func TestGetProfileIdentitySummaries_DoesNotTreatCompatBackfilledEmailIdentityAsAlternativeLoginMethod(t *testing.T) {
 	repo := &mockUserRepo{
 		getByIDUser: &User{
