@@ -173,6 +173,67 @@ describe("Auth page", () => {
     });
   });
 
+  it("prefers a prompt=none silent login for sso=silent entries over the only-entrance auto redirect", async () => {
+    await i18n.changeLanguage("en");
+    await withMutableWindowLocation(async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            password_login_disabled: true,
+            oidc_console_oauth_enabled: true,
+            oidc_console_oauth_provider_name: "Mikiko CC New",
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/login?sso=silent"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(window.location.href).toContain("/api/v1/auth/oauth/oidc-console/start");
+      });
+      expect(window.location.href).toContain("prompt=none");
+      expect(window.location.href).toContain("fallback=%2Flogin");
+      expect(window.location.href).toContain("redirect=%2Fconsole");
+    });
+  });
+
+  it("skips the silent login for sso=silent when an interactive captcha is required", async () => {
+    await i18n.changeLanguage("en");
+    await withMutableWindowLocation(async () => {
+      const initialHref = window.location.href;
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          data: {
+            oidc_console_oauth_enabled: true,
+            tencent_captcha_enabled: true,
+            tencent_captcha_app_id: "tencent-app",
+          },
+        }),
+      });
+
+      render(
+        <MemoryRouter initialEntries={["/login?sso=silent"]}>
+          <Auth />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "OIDC" })).toBeInTheDocument();
+      });
+      expect(window.location.href).toBe(initialHref);
+    });
+  });
+
   it("shows third-party buttons without the password form when password login is disabled with multiple entries", async () => {
     await i18n.changeLanguage("en");
     const fetchMock = vi.fn().mockResolvedValue({

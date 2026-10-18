@@ -11,12 +11,15 @@ import {
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { isAuthenticated } from "../../utils/authStorage";
+import { useSilentSsoLogin } from "../../hooks/useSilentSsoLogin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 
 export default function Home() {
   const { t } = useTranslation("public");
   const gatewayEndpoint = typeof window === "undefined" ? "https://console.example.com/v1" : `${window.location.origin}/v1`;
   const ctaHref = isAuthenticated() ? "/console" : "/login";
+  // 门户 ?sso=silent 免登：尝试静默 OIDC 登录，成功直达控制台。
+  useSilentSsoLogin({ successRedirect: "/console" });
   usePageTitle(t("pageTitles.home"));
 
   const features = [
