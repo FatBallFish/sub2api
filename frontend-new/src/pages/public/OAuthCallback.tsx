@@ -36,7 +36,7 @@ import {
   type CaptchaProof,
 } from "../../components/auth/captcha";
 
-type CallbackState = "processing" | "choice" | "bind" | "registration" | "error";
+type CallbackState = "processing" | "choice" | "bind" | "registration" | "adoption" | "error";
 
 function parseFragmentParams() {
   const raw = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
@@ -150,6 +150,11 @@ export default function OAuthCallback() {
   const [pendingRequiresEmailVerification, setPendingRequiresEmailVerification] = useState(false);
   const [bindEmail, setBindEmail] = useState("");
   const [bindPassword, setBindPassword] = useState("");
+  // 上游资料采用确认（adoption_required）：是否把第三方昵称/头像写入本账号。
+  const [suggestedDisplayName, setSuggestedDisplayName] = useState("");
+  const [suggestedAvatarUrl, setSuggestedAvatarUrl] = useState("");
+  const [adoptDisplayName, setAdoptDisplayName] = useState(false);
+  const [adoptAvatar, setAdoptAvatar] = useState(false);
   const captchaRef = useRef<CaptchaChallengeHandle>(null);
   const requestInFlightRef = useRef(false);
 
@@ -280,6 +285,20 @@ export default function OAuthCallback() {
           return;
         }
 
+        // 上游带了昵称/头像建议且需要用户确认是否采用：登录与已登录用户的绑定
+        // （intent=bind_current_user）都会走到这里，session 尚未消费，确认后重发
+        // exchange 携带采用决定。
+        if (completion.adoption_required === true
+          && (completion.suggested_display_name || completion.suggested_avatar_url)) {
+          setSuggestedDisplayName(completion.suggested_display_name || "");
+          setSuggestedAvatarUrl(completion.suggested_avatar_url || "");
+          setAdoptDisplayName(Boolean(completion.suggested_display_name));
+          setAdoptAvatar(Boolean(completion.suggested_avatar_url));
+          setMessage(null);
+          setState("adoption");
+          return;
+        }
+
         setMessage(completion.error
           ? rawMessage(completion.error)
           : translationMessage("errors:oauthCallbackFailed"));
@@ -388,6 +407,43 @@ export default function OAuthCallback() {
       // Bind-only completion carries no tokens; follow its redirect.
       clearOAuthAffiliateCode();
       navigate(sanitizeRedirectPath(completion.redirect || "/console"), { replace: true });
+    } catch (error) {
+      setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
+    } finally {
+      requestInFlightRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
+  // Adoption confirmation: resubmitting exchange with adopt decision (nickname/avatar).
+  // After success: login flow obtains a token and goes to redirect; already-logged-in bind flow
+  // (identity_bound) carries no token and directly returns to the page that initiated the bind.
+  async function handleAdoptionConfirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const completion = await exchangePendingOAuthCompletion({
+        adopt_display_name: adoptDisplayName,
+        adopt_avatar: adoptAvatar,
+      });
+      if (isTokenCompletion(completion)) {
+        persistAuth(completion);
+        clearOAuthAffiliateCode();
+        navigate(sanitizeRedirectPath(completion.redirect || redirectTo || "/console"), { replace: true });
+        return;
+      }
+      if (completion.auth_result === "identity_bound") {
+        clearOAuthAffiliateCode();
+        navigate(sanitizeRedirectPath(completion.redirect || redirectTo || "/console/security"), { replace: true });
+        return;
+      }
+      setMessage(completion.error
+        ? rawMessage(completion.error)
+        : translationMessage("errors:oauthCallbackFailed"));
+      setState("error");
     } catch (error) {
       setMessage(errorMessage(error, "oauthCallbackFailed", "auth"));
     } finally {
@@ -510,6 +566,55 @@ export default function OAuthCallback() {
               ) : null}
             </div>
           </div>
+        ) : null}
+
+        {state === "adoption" ? (
+          <form className="space-y-4" onSubmit={handleAdoptionConfirm}>
+            <div>
+              <h1 className="text-xl font-semibold text-zinc-950">{t("oauth.adoptionTitle")}</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-500">{t("oauth.adoptionHint")}</p>
+            </div>
+            {suggestedDisplayName ? (
+              <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm">
+                <input
+                  checked={adoptDisplayName}
+                  className="mt-0.5 h-4 w-4"
+                  onChange={(event) => setAdoptDisplayName(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block font-medium text-zinc-900">{t("oauth.adoptDisplayName")}</span>
+                  <span className="block text-zinc-500">{suggestedDisplayName}</span>
+                </span>
+              </label>
+            ) : null}
+            {suggestedAvatarUrl ? (
+              <label className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-white p-3 text-sm">
+                <input
+                  checked={adoptAvatar}
+                  className="mt-0.5 h-4 w-4"
+                  onChange={(event) => setAdoptAvatar(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block font-medium text-zinc-900">{t("oauth.adoptAvatar")}</span>
+                  <img
+                    alt=""
+                    className="mt-2 h-10 w-10 rounded-full object-cover"
+                    src={suggestedAvatarUrl}
+                  />
+                </span>
+              </label>
+            ) : null}
+            {message ? <p role="alert" className="text-sm text-red-600">{resolveLocalizedMessage(message)}</p> : null}
+            <button
+              className="h-11 w-full rounded-md bg-zinc-950 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300"
+              disabled={submitting}
+              type="submit"
+            >
+              {submitting ? t("oauth.completing") : t("oauth.adoptionConfirm")}
+            </button>
+          </form>
         ) : null}
 
         {state === "bind" ? (

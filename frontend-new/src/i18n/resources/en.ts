@@ -294,6 +294,11 @@ const en = {
       bindLoginHint: "Sign in with an existing account to bind this OAuth identity to it.",
       logInAndBind: "Sign in and bind",
       backToOptions: "Back to options",
+      adoptionTitle: "Review profile details",
+      adoptionHint: "Apply the display name and avatar from your third-party sign-in to this account?",
+      adoptDisplayName: "Use this display name",
+      adoptAvatar: "Use this avatar",
+      adoptionConfirm: "Confirm and continue",
     },
   },
   console: {
