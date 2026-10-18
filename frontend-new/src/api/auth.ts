@@ -1,4 +1,4 @@
-import { postJSON, putJSON } from "./client";
+import { getJSON, postJSON, putJSON } from "./client";
 import {
   captchaProofPayload,
   type CaptchaProof,
@@ -95,6 +95,32 @@ export function persistAuth(response: AuthResponse) {
   }
 }
 
+/**
+ * 拉取当前用户并写入 auth_user。OAuth 各成功路径（fragment 直发 token、
+ * pending session exchange、bind-login）的响应只带 token 不带 user，而
+ * isAuthenticated() 要求 auth_token 与 auth_user 同时存在——缺了 user 会出现
+ * 「控制台进得去、首页却显示未登录」的分裂状态。登录落地后必须补齐。
+ */
+export async function syncAuthUserProfile(): Promise<AuthUser | null> {
+  try {
+    const user = await getJSON<AuthUser>("/auth/me");
+    if (user && typeof user.id === "number" && typeof user.email === "string" && user.email) {
+      localStorage.setItem("auth_user", JSON.stringify(user));
+      return user;
+    }
+  } catch {
+    // token 本身已有效（控制台可用）；profile 拉取失败不阻塞登录流程。
+  }
+  return null;
+}
+
+/** persistAuth 之后，若响应未携带 user 则拉 /auth/me 补齐，保证登录态完整。 */
+export async function persistAuthWithUserProfile(response: AuthResponse) {
+  persistAuth(response);
+  if (response.user || response.requires_2fa) return;
+  await syncAuthUserProfile();
+}
+
 export async function login(request: LoginRequest) {
   const response = await postJSON<AuthResponse>("/auth/login", request);
   persistAuth(response);
@@ -147,7 +173,7 @@ export async function createPendingOAuthAccount(
     request,
   );
   if (isAuthResponse(response)) {
-    persistAuth(response);
+    await persistAuthWithUserProfile(response);
   }
   return response;
 }

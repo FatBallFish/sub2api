@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { startOAuth } from "../api/auth";
+import { startOAuth, syncAuthUserProfile } from "../api/auth";
 import { getPublicSettings, type PublicSettings } from "../api/settings";
 import { resolveCaptchaProvider } from "../components/auth/captcha";
-import { isAuthenticated } from "../utils/authStorage";
+import { hasFreshAccessToken, isAuthenticated } from "../utils/authStorage";
 import { agreementDocuments, agreementRevision, hasAcceptedAgreement } from "../utils/loginAgreement";
 import { readSilentSsoRequest, stripSilentSsoParam } from "../utils/silentSso";
 
@@ -80,34 +80,55 @@ export function useSilentSsoLogin({ successRedirect, settings }: SilentSsoOption
   useEffect(() => {
     if (!detected || settledRef.current) return;
 
-    // 已登录：直接进目标页。组件即将跳转离开，无需再迁移 phase。
-    if (isAuthenticated()) {
+    let active = true;
+
+    const enterTargetIfAuthenticated = () => {
+      if (!isAuthenticated()) return false;
       settledRef.current = true;
       navigate(successRedirect, { replace: true });
-      return;
+      return true;
+    };
+
+    const proceedToSilentAttempt = () => {
+      const resolveSettings = settings ?? getPublicSettings();
+      void Promise.resolve(resolveSettings)
+        .then((resolved) => {
+          if (!active || settledRef.current) return;
+          settledRef.current = true;
+          if (!silentSsoEligible(resolved)) {
+            setPhase("skipped");
+            return;
+          }
+          setPhase("started");
+          startOAuth("oidc-console", successRedirect, undefined, undefined, {
+            prompt: "none",
+            fallback: entry.fallback,
+          });
+        })
+        .catch(() => {
+          if (!active || settledRef.current) return;
+          settledRef.current = true;
+          setPhase("skipped");
+        });
+    };
+
+    // 已登录：直接进目标页。组件即将跳转离开，无需再迁移 phase。
+    if (enterTargetIfAuthenticated()) return;
+
+    // 历史版本 OIDC 登录只落地 token、缺 auth_user（isAuthenticated 因此判否，
+    // 首页/登录页会误显示未登录）：会话仍有效时先补齐档案，补齐后同样直达。
+    if (!hasFreshAccessToken()) {
+      proceedToSilentAttempt();
+      return () => {
+        active = false;
+      };
     }
 
-    let active = true;
-    const resolveSettings = settings ?? getPublicSettings();
-    void Promise.resolve(resolveSettings)
-      .then((resolved) => {
-        if (!active || settledRef.current) return;
-        settledRef.current = true;
-        if (!silentSsoEligible(resolved)) {
-          setPhase("skipped");
-          return;
-        }
-        setPhase("started");
-        startOAuth("oidc-console", successRedirect, undefined, undefined, {
-          prompt: "none",
-          fallback: entry.fallback,
-        });
-      })
-      .catch(() => {
-        if (!active || settledRef.current) return;
-        settledRef.current = true;
-        setPhase("skipped");
-      });
+    void syncAuthUserProfile().then(() => {
+      if (!active || settledRef.current) return;
+      if (enterTargetIfAuthenticated()) return;
+      proceedToSilentAttempt();
+    });
     return () => {
       active = false;
     };
