@@ -152,8 +152,10 @@ describe("OAuthCallback", () => {
     vi.restoreAllMocks();
   });
 
-  it("completes a fragment token without loading settings and clears the OAuth affiliate code", async () => {
-    const fetchMock = vi.fn();
+  it("completes a fragment token, backfills the user profile, and clears the OAuth affiliate code", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      response({ id: 7, email: "dev@example.com", username: "dev", role: "user" }),
+    );
     globalThis.fetch = fetchMock;
     sessionStorage.setItem("oauth_aff_code", "AFF-FRAGMENT");
     window.location.hash =
@@ -164,8 +166,15 @@ describe("OAuthCallback", () => {
     expect(await screen.findByText("Reports landed")).toBeInTheDocument();
     expect(localStorage.getItem("auth_token")).toBe("access-token");
     expect(localStorage.getItem("refresh_token")).toBe("refresh-token");
+    // fragment 只带 token 不带 user：落地后必须补齐 auth_user，否则
+    // isAuthenticated() 为 false，首页会误显示未登录。
+    expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+      id: 7,
+      email: "dev@example.com",
+    });
     expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/me", expect.any(Object));
   });
 
   it("renders the account chooser for a pending choice step and binds an existing account", async () => {
@@ -251,13 +260,15 @@ describe("OAuthCallback", () => {
     expect(screen.getAllByText("Verification Code").length).toBeGreaterThan(0);
   });
 
-  it("completes an existing-user exchange without loading settings and sanitizes the redirect", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(response({
-      access_token: "existing-access",
-      refresh_token: "existing-refresh",
-      expires_in: 3600,
-      redirect: "https://evil.example/steal",
-    }));
+  it("completes an existing-user exchange, backfills the user profile, and sanitizes the redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(response({
+        access_token: "existing-access",
+        refresh_token: "existing-refresh",
+        expires_in: 3600,
+        redirect: "https://evil.example/steal",
+      }))
+      .mockResolvedValueOnce(response({ id: 3, email: "existing@example.com" }));
     globalThis.fetch = fetchMock;
     sessionStorage.setItem("oauth_aff_code", "AFF-EXISTING");
 
@@ -265,12 +276,17 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
     expect(localStorage.getItem("auth_token")).toBe("existing-access");
+    expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+      id: 3,
+      email: "existing@example.com",
+    });
     expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/auth/oauth/pending/exchange",
       expect.any(Object),
     );
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/v1/auth/me", expect.any(Object));
   });
 
   it("navigates back to the origin page when an identity-bound exchange completes without tokens", async () => {
@@ -334,7 +350,9 @@ describe("OAuthCallback", () => {
     const exchangePromise = new Promise<ReturnType<typeof response>>((resolve) => {
       resolveExchange = resolve;
     });
-    const fetchMock = vi.fn().mockImplementationOnce(() => exchangePromise);
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => exchangePromise)
+      .mockResolvedValueOnce(response({ id: 5, email: "late@example.com" }));
     globalThis.fetch = fetchMock;
     sessionStorage.setItem("oauth_aff_code", "AFF-DEFERRED");
 
@@ -352,14 +370,21 @@ describe("OAuthCallback", () => {
       await exchangePromise;
     });
 
-    // 结果总是应用（StrictMode 安全）：迟到的 token 依然持久化，aff_code 被清理。
+    // 结果总是应用（StrictMode 安全）：迟到的 token 依然持久化，user 档案补齐，
+    // aff_code 被清理。
     expect(localStorage.getItem("auth_token")).toBe("late-access");
     expect(localStorage.getItem("refresh_token")).toBe("late-refresh");
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+        id: 5,
+        email: "late@example.com",
+      });
+    });
     expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
   });
 
   it("rejects encoded backslashes and ASCII controls in a fragment redirect", async () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(response({ id: 1, email: "safe@example.com" }));
     globalThis.fetch = fetchMock;
     window.location.hash = "#access_token=safe-access&redirect=%252Fsafe%255Cevil%2509path";
 
@@ -367,11 +392,13 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
     expect(localStorage.getItem("auth_token")).toBe("safe-access");
-    expect(fetchMock).not.toHaveBeenCalled();
+    // redirect 消毒为 /console；token 落地后仅补齐 user 档案。
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/me", expect.any(Object));
   });
 
   it("falls back safely when a fragment redirect contains malformed percent-encoding", async () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(response({ id: 1, email: "safe@example.com" }));
     globalThis.fetch = fetchMock;
     window.location.hash = "#access_token=safe-access&redirect=%25";
 
@@ -379,7 +406,8 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("Console landed")).toBeInTheDocument();
     expect(localStorage.getItem("auth_token")).toBe("safe-access");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/me", expect.any(Object));
   });
 
   it.each([
@@ -730,8 +758,9 @@ describe("OAuthCallback", () => {
     fireEvent.change(screen.getByLabelText("Verification Code"), { target: { value: "123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Complete signup" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
       "/api/v1/auth/oauth/pending/create-account",
       expect.objectContaining({
         body: JSON.stringify({
@@ -743,6 +772,7 @@ describe("OAuthCallback", () => {
         }),
       }),
     );
+    expect(fetchMock).toHaveBeenNthCalledWith(4, "/api/v1/auth/me", expect.any(Object));
     expect(aliyunHarness.reset).toHaveBeenCalledTimes(1);
   });
 

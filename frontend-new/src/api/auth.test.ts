@@ -3,11 +3,13 @@ import {
   clearOAuthAffiliateCode,
   createPendingOAuthAccount,
   login,
+  persistAuthWithUserProfile,
   readOAuthAffiliateCode,
   register,
   sendPendingOAuthVerifyCode,
   sendVerifyCode,
   startOAuth,
+  syncAuthUserProfile,
 } from "./auth";
 import type { PendingOAuthSessionStatus } from "./auth";
 import { captchaProofPayload } from "../components/auth/captcha";
@@ -388,5 +390,72 @@ describe("auth API", () => {
     startOAuth("google");
 
     expect(window.location.href).toBe("/api/v1/auth/oauth/google/start?redirect=%2Fconsole");
+  });
+
+  it("backfills auth_user from /auth/me when the OAuth response carries no user", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: { id: 9, email: "oidc@example.com", username: "oidc-user", role: "user" },
+      }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await persistAuthWithUserProfile({ access_token: "a-1", refresh_token: "r-1", expires_in: 3600 });
+
+    expect(localStorage.getItem("auth_token")).toBe("a-1");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/me", expect.any(Object));
+    expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+      id: 9,
+      email: "oidc@example.com",
+    });
+  });
+
+  it("skips the profile fetch when the response already carries a user", async () => {
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock;
+
+    await persistAuthWithUserProfile({
+      access_token: "a-2",
+      user: { id: 3, email: "inline@example.com" },
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(JSON.parse(localStorage.getItem("auth_user") || "null")).toMatchObject({
+      id: 3,
+      email: "inline@example.com",
+    });
+  });
+
+  it("keeps the session intact when the profile fetch fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ success: false, message: "boom" }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      persistAuthWithUserProfile({ access_token: "a-3", expires_in: 60 }),
+    ).resolves.toBeUndefined();
+
+    expect(localStorage.getItem("auth_token")).toBe("a-3");
+    expect(localStorage.getItem("auth_user")).toBeNull();
+  });
+
+  it("ignores malformed /auth/me payloads instead of storing them", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { email: "" } }),
+    });
+    globalThis.fetch = fetchMock;
+
+    await syncAuthUserProfile();
+
+    expect(localStorage.getItem("auth_user")).toBeNull();
   });
 });

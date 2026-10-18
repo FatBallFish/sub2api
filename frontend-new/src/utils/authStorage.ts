@@ -38,6 +38,13 @@ export function isAuthenticated() {
   return Boolean(getStoredAccessToken() && getStoredUser());
 }
 
+/** 有 token 且按本地过期时间未过期（不校验 auth_user）。用于识别
+ * 「会话仍有效但缺 user 档案」的登录态并做补齐。 */
+export function hasFreshAccessToken() {
+  if (!getStoredAccessToken()) return false;
+  return !isStoredTokenExpired();
+}
+
 export function clearAuthStorage() {
   for (const key of AUTH_KEYS) {
     localStorage.removeItem(key);

@@ -9,7 +9,7 @@ import {
   exchangePendingOAuthCompletion,
   pendingOAuthBindLogin,
   isAuthResponse,
-  persistAuth,
+  persistAuthWithUserProfile,
   readOAuthAffiliateCode,
   sendPendingOAuthVerifyCode,
   type AuthResponse,
@@ -205,8 +205,10 @@ export default function OAuthCallback() {
     if (exchangeStartedRef.current) return;
     exchangeStartedRef.current = true;
 
-    function finishWithTokens(tokens: AuthResponse, redirect: string) {
-      persistAuth(tokens);
+    async function finishWithTokens(tokens: AuthResponse, redirect: string) {
+      // OAuth 成功响应通常不带 user（fragment 与 completion 均如此），这里统一
+      // 补齐 auth_user，否则 isAuthenticated() 为 false，首页/登录页会当作未登录。
+      await persistAuthWithUserProfile(tokens);
       clearOAuthAffiliateCode();
       navigate(sanitizeRedirectPath(redirect), { replace: true });
     }
@@ -228,14 +230,14 @@ export default function OAuthCallback() {
 
       const tokenResponse = readTokenResponse(params);
       if (tokenResponse) {
-        finishWithTokens(tokenResponse, params.get("redirect") || "/console");
+        await finishWithTokens(tokenResponse, params.get("redirect") || "/console");
         return;
       }
 
       try {
         const completion = await exchangePendingOAuthCompletion();
         if (isTokenCompletion(completion)) {
-          finishWithTokens(completion, completion.redirect || "/console");
+          await finishWithTokens(completion, completion.redirect || "/console");
           return;
         }
         if (completion.auth_result === "identity_bound") {
@@ -406,7 +408,7 @@ export default function OAuthCallback() {
         return;
       }
       if (isTokenCompletion(completion)) {
-        persistAuth(completion);
+        await persistAuthWithUserProfile(completion);
         clearOAuthAffiliateCode();
         navigate(sanitizeRedirectPath(completion.redirect || "/console"), { replace: true });
         return;
@@ -437,7 +439,7 @@ export default function OAuthCallback() {
         adopt_avatar: adoptAvatar,
       });
       if (isTokenCompletion(completion)) {
-        persistAuth(completion);
+        await persistAuthWithUserProfile(completion);
         clearOAuthAffiliateCode();
         navigate(sanitizeRedirectPath(completion.redirect || redirectTo || "/console"), { replace: true });
         return;
@@ -486,7 +488,7 @@ export default function OAuthCallback() {
           setMessage(translationMessage("errors:oauthSignupFailed"));
           return;
         }
-        persistAuth(response);
+        await persistAuthWithUserProfile(response);
       } else {
         const requestCaptchaProof = actionCaptchaRequired ? await acquireCaptchaProof() : captchaProof;
         if (captchaRequired && !requestCaptchaProof) return;
