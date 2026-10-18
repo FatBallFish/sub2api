@@ -195,11 +195,18 @@ func RegisterAuthRoutes(
 		}), h.Auth.OIDCTokenExchange)
 		// 新前端（console）独立 OIDC 入口：独立 cookie 命名空间与回调地址，
 		// 让新老前端在各自域名下互不干扰地完成 OAuth 登录。
-		auth.GET("/oauth/oidc-console/start", h.Auth.OIDCOAuthConsoleStart)
-		auth.POST("/oauth/oidc-console/start", rateLimiter.LimitWithOptions("oauth-oidc-console-start", 20, time.Minute, middleware.RateLimitOptions{
-			FailureMode: middleware.RateLimitFailClose,
-		}), h.Auth.OIDCOAuthConsoleStart)
-		auth.GET("/oauth/oidc-console/callback", h.Auth.OIDCOAuthConsoleCallback)
+			auth.GET("/oauth/oidc-console/start", h.Auth.OIDCOAuthConsoleStart)
+			auth.POST("/oauth/oidc-console/start", rateLimiter.LimitWithOptions("oauth-oidc-console-start", 20, time.Minute, middleware.RateLimitOptions{
+				FailureMode: middleware.RateLimitFailClose,
+			}), h.Auth.OIDCOAuthConsoleStart)
+			// 新前端「账号与安全」绑定入口：console 变体的 cookie/回调地址，授权后回到新前端。
+			auth.GET("/oauth/oidc-console/bind/start", func(c *gin.Context) {
+				query := c.Request.URL.Query()
+				query.Set("intent", "bind_current_user")
+				c.Request.URL.RawQuery = query.Encode()
+				h.Auth.OIDCOAuthConsoleStart(c)
+			})
+			auth.GET("/oauth/oidc-console/callback", h.Auth.OIDCOAuthConsoleCallback)
 		auth.POST("/oauth/oidc/complete-registration",
 			rateLimiter.LimitWithOptions("oauth-oidc-complete", 10, time.Minute, middleware.RateLimitOptions{
 				FailureMode: middleware.RateLimitFailClose,

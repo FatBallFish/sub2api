@@ -107,6 +107,7 @@ function renderCallback(initialEntry = "/auth/oauth/callback") {
         <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
         <Route path="/console" element={<div>Console landed</div>} />
+        <Route path="/console/security" element={<div>Security landed</div>} />
         <Route path="/reports" element={<div>Reports landed</div>} />
         <Route path="/login" element={<div>Login page</div>} />
       </Routes>
@@ -269,6 +270,25 @@ describe("OAuthCallback", () => {
       "/api/v1/auth/oauth/pending/exchange",
       expect.any(Object),
     );
+  });
+
+  it("navigates back to the origin page when an identity-bound exchange completes without tokens", async () => {
+    // intent=bind_current_user 的终态：绑定成功但不换发 token pair（沿用现有会话）。
+    const fetchMock = vi.fn().mockResolvedValueOnce(response({
+      auth_result: "identity_bound",
+      provider: "oidc",
+      redirect: "/console/security",
+    }));
+    globalThis.fetch = fetchMock;
+    sessionStorage.setItem("oauth_aff_code", "AFF-BOUND");
+
+    renderCallback();
+
+    expect(await screen.findByText("Security landed")).toBeInTheDocument();
+    // 不写入新 token：绑定流程不产生新会话。
+    expect(localStorage.getItem("auth_token")).toBeNull();
+    expect(sessionStorage.getItem("oauth_aff_code")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("persists a deferred exchange token after a strict-mode style unmount (single exchange)", async () => {

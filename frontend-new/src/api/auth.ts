@@ -198,6 +198,8 @@ export function startOAuth(
 
 export interface PendingOAuthCompletion extends Partial<AuthResponse> {
   error?: string;
+  /** "pending_session"=需继续交互；"identity_bound"=已登录用户的绑定已完成（无 token pair）。 */
+  auth_result?: string;
   provider?: OAuthProvider;
   redirect?: string;
   email?: string;

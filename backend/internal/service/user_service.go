@@ -881,7 +881,9 @@ func buildUserIdentityBindAuthorizeURL(provider, redirectTo string) (string, err
 	case "linuxdo":
 		path = "/api/v1/auth/oauth/linuxdo/bind/start"
 	case "oidc":
-		path = "/api/v1/auth/oauth/oidc/bind/start"
+		// 走 console 变体：回调/落页在新前端（/user/auth-identities/bind/start 仅新前端调用），
+		// 授权完成后回到新前端的 OAuthCallback 页再转回 /console/security。
+		path = "/api/v1/auth/oauth/oidc-console/bind/start"
 	case "wechat":
 		path = "/api/v1/auth/oauth/wechat/bind/start"
 	case "dingtalk":
