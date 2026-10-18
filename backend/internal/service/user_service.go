@@ -828,6 +828,12 @@ func (s *UserService) canUseEmailAsSignInMethod(user *User, records []UserAuthId
 		return true
 	}
 
+	// 用户/管理员主动设置过密码（OAuth 建号后改密、邮箱重置等），邮箱+密码可独立登录。
+	// drift 作废会把标记一并清除，作废后不会误放行。
+	if user.PasswordUserSet {
+		return true
+	}
+
 	for _, record := range filterUserAuthIdentities(records, "email") {
 		if emailIdentitySupportsSignIn(record) {
 			return true
