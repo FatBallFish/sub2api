@@ -144,6 +144,7 @@ docs/*
 !docs/channel-monitor-v2-safe-defaults.md
 !docs/codex-credits.md
 !docs/GPT_IMAGE_2_API_CN.md
+!docs/silent-sso-mikiko-id.md
 !docs/legal/
 !docs/legal/*.md
 !docs/screenshots/

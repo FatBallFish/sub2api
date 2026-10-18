@@ -59,7 +59,11 @@ type oidcRouteVariant struct {
 	intentCookie      string
 	bindUserCookie    string
 	defaultRedirectTo string
-	config            func(ctx context.Context) (config.OIDCConnectConfig, error)
+	// silentCookie 非空时该入口支持静默登录（prompt=none）：start 写入失败回退
+	// 路径，callback 据此在错误 fragment 中追加 silent 标记。老前端变体留空，
+	// 静默能力只开放给新前端（console）。
+	silentCookie string
+	config       func(ctx context.Context) (config.OIDCConnectConfig, error)
 }
 
 func (h *AuthHandler) oidcMainRouteVariant() oidcRouteVariant {
@@ -86,6 +90,7 @@ func (h *AuthHandler) oidcConsoleRouteVariant() oidcRouteVariant {
 		intentCookie:      "oidc_oauth_console_intent",
 		bindUserCookie:    "oidc_oauth_console_bind_user",
 		defaultRedirectTo: "/console",
+		silentCookie:      "oidc_oauth_console_silent",
 		config:            h.getOIDCConsoleOAuthConfig,
 	}
 }
@@ -233,6 +238,19 @@ func (h *AuthHandler) oidcOAuthStart(c *gin.Context, v oidcRouteVariant) {
 		oidcSetCookie(c, v.cookiePath, v.verifierCookie, encodeCookieValue(verifier), oidcOAuthCookieMaxAgeSec, secureCookie)
 	}
 
+	// 静默登录（门户 ?sso=silent 跳入）：prompt=none 让 IdP 无会话时直接返回
+	// login_required 而非弹登录框，前端据此「无事发生」地回到入口页。
+	// 仅接受字面值 none，避免任意 prompt 值注入授权 URL。
+	prompt := ""
+	if v.silentCookie != "" && strings.EqualFold(strings.TrimSpace(c.Query("prompt")), "none") {
+		prompt = "none"
+		silentFallback := sanitizeFrontendRedirectPath(c.Query("fallback"))
+		if silentFallback == "" {
+			silentFallback = "/login"
+		}
+		oidcSetCookie(c, v.cookiePath, v.silentCookie, encodeCookieValue(silentFallback), oidcOAuthCookieMaxAgeSec, secureCookie)
+	}
+
 	nonce := ""
 	if cfg.ValidateIDToken {
 		nonce, err = oauth.GenerateState()
@@ -249,7 +267,7 @@ func (h *AuthHandler) oidcOAuthStart(c *gin.Context, v oidcRouteVariant) {
 		return
 	}
 
-	authURL, err := buildOIDCAuthorizeURL(cfg, state, nonce, codeChallenge, redirectURI)
+	authURL, err := buildOIDCAuthorizeURL(cfg, state, nonce, codeChallenge, redirectURI, prompt)
 	if err != nil {
 		response.ErrorFrom(c, infraerrors.InternalServer("OAUTH_BUILD_URL_FAILED", "failed to build oauth authorization url").WithCause(err))
 		return
@@ -282,8 +300,23 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		frontendCallback = oidcOAuthDefaultFrontendCB
 	}
 
+	// 静默标记在 provider error 早退分支之前读取：login_required 等错误不走
+	// 下方的 cookie 清理链路，需要在这里手动清掉并带上回退信息。
+	silentFallback := ""
+	if v.silentCookie != "" {
+		if raw, err := readCookieDecoded(c, v.silentCookie); err == nil {
+			silentFallback = sanitizeFrontendRedirectPath(raw)
+		}
+	}
+	failOAuth := func(code string, message string, description string) {
+		redirectOAuthErrorSilentAware(c, frontendCallback, silentFallback, code, message, description)
+	}
+
 	if providerErr := strings.TrimSpace(c.Query("error")); providerErr != "" {
-		redirectOAuthError(c, frontendCallback, "provider_error", providerErr, c.Query("error_description"))
+		if v.silentCookie != "" {
+			oidcClearCookie(c, v.cookiePath, v.silentCookie, isRequestHTTPS(c))
+		}
+		failOAuth("provider_error", providerErr, c.Query("error_description"))
 		return
 	}
 
@@ -302,12 +335,15 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		oidcClearCookie(c, v.cookiePath, v.nonceCookie, secureCookie)
 		oidcClearCookie(c, v.cookiePath, v.intentCookie, secureCookie)
 		oidcClearCookie(c, v.cookiePath, v.bindUserCookie, secureCookie)
+		if v.silentCookie != "" {
+			oidcClearCookie(c, v.cookiePath, v.silentCookie, secureCookie)
+		}
 		clearOAuthPromoCodeCookie(c, secureCookie)
 	}()
 
 	expectedState, err := readCookieDecoded(c, v.stateCookie)
 	if err != nil || expectedState == "" || state != expectedState {
-		redirectOAuthError(c, frontendCallback, "invalid_state", "invalid oauth state", "")
+		failOAuth("invalid_state", "invalid oauth state", "")
 		return
 	}
 
@@ -318,7 +354,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	}
 	browserSessionKey, _ := readOAuthPendingBrowserCookie(c)
 	if strings.TrimSpace(browserSessionKey) == "" {
-		redirectOAuthError(c, frontendCallback, "missing_browser_session", "missing oauth browser session", "")
+		failOAuth("missing_browser_session", "missing oauth browser session", "")
 		return
 	}
 	intent, _ := readCookieDecoded(c, v.intentCookie)
@@ -328,7 +364,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	if cfg.UsePKCE {
 		codeVerifier, _ = readCookieDecoded(c, v.verifierCookie)
 		if codeVerifier == "" {
-			redirectOAuthError(c, frontendCallback, "missing_verifier", "missing pkce verifier", "")
+			failOAuth("missing_verifier", "missing pkce verifier", "")
 			return
 		}
 	}
@@ -337,14 +373,14 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	if cfg.ValidateIDToken {
 		expectedNonce, _ = readCookieDecoded(c, v.nonceCookie)
 		if expectedNonce == "" {
-			redirectOAuthError(c, frontendCallback, "missing_nonce", "missing oauth nonce", "")
+			failOAuth("missing_nonce", "missing oauth nonce", "")
 			return
 		}
 	}
 
 	redirectURI := strings.TrimSpace(cfg.RedirectURL)
 	if redirectURI == "" {
-		redirectOAuthError(c, frontendCallback, "config_error", "oauth redirect url not configured", "")
+		failOAuth("config_error", "oauth redirect url not configured", "")
 		return
 	}
 
@@ -365,21 +401,21 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 			log.Printf("[OIDC OAuth] token exchange failed: %v", err)
 			description = err.Error()
 		}
-		redirectOAuthError(c, frontendCallback, "token_exchange_failed", "failed to exchange oauth code", singleLine(description))
+		failOAuth("token_exchange_failed", "failed to exchange oauth code", singleLine(description))
 		return
 	}
 
 	var idClaims *oidcIDTokenClaims
 	if cfg.ValidateIDToken {
 		if strings.TrimSpace(tokenResp.IDToken) == "" {
-			redirectOAuthError(c, frontendCallback, "missing_id_token", "missing id_token", "")
+			failOAuth("missing_id_token", "missing id_token", "")
 			return
 		}
 
 		idClaims, err = oidcParseAndValidateIDToken(c.Request.Context(), cfg, tokenResp.IDToken, expectedNonce)
 		if err != nil {
 			log.Printf("[OIDC OAuth] id_token validation failed: %v", err)
-			redirectOAuthError(c, frontendCallback, "invalid_id_token", "failed to validate id_token", "")
+			failOAuth("invalid_id_token", "failed to validate id_token", "")
 			return
 		}
 	}
@@ -387,7 +423,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	userInfoClaims, err := oidcFetchUserInfo(c.Request.Context(), cfg, tokenResp)
 	if err != nil {
 		log.Printf("[OIDC OAuth] userinfo fetch failed: %v", err)
-		redirectOAuthError(c, frontendCallback, "userinfo_failed", "failed to fetch user info", "")
+		failOAuth("userinfo_failed", "failed to fetch user info", "")
 		return
 	}
 
@@ -399,7 +435,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		subject = strings.TrimSpace(userInfoClaims.Subject)
 	}
 	if subject == "" {
-		redirectOAuthError(c, frontendCallback, "missing_subject", "missing subject claim", "")
+		failOAuth("missing_subject", "missing subject claim", "")
 		return
 	}
 	issuer := ""
@@ -410,7 +446,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		issuer = strings.TrimSpace(cfg.IssuerURL)
 	}
 	if issuer == "" {
-		redirectOAuthError(c, frontendCallback, "missing_issuer", "missing issuer claim", "")
+		failOAuth("missing_issuer", "missing issuer claim", "")
 		return
 	}
 
@@ -419,7 +455,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		emailVerified = idClaims.EmailVerified
 	}
 	if idClaims != nil && userInfoClaims.Subject != "" && idClaims.Subject != "" && strings.TrimSpace(userInfoClaims.Subject) != strings.TrimSpace(idClaims.Subject) {
-		redirectOAuthError(c, frontendCallback, "subject_mismatch", "userinfo subject does not match id_token", "")
+		failOAuth("subject_mismatch", "userinfo subject does not match id_token", "")
 		return
 	}
 
@@ -471,7 +507,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	if intent == oauthIntentBindCurrentUser {
 		targetUserID, err := h.readOAuthBindUserIDFromCookie(c, v.bindUserCookie)
 		if err != nil {
-			redirectOAuthError(c, frontendCallback, "invalid_state", "invalid oauth bind target", "")
+			failOAuth("invalid_state", "invalid oauth bind target", "")
 			return
 		}
 		if err := h.createOAuthPendingSession(c, oauthPendingSessionPayload{
@@ -486,7 +522,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 				"redirect": redirectTo,
 			},
 		}); err != nil {
-			redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth bind", "")
+			failOAuth("session_error", "failed to continue oauth bind", "")
 			return
 		}
 		redirectToFrontendCallback(c, frontendCallback)
@@ -495,7 +531,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 
 	existingIdentityUser, err := h.findOAuthIdentityUser(c.Request.Context(), identityRef)
 	if err != nil {
-		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
+		failOAuth("session_error", infraerrors.Reason(err), infraerrors.Message(err))
 		return
 	}
 	if existingIdentityUser != nil {
@@ -511,7 +547,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 				"redirect": redirectTo,
 			},
 		}); err != nil {
-			redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth login", "")
+			failOAuth("session_error", "failed to continue oauth login", "")
 			return
 		}
 		redirectToFrontendCallback(c, frontendCallback)
@@ -520,13 +556,13 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 
 	compatEmailUser, err := h.findOIDCCompatEmailUser(c.Request.Context(), compatEmail)
 	if err != nil {
-		redirectOAuthError(c, frontendCallback, "session_error", infraerrors.Reason(err), infraerrors.Message(err))
+		failOAuth("session_error", infraerrors.Reason(err), infraerrors.Message(err))
 		return
 	}
 
 	if cfg.RequireEmailVerified {
 		if emailVerified == nil || !*emailVerified {
-			redirectOAuthError(c, frontendCallback, "email_not_verified", "email is not verified", "")
+			failOAuth("email_not_verified", "email is not verified", "")
 			return
 		}
 	}
@@ -539,6 +575,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		if handled := h.tryOIDCVerifiedEmailFastPath(
 			c,
 			frontendCallback,
+			silentFallback,
 			redirectTo,
 			identityRef,
 			compatEmail,
@@ -562,7 +599,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 			compatEmailUser,
 			true,
 		); err != nil {
-			redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth login", "")
+			failOAuth("session_error", "failed to continue oauth login", "")
 			return
 		}
 		redirectToFrontendCallback(c, frontendCallback)
@@ -581,7 +618,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		compatEmailUser,
 		h.isForceEmailOnThirdPartySignup(c.Request.Context()),
 	); err != nil {
-		redirectOAuthError(c, frontendCallback, "session_error", "failed to continue oauth login", "")
+		failOAuth("session_error", "failed to continue oauth login", "")
 		return
 	}
 	redirectToFrontendCallback(c, frontendCallback)
@@ -1011,7 +1048,7 @@ func getGJSONBool(body string, path string) (bool, bool) {
 	return res.Bool(), true
 }
 
-func buildOIDCAuthorizeURL(cfg config.OIDCConnectConfig, state, nonce, codeChallenge, redirectURI string) (string, error) {
+func buildOIDCAuthorizeURL(cfg config.OIDCConnectConfig, state, nonce, codeChallenge, redirectURI, prompt string) (string, error) {
 	u, err := url.Parse(cfg.AuthorizeURL)
 	if err != nil {
 		return "", fmt.Errorf("parse authorize_url: %w", err)
@@ -1031,6 +1068,9 @@ func buildOIDCAuthorizeURL(cfg config.OIDCConnectConfig, state, nonce, codeChall
 	if strings.TrimSpace(codeChallenge) != "" {
 		q.Set("code_challenge", codeChallenge)
 		q.Set("code_challenge_method", "S256")
+	}
+	if strings.TrimSpace(prompt) != "" {
+		q.Set("prompt", prompt)
 	}
 
 	u.RawQuery = q.Encode()
@@ -1255,6 +1295,25 @@ func oidcIdentityKey(issuer, subject string) string {
 	return issuer + "\x1f" + subject
 }
 
+// redirectOAuthErrorSilentAware 在常规 OAuth 错误重定向之上支持静默登录回退：
+// silentFallback 非空（本次授权由 prompt=none 发起）时追加 silent=1 与 fallback，
+// 前端回调据此不展示错误 UI，直接回到入口页。
+func redirectOAuthErrorSilentAware(c *gin.Context, frontendCallback string, silentFallback string, code string, message string, description string) {
+	fragment := url.Values{}
+	fragment.Set("error", truncateFragmentValue(code))
+	if strings.TrimSpace(message) != "" {
+		fragment.Set("error_message", truncateFragmentValue(message))
+	}
+	if strings.TrimSpace(description) != "" {
+		fragment.Set("error_description", truncateFragmentValue(description))
+	}
+	if strings.TrimSpace(silentFallback) != "" {
+		fragment.Set("silent", "1")
+		fragment.Set("fallback", truncateFragmentValue(silentFallback))
+	}
+	redirectWithFragment(c, frontendCallback, fragment)
+}
+
 func oidcSyntheticEmailFromIdentityKey(identityKey string) string {
 	identityKey = strings.TrimSpace(identityKey)
 	if identityKey == "" {
@@ -1302,6 +1361,7 @@ func oidcClearCookie(c *gin.Context, path, name string, secure bool) {
 func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 	c *gin.Context,
 	frontendCallback string,
+	silentFallback string,
 	redirectTo string,
 	identity service.PendingAuthIdentityKey,
 	compatEmail string,
@@ -1322,7 +1382,7 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 		log.Printf("[OIDC OAuth] verified-email fast path blocked by backend mode: reason=%s", infraerrors.Reason(err))
 		clearOAuthPendingSessionCookie(c, isRequestHTTPS(c))
 		clearOAuthPendingBrowserCookie(c, isRequestHTTPS(c))
-		redirectOAuthError(c, frontendCallback, "login_blocked", infraerrors.Reason(err), infraerrors.Message(err))
+		redirectOAuthErrorSilentAware(c, frontendCallback, silentFallback, "login_blocked", infraerrors.Reason(err), infraerrors.Message(err))
 		return true
 	}
 

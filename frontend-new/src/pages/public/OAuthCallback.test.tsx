@@ -106,6 +106,7 @@ function renderCallback(initialEntry = "/auth/oauth/callback") {
       <Routes>
         <Route path="/auth/oauth/callback" element={<OAuthCallback />} />
         <Route path="/auth/callback" element={<OAuthCallback />} />
+        <Route path="/" element={<div>Home landed</div>} />
         <Route path="/console" element={<div>Console landed</div>} />
         <Route path="/console/security" element={<div>Security landed</div>} />
         <Route path="/reports" element={<div>Reports landed</div>} />
@@ -841,6 +842,35 @@ describe("OAuthCallback", () => {
 
     expect(await screen.findByText("OAuth state expired")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Back to sign in" })).toHaveAttribute("href", "/login");
+  });
+
+  it("quietly returns to the login entry for failed silent logins", async () => {
+    // 后端 fragment 双层编码：fallback=%2Flogin 在 hash 中为 %252Flogin。
+    window.location.hash = "#error=provider_error&error_message=login_required&silent=1&fallback=%252Flogin";
+
+    renderCallback();
+
+    expect(await screen.findByText("Login page")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Back to sign in" })).not.toBeInTheDocument();
+  });
+
+  it("quietly returns to the home entry for failed silent logins", async () => {
+    window.location.hash = "#error=provider_error&error_message=login_required&silent=1&fallback=%252F";
+
+    renderCallback();
+
+    expect(await screen.findByText("Home landed")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("falls back to login for silent failures with an unsafe fallback", async () => {
+    window.location.hash = "#error=provider_error&silent=1&fallback=https%3A%2F%2Fevil.example.com%2Fphish";
+
+    renderCallback();
+
+    expect(await screen.findByText("Login page")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("localizes pending and failure chrome while preserving provider details", async () => {

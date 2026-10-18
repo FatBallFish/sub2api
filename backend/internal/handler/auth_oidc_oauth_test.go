@@ -47,12 +47,17 @@ func TestBuildOIDCAuthorizeURLIncludesNonceAndPKCE(t *testing.T) {
 		Scopes:       "openid email profile",
 	}
 
-	u, err := buildOIDCAuthorizeURL(cfg, "state123", "nonce123", "challenge123", "https://app.example.com/callback")
+	u, err := buildOIDCAuthorizeURL(cfg, "state123", "nonce123", "challenge123", "https://app.example.com/callback", "")
 	require.NoError(t, err)
 	require.Contains(t, u, "nonce=nonce123")
 	require.Contains(t, u, "code_challenge=challenge123")
 	require.Contains(t, u, "code_challenge_method=S256")
 	require.Contains(t, u, "scope=openid+email+profile")
+	require.NotContains(t, u, "prompt=")
+
+	uSilent, err := buildOIDCAuthorizeURL(cfg, "state123", "nonce123", "challenge123", "https://app.example.com/callback", "none")
+	require.NoError(t, err)
+	require.Contains(t, uSilent, "prompt=none")
 }
 
 func TestOIDCParseAndValidateIDToken(t *testing.T) {
@@ -944,6 +949,7 @@ func TestTryOIDCVerifiedEmailFastPathCreatesUserAndIdentity(t *testing.T) {
 	completed := handler.tryOIDCVerifiedEmailFastPath(
 		c,
 		"/auth/oidc/callback",
+		"",
 		"/dashboard",
 		identity,
 		"fastpath@example.com",
@@ -1106,6 +1112,7 @@ func TestTryOIDCVerifiedEmailFastPathSkippedWhenInvitationCodeRequired(t *testin
 	completed := handler.tryOIDCVerifiedEmailFastPath(
 		c,
 		"/auth/oidc/callback",
+		"",
 		"/dashboard",
 		identity,
 		"invite-only@example.com",
@@ -1140,6 +1147,7 @@ func TestTryOIDCVerifiedEmailFastPathSkippedWhenForceEmailEnabled(t *testing.T) 
 	completed := handler.tryOIDCVerifiedEmailFastPath(
 		c,
 		"/auth/oidc/callback",
+		"",
 		"/dashboard",
 		identity,
 		"force-email@example.com",
@@ -1412,4 +1420,157 @@ func TestOIDCOAuthConsoleStartDisabledWhenConsoleFlagOff(t *testing.T) {
 	handler.OIDCOAuthConsoleStart(c)
 
 	require.Equal(t, http.StatusNotFound, recorder.Code)
+}
+
+func newOIDCOAuthConsoleSilentTestHandler(t *testing.T, extraSettings map[string]string) *AuthHandler {
+	t.Helper()
+	cfg := config.OIDCConnectConfig{
+		Enabled:              true,
+		ProviderName:         "OIDC",
+		ClientID:             "oidc-client",
+		ClientSecret:         "oidc-secret",
+		IssuerURL:            "https://issuer.example.com",
+		AuthorizeURL:         "https://issuer.example.com/oauth/authorize",
+		TokenURL:             "https://issuer.example.com/oauth/token",
+		UserInfoURL:          "https://issuer.example.com/oauth/userinfo",
+		Scopes:               "openid profile email",
+		RedirectURL:          "https://old.example.com/api/v1/auth/oauth/oidc/callback",
+		FrontendRedirectURL:  "/auth/oidc/callback",
+		TokenAuthMethod:      "client_secret_post",
+		UsePKCE:              false,
+		ValidateIDToken:      false,
+		RequireEmailVerified: false,
+	}
+	settings := map[string]string{
+		service.SettingKeyOIDCConnectConsoleEnabled:             "true",
+		service.SettingKeyOIDCConnectConsoleRedirectURL:         "https://console.example.com/api/v1/auth/oauth/oidc-console/callback",
+		service.SettingKeyOIDCConnectConsoleFrontendRedirectURL: "/auth/oauth/callback",
+	}
+	for key, value := range extraSettings {
+		settings[key] = value
+	}
+	handler, _ := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, settings)
+	return handler
+}
+
+func TestOIDCOAuthConsoleStartPromptNoneSetsSilentCookie(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start?redirect=/console&prompt=none&fallback=/", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "prompt=none")
+
+	cookies := recorder.Result().Cookies()
+	silentCookie := findCookie(cookies, "oidc_oauth_console_silent")
+	require.NotNil(t, silentCookie, "silent start must persist the fallback cookie")
+	require.Equal(t, "/api/v1/auth/oauth/oidc-console", silentCookie.Path)
+	require.Equal(t, "/", decodeCookieValueForTest(t, silentCookie.Value))
+}
+
+func TestOIDCOAuthConsoleStartPromptNoneSanitizesFallback(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start?prompt=none&fallback=https://evil.example.com/phish", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	silentCookie := findCookie(recorder.Result().Cookies(), "oidc_oauth_console_silent")
+	require.NotNil(t, silentCookie)
+	// 外站 fallback 被拒绝后回退默认 /login，绝不透传开放重定向目标。
+	require.Equal(t, "/login", decodeCookieValueForTest(t, silentCookie.Value))
+}
+
+func TestOIDCOAuthConsoleStartIgnoresPromptWithoutNone(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start?prompt=login", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	require.NotContains(t, recorder.Header().Get("Location"), "prompt=")
+	require.Nil(t, findCookie(recorder.Result().Cookies(), "oidc_oauth_console_silent"))
+}
+
+func TestOIDCOAuthConsoleStartPromptNoneWithoutFallbackDefaultsToLogin(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/start?prompt=none", nil)
+
+	handler.OIDCOAuthConsoleStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	silentCookie := findCookie(recorder.Result().Cookies(), "oidc_oauth_console_silent")
+	require.NotNil(t, silentCookie)
+	require.Equal(t, "/login", decodeCookieValueForTest(t, silentCookie.Value))
+}
+
+func TestOIDCOAuthConsoleCallbackSilentProviderErrorFallsBackQuietly(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/callback?error=login_required&error_description=User+is+not+logged+in", nil)
+	request.AddCookie(&http.Cookie{Name: "oidc_oauth_console_silent", Value: encodeCookieValue("/"), Path: "/api/v1/auth/oauth/oidc-console"})
+	c.Request = request
+
+	handler.OIDCOAuthConsoleCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "/auth/oauth/callback#error=provider_error")
+	require.Contains(t, location, "error_message=login_required")
+	require.Contains(t, location, "silent=1")
+	require.Contains(t, location, "fallback=%252F")
+
+	silentCookie := findCookie(recorder.Result().Cookies(), "oidc_oauth_console_silent")
+	if silentCookie != nil {
+		require.Less(t, silentCookie.MaxAge, 0, "silent cookie must be cleared after the silent attempt settles")
+	}
+}
+
+func TestOIDCOAuthConsoleCallbackProviderErrorWithoutSilentCookieKeepsLegacyFragment(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/callback?error=login_required", nil)
+
+	handler.OIDCOAuthConsoleCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "error=provider_error")
+	require.NotContains(t, location, "silent=1")
+	require.NotContains(t, location, "fallback=")
+}
+
+func TestOIDCOAuthConsoleCallbackSilentInvalidStateAlsoFallsBackQuietly(t *testing.T) {
+	handler := newOIDCOAuthConsoleSilentTestHandler(t, nil)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc-console/callback?code=abc&state=stale", nil)
+	request.AddCookie(&http.Cookie{Name: "oidc_oauth_console_silent", Value: encodeCookieValue("/login?ref=mikiko"), Path: "/api/v1/auth/oauth/oidc-console"})
+	c.Request = request
+
+	handler.OIDCOAuthConsoleCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get("Location")
+	require.Contains(t, location, "silent=1")
+	require.Contains(t, location, "fallback=%252Flogin%253Fref%253Dmikiko")
 }

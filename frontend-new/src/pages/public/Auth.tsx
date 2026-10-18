@@ -25,6 +25,7 @@ import {
   type CaptchaProof,
 } from "../../components/auth/captcha";
 import { isAuthenticated } from "../../utils/authStorage";
+import { useSilentSsoLogin } from "../../hooks/useSilentSsoLogin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import {
   errorMessage,
@@ -137,17 +138,26 @@ export default function Auth() {
     };
   }, [navigate, redirectTo]);
 
+  // 门户 ?sso=silent 免登：登录页入口同样尝试静默 OIDC 登录。settings 未加载
+  // 完成时传 undefined，由 hook 自行拉取判定。
+  const silentSsoStatus = useSilentSsoLogin({
+    successRedirect: redirectTo,
+    settings: settingsLoaded ? settings : undefined,
+  });
+
   // 关账密且唯一入口为 OIDC 时自动发起登录；需要用户先同意协议或完成
-  // 交互式验证码时退回按钮模式，避免静默绕过用户同意。
+  // 交互式验证码时退回按钮模式，避免静默绕过用户同意。sso=silent 判定
+  // 尚未落定（pending）时先挂起，避免与静默尝试双重跳转。
   const oidcAutoRedirectStartedRef = useRef(false);
   const [oidcRedirecting, setOidcRedirecting] = useState(false);
   useEffect(() => {
     if (!settingsLoaded || !onlyOidcEntrance || oidcAutoRedirectStartedRef.current) return;
+    if (silentSsoStatus === "pending" || silentSsoStatus === "started") return;
     if (agreementRequired || captchaConfigurationInvalid || actionCaptchaRequired) return;
     oidcAutoRedirectStartedRef.current = true;
     setOidcRedirecting(true);
     startOAuth("oidc-console", redirectTo, initialAffiliateCode);
-  }, [settingsLoaded, onlyOidcEntrance, agreementRequired, captchaConfigurationInvalid, actionCaptchaRequired, redirectTo, initialAffiliateCode]);
+  }, [settingsLoaded, onlyOidcEntrance, silentSsoStatus, agreementRequired, captchaConfigurationInvalid, actionCaptchaRequired, redirectTo, initialAffiliateCode]);
 
   if (isAuthenticated()) {
     return (
