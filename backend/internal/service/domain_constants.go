@@ -389,9 +389,12 @@ const (
 	SettingKeyOIDCConnectAllowedSigningAlgs   = "oidc_connect_allowed_signing_algs"
 	SettingKeyOIDCConnectClockSkewSeconds     = "oidc_connect_clock_skew_seconds"
 	SettingKeyOIDCConnectRequireEmailVerified = "oidc_connect_require_email_verified"
-	SettingKeyOIDCConnectUserInfoEmailPath    = "oidc_connect_userinfo_email_path"
-	SettingKeyOIDCConnectUserInfoIDPath       = "oidc_connect_userinfo_id_path"
-	SettingKeyOIDCConnectUserInfoUsernamePath = "oidc_connect_userinfo_username_path"
+	// 允许调用 OIDCTokenExchange 的额外 client_id（逗号分隔），供原生客户端
+	// 同 realm 独立 Client 接入；为空表示仅接受主 ClientID。
+	SettingKeyOIDCConnectTokenExchangeAllowedClients = "oidc_connect_token_exchange_allowed_clients"
+	SettingKeyOIDCConnectUserInfoEmailPath           = "oidc_connect_userinfo_email_path"
+	SettingKeyOIDCConnectUserInfoIDPath              = "oidc_connect_userinfo_id_path"
+	SettingKeyOIDCConnectUserInfoUsernamePath        = "oidc_connect_userinfo_username_path"
 
 	// 新前端（console）独立 OIDC 登录配置：issuer/scopes 等协议参数继承主配置，
 	// 这里只覆盖入口展示与回调相关字段，实现新老前端各自域名下的独立登录。

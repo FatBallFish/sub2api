@@ -145,9 +145,12 @@ type UpdateSettingsRequest struct {
 	OIDCConnectAllowedSigningAlgs   string `json:"oidc_connect_allowed_signing_algs"`
 	OIDCConnectClockSkewSeconds     int    `json:"oidc_connect_clock_skew_seconds"`
 	OIDCConnectRequireEmailVerified bool   `json:"oidc_connect_require_email_verified"`
-	OIDCConnectUserInfoEmailPath    string `json:"oidc_connect_userinfo_email_path"`
-	OIDCConnectUserInfoIDPath       string `json:"oidc_connect_userinfo_id_path"`
-	OIDCConnectUserInfoUsernamePath string `json:"oidc_connect_userinfo_username_path"`
+	// 逗号分隔的额外允许 client_id：原生客户端同 realm 独立 Client 调用
+	// token-exchange 时放行（audience 校验的 allowlist）。
+	OIDCConnectTokenExchangeAllowedClients string `json:"oidc_connect_token_exchange_allowed_clients"`
+	OIDCConnectUserInfoEmailPath           string `json:"oidc_connect_userinfo_email_path"`
+	OIDCConnectUserInfoIDPath              string `json:"oidc_connect_userinfo_id_path"`
+	OIDCConnectUserInfoUsernamePath        string `json:"oidc_connect_userinfo_username_path"`
 
 	// 新前端（console）独立 OIDC 登录配置（协议参数继承上方主配置）
 	OIDCConnectConsoleEnabled             bool   `json:"oidc_connect_console_enabled"`
@@ -1751,6 +1754,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OIDCConnectAllowedSigningAlgs:          req.OIDCConnectAllowedSigningAlgs,
 		OIDCConnectClockSkewSeconds:            req.OIDCConnectClockSkewSeconds,
 		OIDCConnectRequireEmailVerified:        req.OIDCConnectRequireEmailVerified,
+		OIDCConnectTokenExchangeClients:        req.OIDCConnectTokenExchangeAllowedClients,
 		OIDCConnectUserInfoEmailPath:           req.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:              req.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:        req.OIDCConnectUserInfoUsernamePath,
@@ -2438,6 +2442,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OIDCConnectAllowedSigningAlgs:                          updatedSettings.OIDCConnectAllowedSigningAlgs,
 		OIDCConnectClockSkewSeconds:                            updatedSettings.OIDCConnectClockSkewSeconds,
 		OIDCConnectRequireEmailVerified:                        updatedSettings.OIDCConnectRequireEmailVerified,
+		OIDCConnectTokenExchangeClients:                        updatedSettings.OIDCConnectTokenExchangeClients,
 		OIDCConnectUserInfoEmailPath:                           updatedSettings.OIDCConnectUserInfoEmailPath,
 		OIDCConnectUserInfoIDPath:                              updatedSettings.OIDCConnectUserInfoIDPath,
 		OIDCConnectUserInfoUsernamePath:                        updatedSettings.OIDCConnectUserInfoUsernamePath,
