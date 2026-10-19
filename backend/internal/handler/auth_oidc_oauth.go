@@ -1078,6 +1078,14 @@ func buildOIDCAuthorizeURL(cfg config.OIDCConnectConfig, state, nonce, codeChall
 }
 
 func oidcParseAndValidateIDToken(ctx context.Context, cfg config.OIDCConnectConfig, idToken string, expectedNonce string) (*oidcIDTokenClaims, error) {
+	return oidcParseAndValidateIDTokenWithAudiences(ctx, cfg, idToken, expectedNonce, []string{cfg.ClientID})
+}
+
+// oidcParseAndValidateIDTokenWithAudiences 在标准验签/issuer/nonce 校验之上，
+// 允许指定一组可接受的 client（如 token-exchange 的 主Client ∪ allowlist，
+// 服务原生客户端同 realm 独立 Client 接入）。clients 只有一个时与旧行为
+// 完全一致（库级 aud 校验 + 多 aud 时 azp 必须等于该 client）。
+func oidcParseAndValidateIDTokenWithAudiences(ctx context.Context, cfg config.OIDCConnectConfig, idToken string, expectedNonce string, allowedClients []string) (*oidcIDTokenClaims, error) {
 	idToken = strings.TrimSpace(idToken)
 	if idToken == "" {
 		return nil, errors.New("missing id_token")
@@ -1094,6 +1102,26 @@ func oidcParseAndValidateIDToken(ctx context.Context, cfg config.OIDCConnectConf
 	leeway := time.Duration(cfg.ClockSkewSeconds) * time.Second
 	claims := &oidcIDTokenClaims{}
 
+	clients := make([]string, 0, len(allowedClients))
+	for _, clientID := range allowedClients {
+		if trimmed := strings.TrimSpace(clientID); trimmed != "" {
+			clients = append(clients, trimmed)
+		}
+	}
+	if len(clients) == 0 {
+		clients = []string{strings.TrimSpace(cfg.ClientID)}
+	}
+
+	parserOptions := []jwt.ParserOption{
+		jwt.WithValidMethods(allowed),
+		jwt.WithIssuer(cfg.IssuerURL),
+		jwt.WithLeeway(leeway),
+	}
+	// jwt.WithAudience 只接受单个期望值；多 client 时在解析后做交集校验。
+	if len(clients) == 1 {
+		parserOptions = append(parserOptions, jwt.WithAudience(clients[0]))
+	}
+
 	parsed, err := jwt.ParseWithClaims(
 		idToken,
 		claims,
@@ -1105,10 +1133,7 @@ func oidcParseAndValidateIDToken(ctx context.Context, cfg config.OIDCConnectConf
 			kid, _ := token.Header["kid"].(string)
 			return oidcFindPublicKey(jwks, strings.TrimSpace(kid), alg)
 		},
-		jwt.WithValidMethods(allowed),
-		jwt.WithAudience(cfg.ClientID),
-		jwt.WithIssuer(cfg.IssuerURL),
-		jwt.WithLeeway(leeway),
+		parserOptions...,
 	)
 	if err != nil {
 		return nil, err
@@ -1122,12 +1147,59 @@ func oidcParseAndValidateIDToken(ctx context.Context, cfg config.OIDCConnectConf
 	if expectedNonce != "" && strings.TrimSpace(claims.Nonce) != strings.TrimSpace(expectedNonce) {
 		return nil, errors.New("id_token nonce mismatch")
 	}
+	if len(clients) > 1 {
+		if len(claims.Audience) == 0 || !oidcAudienceContainsAny(claims.Audience, clients) {
+			return nil, errors.New("id_token audience mismatch")
+		}
+	}
 	if len(claims.Audience) > 1 {
-		if strings.TrimSpace(claims.Azp) == "" || strings.TrimSpace(claims.Azp) != strings.TrimSpace(cfg.ClientID) {
+		authorizedParty := strings.TrimSpace(claims.Azp)
+		if authorizedParty == "" || !oidcClientIDInList(authorizedParty, clients) {
 			return nil, errors.New("id_token azp mismatch")
 		}
 	}
 	return claims, nil
+}
+
+// oidcAudienceContainsAny 判断 token 的 aud 数组是否包含允许集合中的任一 client。
+func oidcAudienceContainsAny(audiences jwt.ClaimStrings, allowed []string) bool {
+	for _, audience := range audiences {
+		if oidcClientIDInList(string(audience), allowed) {
+			return true
+		}
+	}
+	return false
+}
+
+// oidcClientIDInList 大小写不敏感地判断 client 是否在列表内。
+func oidcClientIDInList(clientID string, allowed []string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(clientID))
+	if normalized == "" {
+		return false
+	}
+	for _, candidate := range allowed {
+		if normalized == strings.ToLower(strings.TrimSpace(candidate)) {
+			return true
+		}
+	}
+	return false
+}
+
+// oidcTokenExchangeAllowedClients 返回 token-exchange 可接受的 client 集合：
+// 主 ClientID + 管理后台 allowlist（原生客户端同 realm 独立 Client）。
+func oidcTokenExchangeAllowedClients(cfg config.OIDCConnectConfig) []string {
+	clients := make([]string, 0, len(cfg.TokenExchangeAllowedClients)+1)
+	clients = append(clients, cfg.ClientID)
+	clients = append(clients, cfg.TokenExchangeAllowedClients...)
+	return clients
+}
+
+// oidcTokenExchangeClientAllowed 判定 id_token 的 azp/aud 是否在 token-exchange
+// 允许的 client 集合内：主 ClientID 恒通过；TokenExchangeAllowedClients 为管理
+// 后台显式登记的额外原生客户端（同 realm 独立 Client）。空 allowlist 时行为
+// 等同仅主 client，保持向后兼容。
+func oidcTokenExchangeClientAllowed(authorizedParty string, cfg config.OIDCConnectConfig) bool {
+	return oidcClientIDInList(authorizedParty, oidcTokenExchangeAllowedClients(cfg))
 }
 
 func oidcAllowedSigningAlgs(raw string) []string {
@@ -1465,17 +1537,18 @@ func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
 		cfg.JWKSURL = jwksURL
 	}
 
-	claims, err := oidcParseAndValidateIDToken(c.Request.Context(), cfg, req.IDToken, "")
+	claims, err := oidcParseAndValidateIDTokenWithAudiences(c.Request.Context(), cfg, req.IDToken, "", oidcTokenExchangeAllowedClients(cfg))
 	if err != nil {
 		response.ErrorFrom(c, infraerrors.Unauthorized("OAUTH_ID_TOKEN_INVALID", "id_token validation failed"))
 		return
 	}
-	// 受众校验：id_token 必须签发给本站配置的 client（azp 或 aud）。
+	// 受众校验：id_token 必须签发给本站配置的 client（azp 或 aud），或管理后台
+	// 显式登记的额外原生客户端（同 realm 独立 Client 接入）。
 	authorizedParty := strings.TrimSpace(claims.Azp)
 	if authorizedParty == "" && len(claims.Audience) > 0 {
 		authorizedParty = claims.Audience[0]
 	}
-	if !strings.EqualFold(authorizedParty, strings.TrimSpace(cfg.ClientID)) {
+	if !oidcTokenExchangeClientAllowed(authorizedParty, cfg) {
 		response.ErrorFrom(c, infraerrors.Unauthorized("OAUTH_ID_TOKEN_INVALID", "id_token audience mismatch"))
 		return
 	}
@@ -1533,17 +1606,30 @@ func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
 		return
 	}
 
-	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), svcUser); err != nil {
+	// token 版本指纹 = email + password_hash：上面构造的是瘦对象（无 hash），
+	// 直接签发的 access token 在中间件指纹校验时必然 TOKEN_REVOKED。签发前
+	// 必须从 DB 加载完整用户。
+	fullUser, err := h.userService.GetByID(c.Request.Context(), svcUser.ID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if fullUser.Status != service.StatusActive {
+		response.ErrorFrom(c, infraerrors.Forbidden("USER_NOT_ACTIVE", "user is not active"))
+		return
+	}
+
+	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), fullUser); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	h.authService.RecordSuccessfulLogin(c.Request.Context(), svcUser.ID)
-	h.oidcSyncAsync(svcUser.Email, func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
+	h.authService.RecordSuccessfulLogin(c.Request.Context(), fullUser.ID)
+	h.oidcSyncAsync(fullUser.Email, func(ctx context.Context, svc *service.OIDCUserSyncService, email string) {
 		svc.CheckDrift(ctx, email)
 	})
 
-	tokenPair, err := h.authService.GenerateTokenPair(c.Request.Context(), svcUser, "")
+	tokenPair, err := h.authService.GenerateTokenPair(c.Request.Context(), fullUser, "")
 	if err != nil {
 		response.InternalError(c, "Failed to generate token pair")
 		return

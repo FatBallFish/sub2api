@@ -785,6 +785,7 @@ func (s *SettingService) resolveOIDCConnectSettings(ctx context.Context) (config
 		SettingKeyOIDCConnectAllowedSigningAlgs,
 		SettingKeyOIDCConnectClockSkewSeconds,
 		SettingKeyOIDCConnectRequireEmailVerified,
+		SettingKeyOIDCConnectTokenExchangeAllowedClients,
 		SettingKeyOIDCConnectUserInfoEmailPath,
 		SettingKeyOIDCConnectUserInfoIDPath,
 		SettingKeyOIDCConnectUserInfoUsernamePath,
@@ -863,6 +864,9 @@ func (s *SettingService) resolveOIDCConnectSettings(ctx context.Context) (config
 	if raw, ok := settings[SettingKeyOIDCConnectRequireEmailVerified]; ok {
 		effective.RequireEmailVerified = raw == "true"
 	}
+	if raw, ok := settings[SettingKeyOIDCConnectTokenExchangeAllowedClients]; ok {
+		effective.TokenExchangeAllowedClients = splitTrimmedCSV(raw)
+	}
 	if v, ok := settings[SettingKeyOIDCConnectUserInfoEmailPath]; ok {
 		effective.UserInfoEmailPath = strings.TrimSpace(v)
 	}
@@ -873,6 +877,21 @@ func (s *SettingService) resolveOIDCConnectSettings(ctx context.Context) (config
 		effective.UserInfoUsernamePath = strings.TrimSpace(v)
 	}
 	return effective, settings, nil
+}
+
+// splitTrimmedCSV 拆分逗号分隔配置并去除空白/空项；输入为空时返回 nil。
+func splitTrimmedCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // finalizeOIDCConnectConfig 补齐展示默认值、校验必填字段并按需解析 discovery 文档。

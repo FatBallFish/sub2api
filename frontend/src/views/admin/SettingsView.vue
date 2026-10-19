@@ -4080,6 +4080,26 @@
                   </div>
                 </div>
 
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.oidc.tokenExchangeAllowedClients") }}
+                  </label>
+                  <input
+                    v-model="form.oidc_connect_token_exchange_allowed_clients"
+                    type="text"
+                    class="input font-mono text-sm"
+                    data-testid="oidc-connect-token-exchange-allowed-clients"
+                    :placeholder="
+                      t('admin.settings.oidc.tokenExchangeAllowedClientsPlaceholder')
+                    "
+                  />
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.oidc.tokenExchangeAllowedClientsHint") }}
+                  </p>
+                </div>
+
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div>
                     <label
@@ -10494,6 +10514,7 @@ const form = reactive<SettingsForm>({
   oidc_connect_allowed_signing_algs: "RS256,ES256,PS256",
   oidc_connect_clock_skew_seconds: 120,
   oidc_connect_require_email_verified: false,
+  oidc_connect_token_exchange_allowed_clients: "",
   oidc_connect_userinfo_email_path: "",
   oidc_connect_userinfo_id_path: "",
   oidc_connect_userinfo_username_path: "",
@@ -12183,6 +12204,8 @@ async function saveSettings() {
       oidc_connect_clock_skew_seconds: form.oidc_connect_clock_skew_seconds,
       oidc_connect_require_email_verified:
         form.oidc_connect_require_email_verified,
+      oidc_connect_token_exchange_allowed_clients:
+        form.oidc_connect_token_exchange_allowed_clients,
       oidc_connect_userinfo_email_path: form.oidc_connect_userinfo_email_path,
       oidc_connect_userinfo_id_path: form.oidc_connect_userinfo_id_path,
       oidc_connect_userinfo_username_path:
