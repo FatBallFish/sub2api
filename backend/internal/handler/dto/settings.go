@@ -142,6 +142,7 @@ type SystemSettings struct {
 	OIDCConnectAllowedSigningAlgs      string `json:"oidc_connect_allowed_signing_algs"`
 	OIDCConnectClockSkewSeconds        int    `json:"oidc_connect_clock_skew_seconds"`
 	OIDCConnectRequireEmailVerified    bool   `json:"oidc_connect_require_email_verified"`
+	OIDCConnectTokenExchangeClients    string `json:"oidc_connect_token_exchange_allowed_clients"`
 	OIDCConnectUserInfoEmailPath       string `json:"oidc_connect_userinfo_email_path"`
 	OIDCConnectUserInfoIDPath          string `json:"oidc_connect_userinfo_id_path"`
 	OIDCConnectUserInfoUsernamePath    string `json:"oidc_connect_userinfo_username_path"`

@@ -413,6 +413,11 @@ type OIDCConnectConfig struct {
 	ClockSkewSeconds        int    `mapstructure:"clock_skew_seconds"`     // 默认 120
 	RequireEmailVerified    bool   `mapstructure:"require_email_verified"` // 默认 false
 
+	// TokenExchangeAllowedClients 额外允许调用 OIDCTokenExchange 的 client_id 列表
+	// （原生客户端同 realm 独立 Client 场景）。issuer/JWKS 校验不受影响；
+	// 空列表 = 仅接受主 ClientID（默认行为）。管理后台可改（逗号分隔）。
+	TokenExchangeAllowedClients []string `mapstructure:"token_exchange_allowed_clients"`
+
 	// 可选：用于从 userinfo JSON 中提取字段的 gjson 路径。
 	// 为空时，服务端会尝试一组常见字段名。
 	UserInfoEmailPath    string `mapstructure:"userinfo_email_path"`

@@ -1574,3 +1574,223 @@ func TestOIDCOAuthConsoleCallbackSilentInvalidStateAlsoFallsBackQuietly(t *testi
 	require.Contains(t, location, "silent=1")
 	require.Contains(t, location, "fallback=%252Flogin%253Fref%253Dmikiko")
 }
+
+// ─── OIDCTokenExchange：原生客户端 id_token 信任转移 ─────────────────────────
+
+// newOIDCTokenExchangeSigner 启动一个只提供 JWKS 的 mock issuer，返回用对应
+// 私钥签署 id_token 的函数与 issuer/JWKS 地址。
+func newOIDCTokenExchangeSigner(t *testing.T) (sign func(claims oidcIDTokenClaims) string, issuerURL string) {
+	t.Helper()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	kid := "exchange-kid"
+	jwks := oidcJWKSet{Keys: []oidcJWK{buildRSAJWK(kid, &priv.PublicKey)}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/jwks", r.URL.Path)
+		require.NoError(t, json.NewEncoder(w).Encode(jwks))
+	}))
+	t.Cleanup(srv.Close)
+
+	return func(claims oidcIDTokenClaims) string {
+		now := time.Now()
+		if claims.IssuedAt == nil {
+			claims.IssuedAt = jwt.NewNumericDate(now)
+		}
+		if claims.NotBefore == nil {
+			claims.NotBefore = jwt.NewNumericDate(now.Add(-30 * time.Second))
+		}
+		if claims.ExpiresAt == nil {
+			claims.ExpiresAt = jwt.NewNumericDate(now.Add(5 * time.Minute))
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = kid
+		signed, err := token.SignedString(priv)
+		require.NoError(t, err)
+		return signed
+	}, srv.URL
+}
+
+func newOIDCTokenExchangeClaims(issuer, subject, audience, azp, email string) oidcIDTokenClaims {
+	return oidcIDTokenClaims{
+		Email:         email,
+		EmailVerified: boolPtr(true),
+		Azp:           azp,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:   issuer,
+			Subject:  subject,
+			Audience: jwt.ClaimStrings{audience},
+		},
+	}
+}
+
+func performOIDCTokenExchange(t *testing.T, handler *AuthHandler, idToken string) *httptest.ResponseRecorder {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	payload, err := json.Marshal(map[string]string{"id_token": idToken})
+	require.NoError(t, err)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/token-exchange", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	c.Request = req
+	handler.OIDCTokenExchange(c)
+	return recorder
+}
+
+func newOIDCTokenExchangeTestEnv(t *testing.T, allowedClients string) (*AuthHandler, *dbent.Client, func(claims oidcIDTokenClaims) string, config.OIDCConnectConfig) {
+	t.Helper()
+	signer, issuerURL := newOIDCTokenExchangeSigner(t)
+	cfg := config.OIDCConnectConfig{
+		Enabled:             true,
+		ClientID:            "oidc-client",
+		ClientSecret:        "oidc-secret",
+		IssuerURL:           issuerURL,
+		AuthorizeURL:        issuerURL + "/authorize",
+		TokenURL:            issuerURL + "/token",
+		UserInfoURL:         issuerURL + "/userinfo",
+		JWKSURL:             issuerURL + "/jwks",
+		Scopes:              "openid email profile",
+		RedirectURL:         "https://api.example.com/api/v1/auth/oauth/oidc/callback",
+		FrontendRedirectURL: "/auth/oidc/callback",
+		UsePKCE:             true,
+		ValidateIDToken:     true,
+		AllowedSigningAlgs:  "RS256",
+		ClockSkewSeconds:    120,
+	}
+	settings := map[string]string{}
+	if allowedClients != "" {
+		settings[service.SettingKeyOIDCConnectTokenExchangeAllowedClients] = allowedClients
+	}
+	handler, client := newOIDCOAuthHandlerAndClientWithSettings(t, false, cfg, settings)
+	return handler, client, signer, cfg
+}
+
+func TestOIDCTokenExchangeAllowsAllowlistedAppClient(t *testing.T) {
+	handler, client, signer, cfg := newOIDCTokenExchangeTestEnv(t, "mikiko-app, other-app")
+
+	idToken := signer(newOIDCTokenExchangeClaims(cfg.IssuerURL, "app-user-subject", "mikiko-app", "mikiko-app", "app-user@example.com"))
+	recorder := performOIDCTokenExchange(t, handler, idToken)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var payload struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		TokenType    string `json:"token_type"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &payload))
+	require.NotEmpty(t, payload.AccessToken)
+	require.NotEmpty(t, payload.RefreshToken)
+	require.Equal(t, "Bearer", payload.TokenType)
+
+	ctx := context.Background()
+	user, err := client.User.Query().Where(dbuser.EmailEQ("app-user@example.com")).Only(ctx)
+	require.NoError(t, err)
+	identity, err := client.AuthIdentity.Query().Where(
+		authidentity.ProviderTypeEQ("oidc"),
+		authidentity.ProviderSubjectEQ("app-user-subject"),
+		authidentity.UserIDEQ(user.ID),
+	).Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "app-user@example.com", identity.Metadata["email"])
+}
+
+func TestOIDCTokenExchangeRejectsClientOutsideAllowlist(t *testing.T) {
+	handler, client, signer, cfg := newOIDCTokenExchangeTestEnv(t, "mikiko-app")
+
+	idToken := signer(newOIDCTokenExchangeClaims(cfg.IssuerURL, "rogue-subject", "rogue-app", "rogue-app", "rogue@example.com"))
+	recorder := performOIDCTokenExchange(t, handler, idToken)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "OAUTH_ID_TOKEN_INVALID")
+
+	_, err := client.User.Query().Where(dbuser.EmailEQ("rogue@example.com")).Only(context.Background())
+	require.Error(t, err, "user must not be created for a non-allowlisted client")
+}
+
+func TestOIDCTokenExchangeAcceptsMainClientWithoutAllowlist(t *testing.T) {
+	handler, client, signer, cfg := newOIDCTokenExchangeTestEnv(t, "")
+
+	idToken := signer(newOIDCTokenExchangeClaims(cfg.IssuerURL, "main-client-subject", "oidc-client", "oidc-client", "main-client@example.com"))
+	recorder := performOIDCTokenExchange(t, handler, idToken)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	_, err := client.User.Query().Where(dbuser.EmailEQ("main-client@example.com")).Only(context.Background())
+	require.NoError(t, err)
+}
+
+func TestOIDCTokenExchangeUnlistedClientStillRejectedWithAllowlistSet(t *testing.T) {
+	// 回归：配置了 allowlist 后主 Client 之外的任意 client 仍被拒。
+	handler, _, signer, cfg := newOIDCTokenExchangeTestEnv(t, "mikiko-app")
+
+	idToken := signer(newOIDCTokenExchangeClaims(cfg.IssuerURL, "other-subject", "oidc-client", "other-app", "other@example.com"))
+	recorder := performOIDCTokenExchange(t, handler, idToken)
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+}
+
+// ─── oidcParseAndValidateIDTokenWithAudiences：多受众解析校验 ────────────────
+
+func TestOIDCParseAndValidateIDTokenWithAudiences(t *testing.T) {
+	signer, issuerURL := newOIDCTokenExchangeSigner(t)
+	cfg := config.OIDCConnectConfig{
+		ClientID:           "client-1",
+		IssuerURL:          issuerURL,
+		JWKSURL:            issuerURL + "/jwks",
+		AllowedSigningAlgs: "RS256",
+		ClockSkewSeconds:   120,
+	}
+	clients := []string{"client-1", "client-2"}
+
+	// allowlist 内 client（单 aud，无 azp）→ 通过。
+	token := signer(newOIDCTokenExchangeClaims(issuerURL, "subject-1", "client-2", "", "a@example.com"))
+	parsed, err := oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", clients)
+	require.NoError(t, err)
+	require.Equal(t, "subject-1", parsed.Subject)
+
+	// allowlist 内 client 且多 aud（azp 必须在集合内）→ 通过。
+	token = signer(oidcIDTokenClaims{
+		Azp: "client-2",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:   issuerURL,
+			Subject:  "subject-2",
+			Audience: jwt.ClaimStrings{"client-1", "client-2"},
+		},
+	})
+	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", clients)
+	require.NoError(t, err)
+
+	// allowlist 外 client → 受众不匹配。
+	token = signer(newOIDCTokenExchangeClaims(issuerURL, "subject-3", "rogue", "rogue", "b@example.com"))
+	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", clients)
+	require.Error(t, err)
+
+	// 缺失 aud → 拒绝。
+	token = signer(oidcIDTokenClaims{
+		Azp: "client-2",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:   issuerURL,
+			Subject:  "subject-4",
+			Audience: jwt.ClaimStrings{},
+		},
+	})
+	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", clients)
+	require.Error(t, err)
+
+	// 多 aud 但 azp 不在集合内 → 拒绝。
+	token = signer(oidcIDTokenClaims{
+		Azp: "rogue",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:   issuerURL,
+			Subject:  "subject-5",
+			Audience: jwt.ClaimStrings{"client-1", "rogue"},
+		},
+	})
+	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", clients)
+	require.Error(t, err)
+
+	// 单 client 列表时保持旧行为：库级 aud 校验生效。
+	token = signer(newOIDCTokenExchangeClaims(issuerURL, "subject-6", "client-2", "", "c@example.com"))
+	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", []string{"client-1"})
+	require.Error(t, err)
+}
