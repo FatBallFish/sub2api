@@ -44,6 +44,33 @@ export interface AffiliateInviteRecord {
   aff_code: string
   total_rebate: number
   created_at: string
+  /** 非空表示该段邀请关系已解除；记录保留可查。 */
+  unbound_at?: string | null
+}
+
+/** 一段当前生效的邀请关系（手动设置/查询用）。 */
+export interface AffiliateInviteBinding {
+  invitee_id: number
+  invitee_email: string
+  invitee_name: string
+  inviter_id: number
+  inviter_email: string
+  inviter_name: string
+  aff_code: string
+  invited_at: string
+}
+
+export interface SetInviteBindingRequest {
+  inviter_id: number
+  invitee_id: number
+  /** RFC3339；缺省取当前时间。返利到期 = 邀请时间 + 全局返利天数。 */
+  invited_at?: string
+  /** 被邀请人已有邀请人时必须为 true（强制变更）。 */
+  force?: boolean
+}
+
+export interface UnbindInviteBindingsRequest {
+  invitee_ids: number[]
 }
 
 /**
@@ -266,7 +293,30 @@ export async function withdrawUserQuota(
   }
 }
 
+/** 手动设置或强制变更邀请关系；返回设置后的当前关系。 */
+export async function setInviteBinding(payload: SetInviteBindingRequest): Promise<AffiliateInviteBinding> {
+  const { data } = await apiClient.post<AffiliateInviteBinding>('/admin/affiliates/bindings', payload)
+  return data
+}
+
+/** 批量解除邀请关系（历史记录保留）；返回实际解除条数。 */
+export async function unbindInviteBindings(payload: UnbindInviteBindingsRequest): Promise<number> {
+  const { data } = await apiClient.post<{ unbound: number }>('/admin/affiliates/bindings/unbind', payload)
+  return data?.unbound ?? 0
+}
+
+/** 查询被邀请人当前生效的邀请关系；未绑定为 null。 */
+export async function getInviteeBinding(inviteeId: number): Promise<AffiliateInviteBinding | null> {
+  const { data } = await apiClient.get<AffiliateInviteBinding | null>('/admin/affiliates/bindings', {
+    params: { invitee_id: inviteeId },
+  })
+  return data
+}
+
 export const affiliatesAPI = {
+  setInviteBinding,
+  unbindInviteBindings,
+  getInviteeBinding,
   listUsers,
   lookupUsers,
   updateUserSettings,

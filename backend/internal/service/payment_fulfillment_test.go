@@ -121,6 +121,17 @@ func (r *paymentFulfillmentAffiliateRepoStub) GetAffiliateByCode(context.Context
 func (r *paymentFulfillmentAffiliateRepoStub) BindInviter(context.Context, int64, int64) (bool, error) {
 	panic("unexpected BindInviter call")
 }
+func (r *paymentFulfillmentAffiliateRepoStub) AdminSetInviteBinding(context.Context, int64, int64, time.Time, bool) (*AffiliateInviteBinding, error) {
+	panic("unexpected AdminSetInviteBinding call")
+}
+
+func (r *paymentFulfillmentAffiliateRepoStub) AdminUnbindInvites(context.Context, []int64) (int, error) {
+	panic("unexpected AdminUnbindInvites call")
+}
+
+func (r *paymentFulfillmentAffiliateRepoStub) GetActiveBindingByInvitee(context.Context, int64) (*AffiliateInviteBinding, error) {
+	return nil, nil
+}
 
 func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
 	var sourceCopy *int64

@@ -203,6 +203,17 @@ func (h *AffiliateHandler) GetUserOverview(c *gin.Context) {
 
 // WithdrawQuotaRequest 是登记线下提现的请求体。Amount 是已在站外打款给
 // 用户的金额，由 AffiliateService 校验。
+type SetInviteBindingRequest struct {
+	InviterID int64     `json:"inviter_id" binding:"required"`
+	InviteeID int64     `json:"invitee_id" binding:"required"`
+	InvitedAt time.Time `json:"invited_at"`
+	Force     bool      `json:"force"`
+}
+
+type UnbindInviteBindingsRequest struct {
+	InviteeIDs []int64 `json:"invitee_ids" binding:"required,min=1,max=500"`
+}
+
 type WithdrawQuotaRequest struct {
 	Amount float64 `json:"amount"`
 }
@@ -235,6 +246,59 @@ func (h *AffiliateHandler) WithdrawQuota(c *gin.Context) {
 		c.Header("X-Idempotency-Replayed", "true")
 	}
 	response.Success(c, result)
+}
+
+// SetInviteBinding 手动设置或强制变更邀请关系。
+// POST /api/v1/admin/affiliates/bindings
+func (h *AffiliateHandler) SetInviteBinding(c *gin.Context) {
+	var req SetInviteBindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BindError(c, err)
+		return
+	}
+	binding, err := h.affiliateService.AdminSetInviteRelation(c.Request.Context(), service.AdminSetInviteRelationInput{
+		InviterID: req.InviterID,
+		InviteeID: req.InviteeID,
+		InvitedAt: req.InvitedAt,
+		Force:     req.Force,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, binding)
+}
+
+// UnbindInviteBindings 批量解除邀请关系（历史记录保留）。
+// POST /api/v1/admin/affiliates/bindings/unbind
+func (h *AffiliateHandler) UnbindInviteBindings(c *gin.Context) {
+	var req UnbindInviteBindingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BindError(c, err)
+		return
+	}
+	unbound, err := h.affiliateService.AdminUnbindInviteRelations(c.Request.Context(), req.InviteeIDs)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"unbound": unbound})
+}
+
+// GetInviteeBinding 查询被邀请人当前生效的邀请关系。
+// GET /api/v1/admin/affiliates/bindings?invitee_id=
+func (h *AffiliateHandler) GetInviteeBinding(c *gin.Context) {
+	inviteeID, err := strconv.ParseInt(c.Query("invitee_id"), 10, 64)
+	if err != nil || inviteeID <= 0 {
+		response.BadRequest(c, "Invalid invitee_id")
+		return
+	}
+	binding, err := h.affiliateService.AdminGetInviteeBinding(c.Request.Context(), inviteeID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, binding)
 }
 
 // ListInviteRecords returns all inviter-invitee relationships.

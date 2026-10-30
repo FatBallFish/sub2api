@@ -22,6 +22,8 @@ var (
 
 	ErrAffiliateQuotaInsufficient     = infraerrors.BadRequest("AFFILIATE_QUOTA_INSUFFICIENT", "insufficient available affiliate quota")
 	ErrAffiliateWithdrawAmountInvalid = infraerrors.BadRequest("AFFILIATE_WITHDRAW_AMOUNT_INVALID", "invalid offline withdrawal amount")
+	ErrAffiliateSelfInvite            = infraerrors.BadRequest("AFFILIATE_SELF_INVITE", "cannot invite yourself")
+	ErrAffiliateInviteTimeInvalid     = infraerrors.BadRequest("AFFILIATE_INVITE_TIME_INVALID", "invite time cannot be in the future")
 )
 
 const (
@@ -117,6 +119,9 @@ type AffiliateRepository interface {
 	BatchSetUserRebateRate(ctx context.Context, userIDs []int64, ratePercent *float64) error
 	ListUsersWithCustomSettings(ctx context.Context, filter AffiliateAdminFilter) ([]AffiliateAdminEntry, int64, error)
 	ListAffiliateInviteRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateInviteRecord, int64, error)
+	AdminSetInviteBinding(ctx context.Context, inviteeID, inviterID int64, invitedAt time.Time, force bool) (*AffiliateInviteBinding, error)
+	AdminUnbindInvites(ctx context.Context, inviteeIDs []int64) (int, error)
+	GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error)
 	ListAffiliateRebateRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateRebateRecord, int64, error)
 	ListAffiliateTransferRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateTransferRecord, int64, error)
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
@@ -151,15 +156,30 @@ type AffiliateRecordFilter struct {
 }
 
 type AffiliateInviteRecord struct {
-	InviterID       int64     `json:"inviter_id"`
-	InviterEmail    string    `json:"inviter_email"`
-	InviterUsername string    `json:"inviter_username"`
-	InviteeID       int64     `json:"invitee_id"`
-	InviteeEmail    string    `json:"invitee_email"`
-	InviteeUsername string    `json:"invitee_username"`
-	AffCode         string    `json:"aff_code"`
-	TotalRebate     float64   `json:"total_rebate"`
-	CreatedAt       time.Time `json:"created_at"`
+	InviterID       int64      `json:"inviter_id"`
+	InviterEmail    string     `json:"inviter_email"`
+	InviterUsername string     `json:"inviter_username"`
+	InviteeID       int64      `json:"invitee_id"`
+	InviteeEmail    string     `json:"invitee_email"`
+	InviteeUsername string     `json:"invitee_username"`
+	AffCode         string     `json:"aff_code"`
+	TotalRebate     float64    `json:"total_rebate"`
+	// CreatedAt 即邀请时间（绑定历史的 invited_at）。UnboundAt 非空表示该段
+	// 邀请关系已解除，记录仍保留可查。
+	CreatedAt time.Time  `json:"created_at"`
+	UnboundAt *time.Time `json:"unbound_at,omitempty"`
+}
+
+// AffiliateInviteBinding 是一段当前生效的邀请关系（管理端设置/查询用）。
+type AffiliateInviteBinding struct {
+	InviteeID      int64     `json:"invitee_id"`
+	InviteeEmail   string     `json:"invitee_email"`
+	InviteeName    string     `json:"invitee_name"`
+	InviterID      int64     `json:"inviter_id"`
+	InviterEmail   string     `json:"inviter_email"`
+	InviterName    string    `json:"inviter_name"`
+	AffCode        string     `json:"aff_code"`
+	InvitedAt      time.Time `json:"invited_at"`
 }
 
 // AffiliateRebateRecord 是一笔返利入账流水。非订单来源（兑换码、管理员充值）
@@ -365,10 +385,16 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	if err != nil {
 		return 0, err
 	}
-	// 有效期检查：超过返利有效期后不再产生返利
+	// 有效期检查：超过返利有效期后不再产生返利。基准取生效绑定的邀请时间
+	// （管理端手动补录时可回拨，存量数据回填值=注册时间，行为不变）；
+	// 无绑定历史行时回退被邀请人注册时间。
+	windowBase := inviteeSummary.CreatedAt
+	if binding, bindErr := s.repo.GetActiveBindingByInvitee(ctx, inviteeUserID); bindErr == nil && binding != nil {
+		windowBase = binding.InvitedAt
+	}
 	if s.settingService != nil {
 		if durationDays := s.settingService.GetAffiliateRebateDurationDays(ctx); durationDays > 0 {
-			if time.Now().After(inviteeSummary.CreatedAt.AddDate(0, 0, durationDays)) {
+			if time.Now().After(windowBase.AddDate(0, 0, durationDays)) {
 				return 0, nil
 			}
 		}
@@ -612,6 +638,60 @@ func (s *AffiliateService) AdminWithdrawQuota(ctx context.Context, userID int64,
 		return nil, ErrAffiliateWithdrawAmountInvalid
 	}
 	return s.repo.WithdrawQuota(ctx, userID, amount, affiliateWithdrawOperationID(key))
+}
+
+// AdminSetInviteRelationInput 手动设置/变更邀请关系入参。
+type AdminSetInviteRelationInput struct {
+	InviterID int64
+	InviteeID int64
+	// InvitedAt 邀请时间（零值取当前时间）；返利到期日 = 邀请时间 + 全局返利天数。
+	InvitedAt time.Time
+	// Force 为 true 时允许强制变更已有邀请关系。
+	Force bool
+}
+
+// AdminSetInviteRelation 管理端手动绑定或强制变更邀请关系。
+// 已有邀请人时必须 Force=true（对应前端“强制变更邀请人”勾选），否则返回
+// AFFILIATE_ALREADY_BOUND。注册奖励属于注册时点逻辑，手动绑定不补发。
+func (s *AffiliateService) AdminSetInviteRelation(ctx context.Context, input AdminSetInviteRelationInput) (*AffiliateInviteBinding, error) {
+	if s == nil || s.repo == nil {
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+	}
+	if input.InviterID <= 0 || input.InviteeID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_USER", "invalid user")
+	}
+	if input.InviterID == input.InviteeID {
+		return nil, ErrAffiliateSelfInvite
+	}
+	invitedAt := input.InvitedAt
+	if invitedAt.IsZero() {
+		invitedAt = time.Now()
+	}
+	if invitedAt.After(time.Now().Add(time.Minute)) {
+		return nil, ErrAffiliateInviteTimeInvalid
+	}
+	return s.repo.AdminSetInviteBinding(ctx, input.InviteeID, input.InviterID, invitedAt, input.Force)
+}
+
+// AdminUnbindInviteRelations 批量解除邀请关系：仅清除绑定与邀请人数，
+// 已产生的返利（可用/冻结/历史）与流水记录全部保留，返利转余额不受影响。
+func (s *AffiliateService) AdminUnbindInviteRelations(ctx context.Context, inviteeIDs []int64) (int, error) {
+	if s == nil || s.repo == nil {
+		return 0, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+	}
+	return s.repo.AdminUnbindInvites(ctx, inviteeIDs)
+}
+
+// AdminGetInviteeBinding 查询被邀请人当前生效的邀请关系（未绑定为 nil），
+// 供“手动设置邀请关系”弹窗展示现状并决定是否启用强制变更。
+func (s *AffiliateService) AdminGetInviteeBinding(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error) {
+	if s == nil || s.repo == nil {
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+	}
+	if inviteeID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_USER", "invalid user")
+	}
+	return s.repo.GetActiveBindingByInvitee(ctx, inviteeID)
 }
 
 // affiliateWithdrawOperationID 把线下提现登记的幂等键映射为流水的 operation_id，

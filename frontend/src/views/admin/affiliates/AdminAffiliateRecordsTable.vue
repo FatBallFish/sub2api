@@ -21,6 +21,25 @@
           >
             {{ t('admin.affiliates.withdraw.button') }}
           </button>
+          <template v-if="props.type === 'invites'">
+            <button
+              type="button"
+              class="btn btn-secondary ml-auto"
+              data-test="affiliate-bind-relation-open"
+              @click="bindDialog = true"
+            >
+              {{ t('admin.affiliates.bindRelation.button') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              :disabled="selectedActiveCount === 0 || loading"
+              data-test="affiliate-unbind-open"
+              @click="unbindDialog = true"
+            >
+              {{ t('admin.affiliates.unbind.button', { count: selectedActiveCount }) }}
+            </button>
+          </template>
         </div>
       </template>
 
@@ -35,6 +54,27 @@
           :sort-storage-key="sortStorageKey"
           @sort="handleSort"
         >
+          <template #header-select>
+            <input
+              v-if="props.type === 'invites'"
+              type="checkbox"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="allActiveSelected"
+              @click.stop
+              @change="toggleSelectAllActive($event)"
+            />
+          </template>
+          <template #cell-select="{ row }">
+            <input
+              v-if="props.type === 'invites'"
+              type="checkbox"
+              class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :disabled="row.unbound_at != null"
+              :checked="selectedInviteeIds.has(row.invitee_id)"
+              @click.stop
+              @change="toggleSelectRow(row, $event)"
+            />
+          </template>
           <template #cell-inviter="{ row }">
             <UserCell
               :id="row.inviter_id"
@@ -81,6 +121,11 @@
           <template #cell-order_status="{ row }">
             <OrderStatusBadge v-if="row.order_status" :status="row.order_status" />
             <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
+          </template>
+          <template #cell-status="{ row }">
+            <span :class="['badge whitespace-nowrap', row.unbound_at ? 'badge-gray' : 'badge-success']">
+              {{ row.unbound_at ? t('admin.affiliates.records.statusUnbound') : t('admin.affiliates.records.statusActive') }}
+            </span>
           </template>
           <template #cell-total_rebate="{ row }">
             <AmountText :value="row.total_rebate" />
@@ -140,6 +185,24 @@
       @success="handleWithdrawSuccess"
     />
 
+    <AffiliateBindRelationDialog
+      v-if="props.type === 'invites'"
+      :show="bindDialog"
+      @close="bindDialog = false"
+      @success="handleRelationChanged"
+    />
+
+    <ConfirmDialog
+      :show="unbindDialog"
+      :title="t('admin.affiliates.unbind.title')"
+      :message="t('admin.affiliates.unbind.confirm', { count: selectedActiveCount })"
+      :confirm-text="t('admin.affiliates.unbind.confirmAction')"
+      :cancel-text="t('common.cancel')"
+      :danger="true"
+      @confirm="confirmUnbind"
+      @cancel="unbindDialog = false"
+    />
+
     <BaseDialog
       :show="overviewDialog"
       :title="t('admin.affiliates.overview.title')"
@@ -179,6 +242,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import AffiliateOfflineWithdrawDialog from './AffiliateOfflineWithdrawDialog.vue'
+import AffiliateBindRelationDialog from './AffiliateBindRelationDialog.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import type { Column } from '@/components/common/types'
 import { useAppStore } from '@/stores/app'
 import { affiliatesAPI, type AffiliateInviteRecord, type AffiliateRebateRecord, type AffiliateTransferRecord, type AffiliateUserOverview, type ListAffiliateRecordsParams } from '@/api/admin/affiliates'
@@ -203,15 +268,93 @@ const overviewDialog = ref(false)
 const overviewLoading = ref(false)
 const selectedOverview = ref<AffiliateUserOverview | null>(null)
 const withdrawDialog = ref(false)
+const bindDialog = ref(false)
+const unbindDialog = ref(false)
+const selectedInviteeIds = ref(new Set<number>())
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+const selectedActiveCount = computed(() => selectedInviteeIds.value.size)
+const allActiveSelected = computed(() => {
+  const activeRows = records.value.filter((row) => isActiveInvite(row)) as AffiliateInviteRecord[]
+  return activeRows.length > 0 && activeRows.every((row) => selectedInviteeIds.value.has(row.invitee_id))
+})
+
+function isActiveInvite(row: AffiliateRecord): boolean {
+  return props.type === 'invites' && (row as AffiliateInviteRecord).unbound_at == null && (row as AffiliateInviteRecord).invitee_id > 0
+}
+
+function toggleSelectRow(row: AffiliateRecord, event: Event) {
+  const record = row as AffiliateInviteRecord
+  if (record.unbound_at != null || !record.invitee_id) return
+  const next = new Set(selectedInviteeIds.value)
+  if ((event.target as HTMLInputElement).checked) {
+    next.add(record.invitee_id)
+  } else {
+    next.delete(record.invitee_id)
+  }
+  selectedInviteeIds.value = next
+}
+
+function toggleSelectAllActive(event: Event) {
+  const next = new Set(selectedInviteeIds.value)
+  const activeRows = records.value.filter((row) => isActiveInvite(row)) as AffiliateInviteRecord[]
+  if ((event.target as HTMLInputElement).checked) {
+    activeRows.forEach((row) => next.add(row.invitee_id))
+  } else {
+    activeRows.forEach((row) => next.delete(row.invitee_id))
+  }
+  selectedInviteeIds.value = next
+}
+
+function clearSelection() {
+  selectedInviteeIds.value = new Set<number>()
+}
+
+/** 翻页/筛选后剔除不在当前页的勾选项，避免误把不可见记录批量解除。 */
+function pruneSelection() {
+  if (selectedInviteeIds.value.size === 0) return
+  const visible = new Set(
+    (records.value as AffiliateInviteRecord[]).filter((row) => row.unbound_at == null && row.invitee_id > 0).map((row) => row.invitee_id),
+  )
+  const next = new Set<number>()
+  selectedInviteeIds.value.forEach((id) => {
+    if (visible.has(id)) next.add(id)
+  })
+  selectedInviteeIds.value = next
+}
+
+function handleRelationChanged() {
+  bindDialog.value = false
+  clearSelection()
+  reloadFromFirstPage()
+}
+
+async function confirmUnbind() {
+  const ids = Array.from(selectedInviteeIds.value)
+  if (ids.length === 0) {
+    unbindDialog.value = false
+    return
+  }
+  try {
+    const unbound = await affiliatesAPI.unbindInviteBindings({ invitee_ids: ids })
+    appStore.showSuccess(t('admin.affiliates.unbind.success', { count: unbound }))
+    clearSelection()
+    unbindDialog.value = false
+    await loadRecords()
+  } catch (error) {
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.affiliates.errors', t('admin.affiliates.unbind.failed')))
+  }
+}
 
 const columns = computed<Column[]>(() => {
   if (props.type === 'invites') {
     return [
+      { key: 'select', label: '', sortable: false },
       { key: 'inviter', label: t('admin.affiliates.records.inviter'), sortable: true },
       { key: 'invitee', label: t('admin.affiliates.records.invitee'), sortable: true },
       { key: 'aff_code', label: t('admin.affiliates.records.affCode'), sortable: true },
       { key: 'total_rebate', label: t('admin.affiliates.records.totalRebate'), sortable: true },
+      { key: 'status', label: t('admin.affiliates.records.status') },
       { key: 'created_at', label: t('admin.affiliates.records.invitedAt'), sortable: true },
     ]
   }
@@ -298,6 +441,7 @@ async function loadRecords() {
     const res = await fetchRecords(buildParams())
     records.value = res.items || []
     pagination.total = res.total || 0
+    pruneSelection()
   } catch (error) {
     appStore.showError(extractI18nErrorMessage(error, t, 'admin.affiliates.errors', t('common.error')))
   } finally {
