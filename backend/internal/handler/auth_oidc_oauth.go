@@ -33,13 +33,14 @@ import (
 )
 
 const (
-	oidcOAuthCookiePath         = "/api/v1/auth/oauth/oidc"
-	oidcOAuthStateCookieName    = "oidc_oauth_state"
-	oidcOAuthVerifierCookie     = "oidc_oauth_verifier"
-	oidcOAuthRedirectCookie     = "oidc_oauth_redirect"
-	oidcOAuthNonceCookie        = "oidc_oauth_nonce"
-	oidcOAuthIntentCookieName   = "oidc_oauth_intent"
-	oidcOAuthBindUserCookieName = "oidc_oauth_bind_user"
+	oidcOAuthCookiePath          = "/api/v1/auth/oauth/oidc"
+	oidcOAuthStateCookieName     = "oidc_oauth_state"
+	oidcOAuthVerifierCookie      = "oidc_oauth_verifier"
+	oidcOAuthRedirectCookie      = "oidc_oauth_redirect"
+	oidcOAuthNonceCookie         = "oidc_oauth_nonce"
+	oidcOAuthIntentCookieName    = "oidc_oauth_intent"
+	oidcOAuthBindUserCookieName  = "oidc_oauth_bind_user"
+	oidcOAuthAffiliateCookieName = "oidc_oauth_affiliate"
 	// 用户可能在 IdP 侧停留很久（注册、找回密码、2FA），10 分钟过紧导致回调时
 	// state cookie 已过期（invalid_state）；放宽到 60 分钟。
 	oidcOAuthCookieMaxAgeSec   = 60 * 60
@@ -58,6 +59,7 @@ type oidcRouteVariant struct {
 	nonceCookie       string
 	intentCookie      string
 	bindUserCookie    string
+	affiliateCookie   string
 	defaultRedirectTo string
 	// silentCookie 非空时该入口支持静默登录（prompt=none）：start 写入失败回退
 	// 路径，callback 据此在错误 fragment 中追加 silent 标记。老前端变体留空，
@@ -75,6 +77,7 @@ func (h *AuthHandler) oidcMainRouteVariant() oidcRouteVariant {
 		nonceCookie:       oidcOAuthNonceCookie,
 		intentCookie:      oidcOAuthIntentCookieName,
 		bindUserCookie:    oidcOAuthBindUserCookieName,
+		affiliateCookie:   oidcOAuthAffiliateCookieName,
 		defaultRedirectTo: oidcOAuthDefaultRedirectTo,
 		config:            h.getOIDCOAuthConfig,
 	}
@@ -89,6 +92,7 @@ func (h *AuthHandler) oidcConsoleRouteVariant() oidcRouteVariant {
 		nonceCookie:       "oidc_oauth_console_nonce",
 		intentCookie:      "oidc_oauth_console_intent",
 		bindUserCookie:    "oidc_oauth_console_bind_user",
+		affiliateCookie:   "oidc_oauth_console_affiliate",
 		defaultRedirectTo: "/console",
 		silentCookie:      "oidc_oauth_console_silent",
 		config:            h.getOIDCConsoleOAuthConfig,
@@ -213,6 +217,11 @@ func (h *AuthHandler) oidcOAuthStart(c *gin.Context, v oidcRouteVariant) {
 	oidcSetCookie(c, v.cookiePath, v.redirectCookie, encodeCookieValue(redirectTo), oidcOAuthCookieMaxAgeSec, secureCookie)
 	intent := normalizeOAuthIntent(c.Query("intent"))
 	oidcSetCookie(c, v.cookiePath, v.intentCookie, encodeCookieValue(intent), oidcOAuthCookieMaxAgeSec, secureCookie)
+	if affCode := strings.TrimSpace(firstNonEmpty(c.Query("aff_code"), c.Query("aff"))); affCode != "" {
+		oidcSetCookie(c, v.cookiePath, v.affiliateCookie, encodeCookieValue(affCode), oidcOAuthCookieMaxAgeSec, secureCookie)
+	} else {
+		oidcClearCookie(c, v.cookiePath, v.affiliateCookie, secureCookie)
+	}
 	captureOAuthPromoCode(c, secureCookie)
 	setOAuthPendingBrowserCookie(c, browserSessionKey, secureCookie)
 	clearOAuthPendingSessionCookie(c, secureCookie)
@@ -335,6 +344,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 		oidcClearCookie(c, v.cookiePath, v.nonceCookie, secureCookie)
 		oidcClearCookie(c, v.cookiePath, v.intentCookie, secureCookie)
 		oidcClearCookie(c, v.cookiePath, v.bindUserCookie, secureCookie)
+		oidcClearCookie(c, v.cookiePath, v.affiliateCookie, secureCookie)
 		if v.silentCookie != "" {
 			oidcClearCookie(c, v.cookiePath, v.silentCookie, secureCookie)
 		}
@@ -359,6 +369,10 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	}
 	intent, _ := readCookieDecoded(c, v.intentCookie)
 	intent = normalizeOAuthIntent(intent)
+	affiliateCode := ""
+	if raw, err := readCookieDecoded(c, v.affiliateCookie); err == nil {
+		affiliateCode = strings.TrimSpace(raw)
+	}
 
 	codeVerifier := ""
 	if cfg.UsePKCE {
@@ -504,6 +518,9 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 	if compatEmail != "" && !strings.EqualFold(strings.TrimSpace(compatEmail), strings.TrimSpace(email)) {
 		upstreamClaims["compat_email"] = compatEmail
 	}
+	if affiliateCode != "" {
+		upstreamClaims["aff_code"] = affiliateCode
+	}
 	if intent == oauthIntentBindCurrentUser {
 		targetUserID, err := h.readOAuthBindUserIDFromCookie(c, v.bindUserCookie)
 		if err != nil {
@@ -581,6 +598,7 @@ func (h *AuthHandler) oidcOAuthCallback(c *gin.Context, v oidcRouteVariant) {
 			compatEmail,
 			username,
 			upstreamClaims,
+			affiliateCode,
 		); handled {
 			return
 		}
@@ -1439,6 +1457,7 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 	compatEmail string,
 	username string,
 	upstreamClaims map[string]any,
+	affiliateCode string,
 ) bool {
 	if h == nil || h.authService == nil || h.settingSvc == nil {
 		return false
@@ -1482,7 +1501,7 @@ func (h *AuthHandler) tryOIDCVerifiedEmailFastPath(
 		ctx,
 		input,
 		"",
-		"",
+		strings.TrimSpace(affiliateCode),
 		readOAuthPromoCode(c),
 	)
 	if err != nil {
@@ -1581,6 +1600,10 @@ func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
 			response.ErrorFrom(c, infraerrors.Forbidden("OAUTH_EMAIL_NOT_VERIFIED", "complete the first sign-in in the browser before using token exchange"))
 			return
 		}
+		affiliateCode := ""
+		if raw, err := readCookieDecoded(c, oidcOAuthAffiliateCookieName); err == nil {
+			affiliateCode = strings.TrimSpace(raw)
+		}
 		_, regUser, regErr := h.authService.LoginOrRegisterVerifiedEmailOAuthWithSignupCodes(
 			c.Request.Context(),
 			service.EmailOAuthIdentityInput{
@@ -1592,7 +1615,7 @@ func (h *AuthHandler) OIDCTokenExchange(c *gin.Context) {
 				Username:        strings.TrimSpace(claims.PreferredUsername),
 				DisplayName:     strings.TrimSpace(claims.Name),
 			},
-			"", "", "",
+			"", affiliateCode, "",
 		)
 		if regErr != nil {
 			response.ErrorFrom(c, regErr)

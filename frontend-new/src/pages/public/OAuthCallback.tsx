@@ -483,6 +483,7 @@ export default function OAuthCallback() {
           provider,
           password,
           invitation_code: inviteCode.trim() || undefined,
+          aff_code: readOAuthAffiliateCode() || undefined,
         });
         if (!isAuthResponse(response)) {
           setMessage(translationMessage("errors:oauthSignupFailed"));

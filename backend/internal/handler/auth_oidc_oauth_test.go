@@ -958,6 +958,7 @@ func TestTryOIDCVerifiedEmailFastPathCreatesUserAndIdentity(t *testing.T) {
 			"suggested_display_name": "Fast Path",
 			"suggested_avatar_url":   "",
 		},
+		"",
 	)
 	require.True(t, completed)
 	require.Equal(t, http.StatusFound, recorder.Code)
@@ -1118,6 +1119,7 @@ func TestTryOIDCVerifiedEmailFastPathSkippedWhenInvitationCodeRequired(t *testin
 		"invite-only@example.com",
 		"invite_only_user",
 		map[string]any{},
+		"",
 	)
 	require.False(t, completed)
 	require.NotEqual(t, http.StatusFound, recorder.Code)
@@ -1153,6 +1155,7 @@ func TestTryOIDCVerifiedEmailFastPathSkippedWhenForceEmailEnabled(t *testing.T) 
 		"force-email@example.com",
 		"force_email_user",
 		map[string]any{},
+		"",
 	)
 	require.False(t, completed)
 
@@ -1793,4 +1796,89 @@ func TestOIDCParseAndValidateIDTokenWithAudiences(t *testing.T) {
 	token = signer(newOIDCTokenExchangeClaims(issuerURL, "subject-6", "client-2", "", "c@example.com"))
 	_, err = oidcParseAndValidateIDTokenWithAudiences(context.Background(), cfg, token, "", []string{"client-1"})
 	require.Error(t, err)
+}
+
+func TestOIDCOAuthStartCapturesAffiliateCodeCookie(t *testing.T) {
+	handler := newOIDCOAuthTestHandler(t, false, config.OIDCConnectConfig{
+		Enabled:              true,
+		ClientID:             "oidc-client",
+		ClientSecret:         "oidc-secret",
+		IssuerURL:            "https://issuer.example.com",
+		AuthorizeURL:         "https://issuer.example.com/oauth/authorize",
+		TokenURL:             "https://issuer.example.com/oauth/token",
+		UserInfoURL:          "https://issuer.example.com/oauth/userinfo",
+		Scopes:               "openid profile email",
+		RedirectURL:          "https://api.example.com/api/v1/auth/oauth/oidc/callback",
+		FrontendRedirectURL:  "/auth/oidc/callback",
+		TokenAuthMethod:      "client_secret_post",
+		UsePKCE:              false,
+		ValidateIDToken:      false,
+		RequireEmailVerified: false,
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc/start?redirect=/dashboard&aff_code=AFF123", nil)
+
+	handler.OIDCOAuthStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	cookie := findCookie(recorder.Result().Cookies(), oidcOAuthAffiliateCookieName)
+	require.NotNil(t, cookie)
+	require.Equal(t, "AFF123", decodeCookieValueForTest(t, cookie.Value))
+
+	// 无邀请码参数时清理旧值，避免上一次 start 的邀请码串到本次登录。
+	recorder = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc/start?redirect=/dashboard", nil)
+
+	handler.OIDCOAuthStart(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	cleared := findCookie(recorder.Result().Cookies(), oidcOAuthAffiliateCookieName)
+	if cleared != nil {
+		require.Less(t, cleared.MaxAge, 0)
+	}
+}
+
+func TestOIDCOAuthCallbackChoiceSessionCarriesAffiliateCode(t *testing.T) {
+	// 未验证邮箱的新用户走 choice pending session（不触发 fast path）。
+	cfg, cleanup := newOIDCTestProvider(t, oidcProviderFixture{
+		Subject:           "oidc-subject-aff",
+		PreferredUsername: "oidc_aff",
+		DisplayName:       "OIDC Aff Display",
+		Email:             "oidc-aff@example.com",
+		EmailVerified:     false,
+	})
+	defer cleanup()
+
+	handler, client := newOIDCOAuthHandlerAndClient(t, false, cfg)
+	t.Cleanup(func() { _ = client.Close() })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth/oidc/callback?code=oidc-code&state=state-123", nil)
+	req.AddCookie(encodedCookie(oidcOAuthStateCookieName, "state-123"))
+	req.AddCookie(encodedCookie(oidcOAuthRedirectCookie, "/dashboard"))
+	req.AddCookie(encodedCookie(oidcOAuthVerifierCookie, "verifier-123"))
+	req.AddCookie(encodedCookie(oidcOAuthNonceCookie, "nonce-oidc-subject-aff"))
+	req.AddCookie(encodedCookie(oidcOAuthIntentCookieName, oauthIntentLogin))
+	req.AddCookie(encodedCookie(oidcOAuthAffiliateCookieName, "AFF456"))
+	req.AddCookie(encodedCookie(oauthPendingBrowserCookieName, "browser-123"))
+	c.Request = req
+
+	handler.OIDCOAuthCallback(c)
+
+	require.Equal(t, http.StatusFound, recorder.Code)
+	require.Equal(t, "/auth/oidc/callback", recorder.Header().Get("Location"))
+
+	sessionCookie := findCookie(recorder.Result().Cookies(), oauthPendingSessionCookieName)
+	require.NotNil(t, sessionCookie)
+
+	ctx := context.Background()
+	session, err := client.PendingAuthSession.Query().
+		Where(pendingauthsession.SessionTokenEQ(decodeCookieValueForTest(t, sessionCookie.Value))).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "AFF456", session.UpstreamIdentityClaims["aff_code"])
 }
