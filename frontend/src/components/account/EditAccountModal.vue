@@ -2813,6 +2813,37 @@
 
       <div
         v-if="account?.platform === 'openai' && account?.type === 'oauth' && !isSparkShadow"
+        class="space-y-2 border-t border-gray-200 pt-4 dark:border-dark-600"
+        data-testid="auto-use-credits-settings"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <label class="input-label mb-0">{{ t('admin.accounts.autoUseCredits.title') }}</label>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.autoUseCredits.hint') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="auto-use-credits-enabled"
+            @click="autoUseCreditsWhenWindowFull = !autoUseCreditsWhenWindowFull"
+            :class="[
+              'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+              autoUseCreditsWhenWindowFull ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'
+            ]"
+          >
+            <span
+              :class="[
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                autoUseCreditsWhenWindowFull ? 'translate-x-5' : 'translate-x-0'
+              ]"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="account?.platform === 'openai' && account?.type === 'oauth' && !isSparkShadow"
         class="space-y-4 border-t border-gray-200 pt-4 dark:border-dark-600"
         data-testid="auto-reset-credit-settings"
       >
@@ -4073,6 +4104,7 @@ const loadGrokMediaEligibility = async (accountID: number): Promise<GrokMediaEli
 
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(false)
+const autoUseCreditsWhenWindowFull = ref(false)
 const autoPause5hThreshold = ref<number | null>(null)
 const autoPause7dThreshold = ref<number | null>(null)
 const autoPause5hDisabled = ref(false)
@@ -4634,6 +4666,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
 	autoPause7dThreshold.value = typeof extra?.auto_pause_7d_threshold === 'number' ? extra.auto_pause_7d_threshold * 100 : null
 	autoPause5hDisabled.value = extra?.auto_pause_5h_disabled === true
 	autoPause7dDisabled.value = extra?.auto_pause_7d_disabled === true
+	autoUseCreditsWhenWindowFull.value = extra?.auto_use_credits_when_window_full === true
 	autoResetCreditEnabled.value = extra?.auto_reset_credit_enabled === true
 	autoResetCredit5hThreshold.value =
 		typeof extra?.auto_reset_credit_5h_threshold === 'number' ? extra.auto_reset_credit_5h_threshold * 100 : 100
@@ -6263,6 +6296,7 @@ const handleSubmit = async () => {
 			delete newExtra.auto_pause_7d_disabled
 		}
 		if (props.account.type === 'oauth' && !isSparkShadow.value) {
+			newExtra.auto_use_credits_when_window_full = autoUseCreditsWhenWindowFull.value
 			newExtra.auto_reset_credit_enabled = autoResetCreditEnabled.value
 			newExtra.auto_reset_credit_5h_threshold = autoResetCredit5hThreshold.value / 100
 			newExtra.auto_reset_credit_7d_threshold = autoResetCredit7dThreshold.value / 100

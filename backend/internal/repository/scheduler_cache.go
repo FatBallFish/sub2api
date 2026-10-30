@@ -1337,6 +1337,10 @@ func filterSchedulerExtra(extra map[string]any) map[string]any {
 		service.OpenAIAutoResetCredit5hThresholdExtraKey,
 		service.OpenAIAutoResetCredit7dThresholdExtraKey,
 		service.OpenAIAutoResetCreditStateExtraKey,
+		// 满额度自动使用积分：调度热路径读开关与积分快照判定是否豁免窗口暂停；
+		// 两者缺一时候选过滤的豁免分支永远不生效。
+		service.OpenAIAutoUseCreditsExtraKey,
+		service.OpenAICreditsSnapshotExtraKey,
 		"model_rate_limits",
 		service.UpstreamBillingProbeExtraKey,
 		service.GrokMediaEligibleExtraKey,

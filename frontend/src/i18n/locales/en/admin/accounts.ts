@@ -1055,6 +1055,10 @@ export default {
 	      failed: 'Reset request failed'
 	    }
 	  },
+      autoUseCredits: {
+	    title: 'Auto-use credits when quota is full',
+	    hint: 'When a quota window is exhausted, keep the account schedulable on spendable Codex credits instead of auto-pausing. Windows with an explicit 5h/7d usage threshold still pause at the threshold. Off by default.'
+	  },
       autoResetCredit: {
 	    title: 'Automatically use reset credits',
 	    hint: 'Uses the earliest-expiring available credit only when actual usage reaches a threshold. Off by default; the account remains paused if no credit is available or reset fails.',

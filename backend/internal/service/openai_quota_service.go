@@ -36,6 +36,8 @@ const (
 	openaiQuotaSecFetchDest     = "empty"
 	openaiQuotaResetCreditsKey  = "codex_reset_credit_snapshot"
 	openaiQuotaCreditsKey       = "codex_credits_snapshot"
+	// OpenAICreditsSnapshotExtraKey 导出积分快照键名，供调度器投影白名单引用。
+	OpenAICreditsSnapshotExtraKey = openaiQuotaCreditsKey
 )
 
 // OpenAIRateLimitWindow describes a single rate-limit window returned by

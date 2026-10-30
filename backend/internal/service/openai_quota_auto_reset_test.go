@@ -220,6 +220,7 @@ type autoResetTestQuota struct {
 	resetArgs    [][2]string
 	failFirst    bool
 	queryCalls   atomic.Int32
+	creditsCalls atomic.Int32
 	queryErr     error
 }
 
@@ -230,6 +231,11 @@ func (q *autoResetTestQuota) QueryUsage(context.Context, int64) (*OpenAIQuotaUsa
 	}
 	copy := *q.usage
 	return &copy, nil
+}
+
+func (q *autoResetTestQuota) CacheCreditsSnapshot(context.Context, int64, *OpenAIQuotaUsage) error {
+	q.creditsCalls.Add(1)
+	return nil
 }
 
 func (q *autoResetTestQuota) CacheResetCreditsSnapshot(context.Context, int64, *OpenAIRateLimitResetCredits) error {

@@ -572,14 +572,26 @@ func shouldAutoPauseOpenAIAccountByQuota(ctx context.Context, account *Account) 
 	disabled7d := resolveAccountExtraBool(account.Extra, "auto_pause_7d_disabled")
 	threshold5h, threshold7d := resolveOpenAIQuotaAutoPauseThresholds(ctx, account)
 	now := time.Now()
+	// 满额度自动使用积分（auto_use_credits_when_window_full）：仅对未显式配置该窗口
+	// 阈值的账号放行——显式阈值是管理员的百分比保护意图，照常暂停。放行后请求由
+	// 上游按 Codex 积分承接；积分耗尽时上游 429，响应式限流路径兜底暂停。调度
+	// 优先级逻辑不受影响，这里只翻转暂停否决。自动用卡启用的账号走其独立逻辑块，
+	// 不进入该豁免。
+	autoUseCredits := openAIAutoUseCreditsEnabled(account) && openAIHasSpendableCredits(account.Extra, now)
 	if !disabled5h && threshold5h > 0 {
 		if utilization, ok := resolveOpenAIQuotaUtilization(account.Extra, "5h", now); ok && utilization >= threshold5h {
-			return true, openAIQuotaAutoPauseDecision{window: "5h", threshold: threshold5h, utilization: utilization}
+			if explicitThreshold(account.Extra, "auto_pause_5h_threshold") || !autoUseCredits {
+				return true, openAIQuotaAutoPauseDecision{window: "5h", threshold: threshold5h, utilization: utilization}
+			}
+			// 未显式配置阈值且积分可花：不暂停，继续用积分调度。
 		}
 	}
 	if !disabled7d && threshold7d > 0 {
 		if utilization, ok := resolveOpenAIQuotaUtilization(account.Extra, "7d", now); ok && utilization >= threshold7d {
-			return true, openAIQuotaAutoPauseDecision{window: "7d", threshold: threshold7d, utilization: utilization}
+			if explicitThreshold(account.Extra, "auto_pause_7d_threshold") || !autoUseCredits {
+				return true, openAIQuotaAutoPauseDecision{window: "7d", threshold: threshold7d, utilization: utilization}
+			}
+			// 未显式配置阈值且积分可花：不暂停，继续用积分调度。
 		}
 	}
 	return false, openAIQuotaAutoPauseDecision{}
@@ -613,6 +625,19 @@ func resolveAccountExtraBool(extra map[string]any, key string) bool {
 	case json.Number:
 		if i, err := v.Int64(); err == nil {
 			return i != 0
+		}
+	}
+	return false
+}
+
+// explicitThreshold 判断账号是否显式配置了指定窗口的暂停阈值（存在且为有效数值）。
+func explicitThreshold(extra map[string]any, key string) bool {
+	if len(extra) == 0 {
+		return false
+	}
+	if value, ok := extra[key]; ok && value != nil {
+		if _, parsed := resolveAccountExtraNumber(extra, key); parsed {
+			return true
 		}
 	}
 	return false
