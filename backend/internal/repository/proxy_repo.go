@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 
 	entsql "entgo.io/ent/dialect/sql"
 )
@@ -281,6 +283,26 @@ func enqueueProxyProbeAccountChanges(ctx context.Context, exec sqlExecutor, acco
 func (r *proxyRepository) Delete(ctx context.Context, id int64) error {
 	_, err := r.client.Proxy.Delete().Where(proxy.IDEQ(id)).Exec(ctx)
 	return err
+}
+
+// BatchUpdateStatus 批量启用/停用代理；已处于目标状态的行由 SQL 跳过。
+// 停用只影响新的代理分配，已绑定账号继续使用该代理（与单个编辑口径一致）。
+func (r *proxyRepository) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	if len(ids) == 0 || (status != service.StatusActive && status != "inactive") {
+		return 0, nil
+	}
+	res, err := r.sql.ExecContext(ctx, `
+		UPDATE proxies
+		SET status = $1, updated_at = NOW()
+		WHERE id = ANY($2)
+			AND deleted_at IS NULL
+			AND status != $1
+	`, status, pq.Array(ids))
+	if err != nil {
+		return 0, fmt.Errorf("batch update proxy status: %w", err)
+	}
+	affected, _ := res.RowsAffected()
+	return int(affected), nil
 }
 
 func (r *proxyRepository) List(ctx context.Context, params pagination.PaginationParams) ([]service.Proxy, *pagination.PaginationResult, error) {

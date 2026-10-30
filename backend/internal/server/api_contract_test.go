@@ -2175,6 +2175,10 @@ func (stubProxyRepo) Create(ctx context.Context, proxy *service.Proxy) error {
 	return errors.New("not implemented")
 }
 
+func (stubProxyRepo) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	return 0, errors.New("not implemented")
+}
+
 func (stubProxyRepo) GetByID(ctx context.Context, id int64) (*service.Proxy, error) {
 	return nil, service.ErrProxyNotFound
 }

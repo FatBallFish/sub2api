@@ -232,6 +232,20 @@ export async function batchDelete(ids: number[]): Promise<{
   return data
 }
 
+/**
+ * Batch enable/disable proxies; rows already in the target status are skipped server-side.
+ * @param ids - Proxy IDs
+ * @param status - Target status (active/inactive)
+ * @returns Number of proxies actually updated
+ */
+export async function batchUpdateStatus(ids: number[], status: 'active' | 'inactive'): Promise<number> {
+  const { data } = await apiClient.post<{ affected: number }>('/admin/proxies/batch-status', {
+    ids,
+    status
+  })
+  return data.affected ?? 0
+}
+
 export async function exportData(options?: {
   ids?: number[]
   filters?: {
@@ -279,6 +293,7 @@ export const proxiesAPI = {
   getProxyAccounts,
   batchCreate,
   batchDelete,
+  batchUpdateStatus,
   exportData,
   importData
 }

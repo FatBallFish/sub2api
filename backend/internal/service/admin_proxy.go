@@ -208,6 +208,29 @@ func (s *adminServiceImpl) GetProxyAccounts(ctx context.Context, proxyID int64) 
 	return s.proxyRepo.ListAccountSummariesByProxyID(ctx, proxyID)
 }
 
+// BatchUpdateProxyStatus 批量启用/停用代理（active/inactive）；已是目标状态的代理由 SQL 跳过。
+func (s *adminServiceImpl) BatchUpdateProxyStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	if status != StatusActive && status != "inactive" {
+		return 0, fmt.Errorf("invalid status: %q", status)
+	}
+	cleaned := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		cleaned = append(cleaned, id)
+	}
+	if len(cleaned) == 0 {
+		return 0, nil
+	}
+	return s.proxyRepo.BatchUpdateStatus(ctx, cleaned, status)
+}
+
 func (s *adminServiceImpl) CheckProxyExists(ctx context.Context, host string, port int, username, password string) (bool, error) {
 	return s.proxyRepo.ExistsByHostPortAuth(ctx, host, port, username, password)
 }

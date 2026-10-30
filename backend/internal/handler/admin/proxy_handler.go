@@ -265,6 +265,29 @@ func (h *ProxyHandler) BatchDelete(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// BatchUpdateStatus handles batch enabling/disabling proxies
+// POST /api/v1/admin/proxies/batch-status
+func (h *ProxyHandler) BatchUpdateStatus(c *gin.Context) {
+	type BatchUpdateStatusRequest struct {
+		IDs    []int64 `json:"ids" binding:"required,min=1,max=500"`
+		Status string `json:"status" binding:"required,oneof=active inactive"`
+	}
+
+	var req BatchUpdateStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BindError(c, err)
+		return
+	}
+
+	affected, err := h.adminService.BatchUpdateProxyStatus(c.Request.Context(), req.IDs, req.Status)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"affected": affected})
+}
+
 // Test handles testing proxy connectivity
 // POST /api/v1/admin/proxies/:id/test
 func (h *ProxyHandler) Test(c *gin.Context) {
