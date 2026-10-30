@@ -476,6 +476,7 @@ export default {
         user: 'User',
         affCode: 'Invite Code',
         status: 'Status',
+        statusAll: 'All Statuses',
         statusActive: 'Active',
         statusUnbound: 'Unbound',
         chainAction: 'Chain',

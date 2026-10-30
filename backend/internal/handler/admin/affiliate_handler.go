@@ -376,6 +376,10 @@ func parseAffiliateRecordFilter(c *gin.Context, page, pageSize int) service.Affi
 	if t := parseAffiliateRecordEndTime(c.Query("end_at"), userTZ); t != nil {
 		filter.EndAt = t
 	}
+	switch c.Query("status") {
+	case "active", "unbound":
+		filter.Status = c.Query("status")
+	}
 	return filter
 }
 

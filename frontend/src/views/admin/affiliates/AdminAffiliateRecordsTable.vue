@@ -9,6 +9,14 @@
           </div>
           <input v-model="filters.start_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.startAt')" @change="reloadFromFirstPage" />
           <input v-model="filters.end_at" type="date" class="input w-full sm:w-44" :title="t('admin.affiliates.records.endAt')" @change="reloadFromFirstPage" />
+          <Select
+            v-if="props.type === 'invites'"
+            v-model="statusFilter"
+            :options="statusFilterOptions"
+            class="w-36"
+            data-test="affiliate-invite-status-filter"
+            @change="handleStatusFilterChange"
+          />
           <button class="btn btn-secondary px-2 md:px-3" :disabled="loading" :title="t('common.refresh')" @click="loadRecords">
             <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
           </button>
@@ -257,6 +265,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
+import Select from '@/components/common/Select.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -284,6 +293,35 @@ const appStore = useAppStore()
 const loading = ref(false)
 const records = ref<AffiliateRecord[]>([])
 const filters = reactive({ search: '', start_at: '', end_at: '' })
+// 邀请状态筛选（生效中/已解除）：记住在浏览器里，回到页面时自动恢复。
+const inviteStatusStorageKey = 'admin-affiliate-invites-status-filter'
+const statusFilter = ref<'active' | 'unbound' | ''>('')
+const statusFilterOptions = computed(() => [
+  { value: '', label: t('admin.affiliates.records.statusAll') },
+  { value: 'active', label: t('admin.affiliates.records.statusActive') },
+  { value: 'unbound', label: t('admin.affiliates.records.statusUnbound') },
+])
+
+function loadPersistedStatusFilter() {
+  if (props.type !== 'invites') return
+  try {
+    const raw = localStorage.getItem(inviteStatusStorageKey)
+    if (raw === 'active' || raw === 'unbound' || raw === '') {
+      statusFilter.value = raw
+    }
+  } catch {
+    statusFilter.value = ''
+  }
+}
+
+function handleStatusFilterChange() {
+  try {
+    localStorage.setItem(inviteStatusStorageKey, statusFilter.value)
+  } catch {
+    /* 存储不可用时静默降级为会话内记忆 */
+  }
+  reloadFromFirstPage()
+}
 const pagination = reactive({ page: 1, page_size: 20, total: 0 })
 const overviewDialog = ref(false)
 const overviewLoading = ref(false)
@@ -453,6 +491,7 @@ function buildParams(): ListAffiliateRecordsParams {
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order,
     timezone: userTimezone(),
+    status: props.type === 'invites' ? (statusFilter.value || undefined) : undefined,
   }
 }
 
@@ -618,6 +657,7 @@ const OverviewStat = defineComponent({
 })
 
 onMounted(() => {
+  loadPersistedStatusFilter()
   void loadRecords()
 })
 </script>

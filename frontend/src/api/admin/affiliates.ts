@@ -32,6 +32,8 @@ export interface ListAffiliateRecordsParams {
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   timezone?: string
+  /** 仅邀请记录：active=生效中 / unbound=已解除，缺省全部。 */
+  status?: 'active' | 'unbound'
 }
 
 export interface AffiliateInviteRecord {
