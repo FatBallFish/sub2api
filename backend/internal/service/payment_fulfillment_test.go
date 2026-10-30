@@ -132,6 +132,9 @@ func (r *paymentFulfillmentAffiliateRepoStub) AdminUnbindInvites(context.Context
 func (r *paymentFulfillmentAffiliateRepoStub) GetActiveBindingByInvitee(context.Context, int64) (*AffiliateInviteBinding, error) {
 	return nil, nil
 }
+func (r *paymentFulfillmentAffiliateRepoStub) GetInviteTreeByUser(context.Context, int64) (*AffiliateInviteTree, error) {
+	return nil, nil
+}
 
 func (r *paymentFulfillmentAffiliateRepoStub) AccrueQuota(_ context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
 	var sourceCopy *int64

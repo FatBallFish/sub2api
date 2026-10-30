@@ -443,6 +443,16 @@ export default {
         success: '邀请关系已保存',
         failed: '保存邀请关系失败'
       },
+      inviteTree: {
+        viewAction: '查看邀请链路',
+        title: '邀请链路',
+        description: '自选中节点向上追溯至根节点，并展开该树的全部子级：',
+        root: '根节点',
+        focus: '当前节点',
+        deletedUser: '已删除',
+        childrenCount: '{count} 个下级',
+        truncated: '树过大已截断（仅显示前 500 个节点）'
+      },
       unbind: {
         button: '解除邀请关系（{count}）',
         title: '解除邀请关系',
@@ -468,6 +478,7 @@ export default {
         status: '状态',
         statusActive: '生效中',
         statusUnbound: '已解除',
+        chainAction: '链路',
         order: '订单',
         totalRebate: '累计返利',
         orderAmount: '充值金额',

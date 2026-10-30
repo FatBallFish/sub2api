@@ -301,6 +301,22 @@ func (h *AffiliateHandler) GetInviteeBinding(c *gin.Context) {
 	response.Success(c, binding)
 }
 
+// GetInviteTree returns the full invite tree containing the given user.
+// GET /api/v1/admin/affiliates/bindings/tree?user_id=
+func (h *AffiliateHandler) GetInviteTree(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "Invalid user_id")
+		return
+	}
+	tree, err := h.affiliateService.AdminGetInviteTree(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, tree)
+}
+
 // ListInviteRecords returns all inviter-invitee relationships.
 // GET /api/v1/admin/affiliates/invites
 func (h *AffiliateHandler) ListInviteRecords(c *gin.Context) {
