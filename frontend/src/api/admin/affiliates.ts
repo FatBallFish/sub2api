@@ -249,6 +249,7 @@ function recordParams(params: ListAffiliateRecordsParams = {}) {
     sort_by: params.sort_by || undefined,
     sort_order: params.sort_order || undefined,
     timezone: params.timezone || undefined,
+    status: params.status || undefined,
   }
 }
 
