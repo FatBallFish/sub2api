@@ -69,7 +69,7 @@ func TestScopedAdminUserResponsesRequireIndependentPermissions(t *testing.T) {
 				Name: "用户字段权限", Enabled: true, Policy: adminaccess.Policy{GlobalPermissions: tc.permissions},
 			}, 9)
 			require.NoError(t, err)
-			auth := middleware.NewAdminAuthMiddleware(nil, service.NewUserService(&scopedRouteUsers{}, nil, nil, nil), settings, nil)
+			auth := middleware.NewAdminAuthMiddleware(nil, service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil), settings, nil)
 			stub := &scopedUserResponses{}
 			r := gin.New()
 			RegisterAdminRoutes(r.Group("/api/v1"), &handler.Handlers{Admin: &handler.AdminHandlers{

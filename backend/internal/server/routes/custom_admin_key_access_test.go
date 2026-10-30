@@ -98,7 +98,7 @@ func TestScopedAdminRegisteredRoutesEnforceDefaultDenyAndAccountScope(t *testing
 			settings.SetScopedAdminKeyRepository(keys)
 			key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "路由验收", Enabled: true, Policy: adminaccess.Policy{Rules: []adminaccess.Rule{rule}}}, 9)
 			require.NoError(t, err)
-			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 			auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 			accountHandler := adminhandler.NewAccountHandler(&scopedRouteAccounts{t: t}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 			r := gin.New()
@@ -156,7 +156,7 @@ func TestScopedAdminRegisteredModelDefaultsRequireExplicitPermission(t *testing.
 		settings.SetScopedAdminKeyRepository(keys)
 		key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "默认模型读取", Enabled: true, Policy: policy}, 9)
 		require.NoError(t, err)
-		users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+		users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 		auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 		accountHandler := adminhandler.NewAccountHandler(&scopedRouteAccounts{t: t}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		r := gin.New()
@@ -194,7 +194,7 @@ func TestScopedAdminRegisteredLegacyModelInterfaces(t *testing.T) {
 			settings.SetScopedAdminKeyRepository(keys)
 			key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "原模型接口", Enabled: true, Policy: policy}, 9)
 			require.NoError(t, err)
-			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 			auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 			accounts := &scopedRouteModelAccounts{scopedRouteAccounts: scopedRouteAccounts{t: t}, t: t}
 			accountHandler := adminhandler.NewAccountHandler(accounts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -260,7 +260,7 @@ func TestScopedAdminCodexImportRouteReachesValidation(t *testing.T) {
 	policy := adminaccess.Policy{Rules: []adminaccess.Rule{{Permissions: []string{"accounts.create", "accounts.credentials"}, GroupIDs: []int64{2}, AccountTypes: []string{"oauth"}}}}
 	key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "导入回归", Enabled: true, Policy: policy}, 9)
 	require.NoError(t, err)
-	users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+	users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 	auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 	accountHandler := adminhandler.NewAccountHandler(&scopedRouteAccounts{t: t}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	r := gin.New()
@@ -300,7 +300,7 @@ func TestScopedAdminCodexImportAuthenticatedRoute(t *testing.T) {
 			settings.SetScopedAdminKeyRepository(&scopedRouteKeys{})
 			key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "导入鉴权", Enabled: true, Policy: adminaccess.Policy{Rules: []adminaccess.Rule{rule}}}, 9)
 			require.NoError(t, err)
-			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 			auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 			api := &scopedRouteCodexAccounts{}
 			h := adminhandler.NewAccountHandler(api, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
@@ -350,7 +350,7 @@ func TestScopedAdminProxyReadPermissionAndBoundedRoutes(t *testing.T) {
 			settings.SetScopedAdminKeyRepository(&scopedRouteKeys{})
 			key, _, err := settings.CreateScopedAdminKey(context.Background(), service.ScopedAdminKeyInput{Name: "代理读取", Enabled: true, Policy: policy}, 9)
 			require.NoError(t, err)
-			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil)
+			users := service.NewUserService(&scopedRouteUsers{}, nil, nil, nil, nil)
 			auth := middleware.NewAdminAuthMiddleware(nil, users, settings, nil)
 			svc := &scopedRouteProxyOptions{}
 			r := gin.New()

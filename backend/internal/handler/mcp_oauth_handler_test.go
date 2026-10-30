@@ -87,7 +87,7 @@ func newHandlerMCPFixture(t *testing.T) (*MCPOAuthHandler, *handlerMCPRepo, *han
 	client, err := oauth.Register(context.Background(), service.MCPOAuthRegisterInput{ClientName: "Example assistant", RedirectURIs: []string{"https://client.example.com/callback?workspace=one"}})
 	require.NoError(t, err)
 	repo.clientID, repo.reads = client.ClientID, 0
-	return NewMCPOAuthHandler(oauth, totp, service.NewUserService(users, nil, nil, nil), settings, cfg), repo, users, cache
+	return NewMCPOAuthHandler(oauth, totp, service.NewUserService(users, nil, nil, nil, nil), settings, cfg), repo, users, cache
 }
 func handlerMCPContext(t *testing.T, method, target, body, contentType string) (*gin.Context, *httptest.ResponseRecorder) {
 	t.Helper()
