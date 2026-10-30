@@ -16,6 +16,7 @@ import { getPublicSettings } from "../../api/settings";
 import type { UsageLog, UsageStats } from "../../types/usage";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { formatCredits, formatNumber } from "../../utils/format";
+import { cacheHitRatePercent, outputRateDisplay } from "../../utils/usageRate";
 import { errorMessage, resolveLocalizedMessage, type LocalizedMessage } from "../../utils/localizedMessage";
 
 type ColumnKey = "API KEY" | "Model" | "EndPoint" | "Tokens" | "Credits" | "First" | "Duration" | "Time" | "IP";
@@ -89,9 +90,9 @@ function tokenTotal(log: UsageLog) {
 }
 
 function cacheHitRate(log: UsageLog) {
-  const total = tokenTotal(log);
-  if (total <= 0) return "-";
-  return `${Math.round((log.cache_read_tokens / total) * 100)}%`;
+  const percent = cacheHitRatePercent(log);
+  if (percent == null) return "-";
+  return `${percent}%`;
 }
 
 function fundingLabel(log: UsageLog, t: TFunction<"console">) {
@@ -572,6 +573,15 @@ export default function UsageHistory() {
                         <span className="text-xs font-mono text-emerald-600">{formatNumber(item.cache_read_tokens, locale)}</span>
                       </div>
                       <div className="flex flex-col">
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">{t("usageHistory.cacheCreated")}</span>
+                        <span className="text-xs font-mono text-amber-600">
+                          {formatNumber(item.cache_creation_tokens, locale)}
+                          {(item.cache_creation_1h_tokens ?? 0) > 0 && (
+                            <span className="ml-1 rounded bg-amber-100 px-1 text-[9px] font-bold text-amber-700">1h</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
                         <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">{t("usageHistory.hitRate")}</span>
                         <span className="text-xs font-mono text-zinc-900">{cacheHitRate(item)}</span>
                       </div>
@@ -586,6 +596,18 @@ export default function UsageHistory() {
                           <span className="text-zinc-400">{t("usageHistory.cacheCreated")}</span>
                           <span className="font-mono">{formatNumber(item.cache_creation_tokens, locale)}</span>
                         </div>
+                        {(item.cache_creation_5m_tokens ?? 0) > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-400">{t("usageHistory.cacheCreated5m")}</span>
+                            <span className="font-mono">{formatNumber(item.cache_creation_5m_tokens ?? 0, locale)}</span>
+                          </div>
+                        )}
+                        {(item.cache_creation_1h_tokens ?? 0) > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-400">{t("usageHistory.cacheCreated1h")}</span>
+                            <span className="font-mono">{formatNumber(item.cache_creation_1h_tokens ?? 0, locale)}</span>
+                          </div>
+                        )}
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
                       </div>
                     </div>
@@ -606,7 +628,16 @@ export default function UsageHistory() {
                   <td className="px-6 py-4 text-sm text-zinc-500 font-mono">{formatDuration(item.first_token_ms, locale)}</td>
                 )}
                 {visibleColumns.has("Duration") && (
-                  <td className="px-6 py-4 text-sm text-zinc-500">{formatDuration(item.duration_ms, locale)}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-500">
+                    <div className="flex flex-col">
+                      <span>{formatDuration(item.duration_ms, locale)}</span>
+                      <span className="text-[10px] font-mono text-zinc-400">
+                        {outputRateDisplay(item) != null
+                          ? `${t("usageHistory.outputTps")}: ${outputRateDisplay(item)} tok/s`
+                          : ""}
+                      </span>
+                    </div>
+                  </td>
                 )}
                 {visibleColumns.has("Time") && (
                   <td className="px-6 py-4 text-sm text-zinc-400">{relativeTime(item.created_at, t)}</td>

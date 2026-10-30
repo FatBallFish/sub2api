@@ -20,6 +20,8 @@ export interface UsageLog {
   input_tokens: number;
   output_tokens: number;
   cache_creation_tokens: number;
+  cache_creation_5m_tokens?: number | null;
+  cache_creation_1h_tokens?: number | null;
   cache_read_tokens: number;
   total_cost: number;
   actual_cost: number;
@@ -31,6 +33,9 @@ export interface UsageLog {
   duration_ms?: number | null;
   first_token_ms?: number | null;
   billing_mode?: string | null;
+  request_type?: string | null;
+  image_count?: number | null;
+  image_output_tokens?: number | null;
   created_at: string;
   api_key?: UsageApiKeySummary | null;
 }
