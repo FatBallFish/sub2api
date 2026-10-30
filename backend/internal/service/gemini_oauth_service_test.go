@@ -772,6 +772,9 @@ type mockGeminiProxyRepo struct {
 }
 
 func (m *mockGeminiProxyRepo) Create(ctx context.Context, proxy *Proxy) error { panic("not impl") }
+func (m *mockGeminiProxyRepo) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	panic("not impl")
+}
 func (m *mockGeminiProxyRepo) GetByID(ctx context.Context, id int64) (*Proxy, error) {
 	if m.getByIDFunc != nil {
 		return m.getByIDFunc(ctx, id)

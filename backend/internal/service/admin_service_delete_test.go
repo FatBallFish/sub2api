@@ -388,6 +388,10 @@ func (s *proxyRepoStub) Delete(ctx context.Context, id int64) error {
 	return s.deleteErr
 }
 
+func (s *proxyRepoStub) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	panic("unexpected BatchUpdateStatus call")
+}
+
 func (s *proxyRepoStub) List(ctx context.Context, params pagination.PaginationParams) ([]Proxy, *pagination.PaginationResult, error) {
 	panic("unexpected List call")
 }

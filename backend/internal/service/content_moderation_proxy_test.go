@@ -37,6 +37,10 @@ func (r *contentModerationTestProxyRepo) Create(ctx context.Context, proxy *Prox
 	panic("not implemented")
 }
 
+func (r *contentModerationTestProxyRepo) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	panic("not implemented")
+}
+
 func (r *contentModerationTestProxyRepo) ListByIDs(ctx context.Context, ids []int64) ([]Proxy, error) {
 	panic("not implemented")
 }

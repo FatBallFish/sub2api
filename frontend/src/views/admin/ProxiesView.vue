@@ -65,6 +65,24 @@
               {{ t('admin.proxies.batchQualityCheck') }}
             </button>
             <button
+              @click="openBatchStatus('active')"
+              :disabled="selectedCount === 0"
+              class="btn btn-secondary"
+              :title="t('admin.proxies.batchEnable')"
+            >
+              <Icon name="check" size="md" class="mr-2" />
+              {{ t('admin.proxies.batchEnable') }}
+            </button>
+            <button
+              @click="openBatchStatus('inactive')"
+              :disabled="selectedCount === 0"
+              class="btn btn-warning"
+              :title="t('admin.proxies.batchDisable')"
+            >
+              <Icon name="ban" size="md" class="mr-2" />
+              {{ t('admin.proxies.batchDisable') }}
+            </button>
+            <button
               @click="openBatchDelete"
               :disabled="selectedCount === 0"
               class="btn btn-danger"
@@ -825,6 +843,18 @@
       @cancel="showBatchDeleteDialog = false"
     />
     <ConfirmDialog
+      :show="showBatchStatusDialog"
+      :title="batchStatusTarget === 'inactive' ? t('admin.proxies.batchDisable') : t('admin.proxies.batchEnable')"
+      :message="batchStatusTarget === 'inactive'
+        ? t('admin.proxies.batchDisableConfirm', { count: selectedCount })
+        : t('admin.proxies.batchEnableConfirm', { count: selectedCount })"
+      :confirm-text="batchStatusTarget === 'inactive' ? t('admin.proxies.batchDisable') : t('admin.proxies.batchEnable')"
+      :cancel-text="t('common.cancel')"
+      :danger="batchStatusTarget === 'inactive'"
+      @confirm="confirmBatchStatus"
+      @cancel="showBatchStatusDialog = false"
+    />
+    <ConfirmDialog
       :show="showExportDataDialog"
       :title="t('admin.proxies.dataExport')"
       :message="t('admin.proxies.dataExportConfirmMessage')"
@@ -1066,6 +1096,8 @@ const editPasswordDirty = ref(false)
 const showImportData = ref(false)
 const showDeleteDialog = ref(false)
 const showBatchDeleteDialog = ref(false)
+const showBatchStatusDialog = ref(false)
+const batchStatusTarget = ref<'active' | 'inactive'>('active')
 const showExportDataDialog = ref(false)
 const showAccountsModal = ref(false)
 const submitting = ref(false)
@@ -2005,6 +2037,39 @@ const confirmBatchDelete = async () => {
   } catch (error: any) {
     appStore.showError(extractI18nErrorMessage(error, t, 'admin.proxies', t('admin.proxies.batchDeleteFailed'), { preferMessage: false }))
     console.error('Error batch deleting proxies:', error)
+  }
+}
+
+const openBatchStatus = (status: 'active' | 'inactive') => {
+  if (selectedCount.value === 0) {
+    return
+  }
+  batchStatusTarget.value = status
+  showBatchStatusDialog.value = true
+}
+
+const confirmBatchStatus = async () => {
+  const ids = Array.from(selectedProxyIds.value)
+  const status = batchStatusTarget.value
+  if (ids.length === 0) {
+    showBatchStatusDialog.value = false
+    return
+  }
+
+  try {
+    const affected = await adminAPI.proxies.batchUpdateStatus(ids, status)
+    appStore.showSuccess(
+      status === 'inactive'
+        ? t('admin.proxies.batchDisableDone', { count: affected })
+        : t('admin.proxies.batchEnableDone', { count: affected })
+    )
+
+    clearSelectedProxies()
+    showBatchStatusDialog.value = false
+    loadProxies()
+  } catch (error: any) {
+    appStore.showError(extractI18nErrorMessage(error, t, 'admin.proxies', t('admin.proxies.batchStatusFailed'), { preferMessage: false }))
+    console.error('Error batch updating proxy status:', error)
   }
 }
 

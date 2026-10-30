@@ -58,6 +58,9 @@ type mockProxyRepoForOAuth struct {
 func (m *mockProxyRepoForOAuth) Create(ctx context.Context, proxy *Proxy) error {
 	panic("Create not implemented")
 }
+func (m *mockProxyRepoForOAuth) BatchUpdateStatus(ctx context.Context, ids []int64, status string) (int, error) {
+	panic("BatchUpdateStatus not implemented")
+}
 func (m *mockProxyRepoForOAuth) GetByID(ctx context.Context, id int64) (*Proxy, error) {
 	if m.getByIDFunc != nil {
 		return m.getByIDFunc(ctx, id)
