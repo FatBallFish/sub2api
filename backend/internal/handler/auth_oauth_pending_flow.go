@@ -1871,12 +1871,18 @@ func (h *AuthHandler) createPendingOAuthAccount(c *gin.Context, provider string)
 		return
 	}
 
+	affCode := strings.TrimSpace(req.AffCode)
+	if affCode == "" {
+		// OIDC/GitHub/Google 的 start 已把邀请码写入 pending claims；前端未显式
+		// 回传时回落到 session 保存的值（与 email OAuth 完成路径一致）。
+		affCode = pendingSessionStringValue(session.UpstreamIdentityClaims, "aff_code")
+	}
 	if err := h.authService.FinalizeOAuthEmailAccount(
 		txCtx,
 		user,
 		strings.TrimSpace(req.InvitationCode),
 		strings.TrimSpace(session.ProviderType),
-		strings.TrimSpace(req.AffCode),
+		affCode,
 	); err != nil {
 		_ = tx.Rollback()
 		if rollbackCreatedUser(err) {

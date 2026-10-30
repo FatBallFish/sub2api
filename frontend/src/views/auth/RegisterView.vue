@@ -549,7 +549,7 @@ watch(validationToastMessage, (value, previousValue) => {
 })
 
 function syncAffiliateReferralCode(): string {
-  const code = resolveAffiliateReferralCode(route.query.aff, route.query.aff_code)
+  const code = resolveAffiliateReferralCode(route.query.ref, route.query.aff, route.query.aff_code)
   if (code) {
     formData.aff_code = code
   }

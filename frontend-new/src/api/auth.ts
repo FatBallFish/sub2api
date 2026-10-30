@@ -270,6 +270,7 @@ export interface CompleteOAuthRegistrationRequest {
   provider: OAuthProvider;
   password: string;
   invitation_code?: string;
+  aff_code?: string;
 }
 
 /** OAuth 资料采用决定：是否把上游昵称/头像写入本账号资料（交换时随请求提交）。 */
