@@ -83,6 +83,9 @@ func (r *adminRelationAffiliateRepoStub) AdminUnbindInvites(ctx context.Context,
 func (r *adminRelationAffiliateRepoStub) GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error) {
 	return nil, nil
 }
+func (r *adminRelationAffiliateRepoStub) GetInviteTreeByUser(ctx context.Context, userID int64) (*AffiliateInviteTree, error) {
+	return nil, nil
+}
 
 func TestAdminSetInviteRelationValidation(t *testing.T) {
 	repo := &adminRelationAffiliateRepoStub{}

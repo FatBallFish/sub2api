@@ -443,6 +443,16 @@ export default {
         success: 'Invite relation saved',
         failed: 'Failed to save invite relation'
       },
+      inviteTree: {
+        viewAction: 'View chain',
+        title: 'Invite chain',
+        description: 'Traced up from the selected node to the root, with every descendant expanded:',
+        root: 'Root',
+        focus: 'Current',
+        deletedUser: 'Deleted',
+        childrenCount: '{count} invited',
+        truncated: 'Tree truncated (first 500 nodes shown)'
+      },
       unbind: {
         button: 'Unbind ({count})',
         title: 'Unbind invite relations',
@@ -468,6 +478,7 @@ export default {
         status: 'Status',
         statusActive: 'Active',
         statusUnbound: 'Unbound',
+        chainAction: 'Chain',
         order: 'Order',
         totalRebate: 'Total Rebate',
         orderAmount: 'Top-up Amount',

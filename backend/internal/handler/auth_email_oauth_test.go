@@ -397,6 +397,9 @@ func (r *oauthEmailAffiliateRepoStub) AdminUnbindInvites(context.Context, []int6
 func (r *oauthEmailAffiliateRepoStub) GetActiveBindingByInvitee(context.Context, int64) (*service.AffiliateInviteBinding, error) {
 	return nil, nil
 }
+func (r *oauthEmailAffiliateRepoStub) GetInviteTreeByUser(context.Context, int64) (*service.AffiliateInviteTree, error) {
+	return nil, nil
+}
 
 func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID int64) (bool, error) {
 	r.bindCalls = append(r.bindCalls, oauthEmailAffiliateBindCall{userID: userID, inviterID: inviterID})

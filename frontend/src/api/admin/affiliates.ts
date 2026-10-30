@@ -69,6 +69,23 @@ export interface SetInviteBindingRequest {
   force?: boolean
 }
 
+export interface AffiliateInviteTreeNode {
+  user_id: number
+  email: string
+  username: string
+  aff_code: string
+  inviter_id?: number | null
+  invited_at?: string | null
+  deleted: boolean
+}
+
+export interface AffiliateInviteTree {
+  root_user_id: number
+  focus_user_id: number
+  nodes: AffiliateInviteTreeNode[]
+  truncated: boolean
+}
+
 export interface UnbindInviteBindingsRequest {
   invitee_ids: number[]
 }
@@ -313,7 +330,16 @@ export async function getInviteeBinding(inviteeId: number): Promise<AffiliateInv
   return data
 }
 
+/** 查询包含指定用户的完整邀请树（向上溯源到根后全量向下展开）。 */
+export async function getInviteTree(userId: number): Promise<AffiliateInviteTree> {
+  const { data } = await apiClient.get<AffiliateInviteTree>('/admin/affiliates/bindings/tree', {
+    params: { user_id: userId },
+  })
+  return data
+}
+
 export const affiliatesAPI = {
+  getInviteTree,
   setInviteBinding,
   unbindInviteBindings,
   getInviteeBinding,

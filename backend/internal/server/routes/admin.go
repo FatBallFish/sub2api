@@ -838,6 +838,7 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		affiliates.POST("/bindings", h.Admin.Affiliate.SetInviteBinding)
 		affiliates.POST("/bindings/unbind", h.Admin.Affiliate.UnbindInviteBindings)
 		affiliates.GET("/bindings", h.Admin.Affiliate.GetInviteeBinding)
+		affiliates.GET("/bindings/tree", h.Admin.Affiliate.GetInviteTree)
 		affiliates.GET("/invites", h.Admin.Affiliate.ListInviteRecords)
 		affiliates.GET("/rebates", h.Admin.Affiliate.ListRebateRecords)
 		affiliates.GET("/transfers", h.Admin.Affiliate.ListTransferRecords)

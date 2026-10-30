@@ -115,6 +115,9 @@ func (s *authRegisterAffiliateRepoStub) AdminUnbindInvites(ctx context.Context, 
 func (s *authRegisterAffiliateRepoStub) GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error) {
 	return nil, nil
 }
+func (s *authRegisterAffiliateRepoStub) GetInviteTreeByUser(ctx context.Context, userID int64) (*AffiliateInviteTree, error) {
+	return nil, nil
+}
 
 func (s *authRegisterAffiliateRepoStub) BindInviter(ctx context.Context, userID, inviterID int64) (bool, error) {
 	return true, nil

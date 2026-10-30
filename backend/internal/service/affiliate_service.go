@@ -122,6 +122,7 @@ type AffiliateRepository interface {
 	AdminSetInviteBinding(ctx context.Context, inviteeID, inviterID int64, invitedAt time.Time, force bool) (*AffiliateInviteBinding, error)
 	AdminUnbindInvites(ctx context.Context, inviteeIDs []int64) (int, error)
 	GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error)
+	GetInviteTreeByUser(ctx context.Context, userID int64) (*AffiliateInviteTree, error)
 	ListAffiliateRebateRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateRebateRecord, int64, error)
 	ListAffiliateTransferRecords(ctx context.Context, filter AffiliateRecordFilter) ([]AffiliateTransferRecord, int64, error)
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
@@ -168,6 +169,26 @@ type AffiliateInviteRecord struct {
 	// 邀请关系已解除，记录仍保留可查。
 	CreatedAt time.Time  `json:"created_at"`
 	UnboundAt *time.Time `json:"unbound_at,omitempty"`
+}
+
+// AffiliateInviteTreeNode 邀请树节点（当前生效绑定构成的链路）。
+type AffiliateInviteTreeNode struct {
+	UserID    int64      `json:"user_id"`
+	Email     string     `json:"email"`
+	Username  string     `json:"username"`
+	AffCode   string     `json:"aff_code"`
+	InviterID *int64     `json:"inviter_id,omitempty"`
+	InvitedAt *time.Time `json:"invited_at,omitempty"`
+	Deleted   bool       `json:"deleted"`
+}
+
+// AffiliateInviteTree 是以根节点为顶的完整邀请树（扁平节点列表，前端按
+// inviter_id 组装层级）。FocusUserID 是发起查询的节点，用于高亮。
+type AffiliateInviteTree struct {
+	RootUserID  int64                     `json:"root_user_id"`
+	FocusUserID int64                     `json:"focus_user_id"`
+	Nodes       []AffiliateInviteTreeNode `json:"nodes"`
+	Truncated   bool                      `json:"truncated"`
 }
 
 // AffiliateInviteBinding 是一段当前生效的邀请关系（管理端设置/查询用）。
@@ -692,6 +713,17 @@ func (s *AffiliateService) AdminGetInviteeBinding(ctx context.Context, inviteeID
 		return nil, infraerrors.BadRequest("INVALID_USER", "invalid user")
 	}
 	return s.repo.GetActiveBindingByInvitee(ctx, inviteeID)
+}
+
+// AdminGetInviteTree 返回包含指定用户的完整邀请树（向上溯源到根后全量向下展开）。
+func (s *AffiliateService) AdminGetInviteTree(ctx context.Context, userID int64) (*AffiliateInviteTree, error) {
+	if s == nil || s.repo == nil {
+		return nil, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+	}
+	if userID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_USER", "invalid user")
+	}
+	return s.repo.GetInviteTreeByUser(ctx, userID)
 }
 
 // affiliateWithdrawOperationID 把线下提现登记的幂等键映射为流水的 operation_id，

@@ -122,6 +122,19 @@
             <OrderStatusBadge v-if="row.order_status" :status="row.order_status" />
             <span v-else class="text-sm text-gray-400 dark:text-dark-500">-</span>
           </template>
+          <template #cell-chain="{ row }">
+            <button
+              v-if="props.type === 'invites'"
+              type="button"
+              class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+              :title="t('admin.affiliates.inviteTree.viewAction')"
+              data-test="affiliate-invite-tree-open"
+              @click="openInviteTree(row)"
+            >
+              <Icon name="grid" size="sm" />
+              {{ t('admin.affiliates.inviteTree.viewAction') }}
+            </button>
+          </template>
           <template #cell-status="{ row }">
             <span :class="['badge whitespace-nowrap', row.unbound_at ? 'badge-gray' : 'badge-success']">
               {{ row.unbound_at ? t('admin.affiliates.records.statusUnbound') : t('admin.affiliates.records.statusActive') }}
@@ -192,6 +205,13 @@
       @success="handleRelationChanged"
     />
 
+    <AffiliateInviteTreeDialog
+      v-if="props.type === 'invites'"
+      :show="inviteTreeDialog"
+      :focus-user-id="inviteTreeFocusId"
+      @close="inviteTreeDialog = false"
+    />
+
     <ConfirmDialog
       :show="unbindDialog"
       :title="t('admin.affiliates.unbind.title')"
@@ -243,6 +263,7 @@ import Icon from '@/components/icons/Icon.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import AffiliateOfflineWithdrawDialog from './AffiliateOfflineWithdrawDialog.vue'
 import AffiliateBindRelationDialog from './AffiliateBindRelationDialog.vue'
+import AffiliateInviteTreeDialog from './AffiliateInviteTreeDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import type { Column } from '@/components/common/types'
 import { useAppStore } from '@/stores/app'
@@ -269,6 +290,8 @@ const overviewLoading = ref(false)
 const selectedOverview = ref<AffiliateUserOverview | null>(null)
 const withdrawDialog = ref(false)
 const bindDialog = ref(false)
+const inviteTreeDialog = ref(false)
+const inviteTreeFocusId = ref<number | null>(null)
 const unbindDialog = ref(false)
 const selectedInviteeIds = ref(new Set<number>())
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -323,6 +346,13 @@ function pruneSelection() {
   selectedInviteeIds.value = next
 }
 
+function openInviteTree(row: AffiliateRecord) {
+  const record = row as AffiliateInviteRecord
+  if (!record.invitee_id) return
+  inviteTreeFocusId.value = record.invitee_id
+  inviteTreeDialog.value = true
+}
+
 function handleRelationChanged() {
   bindDialog.value = false
   clearSelection()
@@ -355,6 +385,7 @@ const columns = computed<Column[]>(() => {
       { key: 'aff_code', label: t('admin.affiliates.records.affCode'), sortable: true },
       { key: 'total_rebate', label: t('admin.affiliates.records.totalRebate'), sortable: true },
       { key: 'status', label: t('admin.affiliates.records.status') },
+      { key: 'chain', label: t('admin.affiliates.records.chainAction') },
       { key: 'created_at', label: t('admin.affiliates.records.invitedAt'), sortable: true },
     ]
   }

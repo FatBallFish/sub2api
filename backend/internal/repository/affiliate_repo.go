@@ -586,6 +586,134 @@ func scanAffiliateInviteBinding(rows *sql.Rows) (*service.AffiliateInviteBinding
 	return &binding, nil
 }
 
+// inviteTreeMaxNodes 限制单棵邀请树的节点数（巨型推广树下保护接口）。
+const inviteTreeMaxNodes = 500
+
+// GetInviteTreeByUser 返回包含指定用户的完整邀请树：先沿当前生效绑定向上
+// 追溯到根节点，再从根节点递归展开全部子级。树只含当前生效绑定（inviter_id
+// 链路）；已解除的历史关系在邀请记录列表中查看。
+func (r *affiliateRepository) GetInviteTreeByUser(ctx context.Context, userID int64) (*service.AffiliateInviteTree, error) {
+	if userID <= 0 {
+		return nil, service.ErrUserNotFound
+	}
+	client := clientFromContext(ctx, r.client)
+
+	// 向上追溯：visited 防环（手动强制变更理论上可制造环），上限 100 跳。
+	visited := map[int64]struct{}{userID: {}}
+	current := userID
+	for hop := 0; hop < 100; hop++ {
+		rows, err := client.QueryContext(ctx,
+			"SELECT inviter_id FROM user_affiliates WHERE user_id = $1 AND inviter_id IS NOT NULL",
+			current,
+		)
+		if err != nil {
+			return nil, err
+		}
+		var next sql.NullInt64
+		if rows.Next() {
+			if err := rows.Scan(&next); err != nil {
+				_ = rows.Close()
+				return nil, err
+			}
+		}
+		_ = rows.Close()
+		if !next.Valid || next.Int64 <= 0 {
+			break // current 即根节点
+		}
+		if _, seen := visited[next.Int64]; seen {
+			break // 环：以当前节点充当根，向下展开仍可用
+		}
+		visited[next.Int64] = struct{}{}
+		current = next.Int64
+	}
+	rootID := current
+
+	// 校验用户存在（软删用户也允许查看树，标记 deleted）。
+	var exists bool
+	userRows, err := client.QueryContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", userID)
+	if err != nil {
+		return nil, err
+	}
+	if userRows.Next() {
+		if err := userRows.Scan(&exists); err != nil {
+			_ = userRows.Close()
+			return nil, err
+		}
+	}
+	_ = userRows.Close()
+	if !exists {
+		return nil, service.ErrUserNotFound
+	}
+
+	// 从根向下递归展开全部子级。UNION（非 UNION ALL）按整行去重，
+	// 手动变更造成的绑定环在此自动终止；LIMIT+1 探测截断。
+	treeRows, err := client.QueryContext(ctx, `
+WITH RECURSIVE tree AS (
+    SELECT ua.user_id, ua.inviter_id, u.email, u.username,
+           COALESCE(ua.aff_code, '') AS aff_code,
+           u.deleted_at IS NOT NULL AS deleted,
+           bind.invited_at
+    FROM user_affiliates ua
+    JOIN users u ON u.id = ua.user_id
+    LEFT JOIN LATERAL (
+        SELECT b.invited_at
+        FROM user_affiliate_bindings b
+        WHERE b.invitee_user_id = ua.user_id
+          AND b.inviter_user_id = ua.inviter_id
+          AND b.unbound_at IS NULL
+        ORDER BY b.id DESC
+        LIMIT 1
+    ) bind ON ua.inviter_id IS NOT NULL
+    WHERE ua.user_id = $1
+    UNION
+    SELECT ua.user_id, ua.inviter_id, u.email, u.username,
+           COALESCE(ua.aff_code, '') AS aff_code,
+           u.deleted_at IS NOT NULL AS deleted,
+           bind.invited_at
+    FROM user_affiliates ua
+    JOIN users u ON u.id = ua.user_id
+    LEFT JOIN LATERAL (
+        SELECT b.invited_at
+        FROM user_affiliate_bindings b
+        WHERE b.invitee_user_id = ua.user_id
+          AND b.inviter_user_id = ua.inviter_id
+          AND b.unbound_at IS NULL
+        ORDER BY b.id DESC
+        LIMIT 1
+    ) bind ON ua.inviter_id IS NOT NULL
+    JOIN tree ON ua.inviter_id = tree.user_id
+)
+SELECT user_id, inviter_id, email, username, aff_code, deleted, invited_at
+FROM tree
+LIMIT $2`, rootID, inviteTreeMaxNodes+1)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = treeRows.Close() }()
+
+	tree := &service.AffiliateInviteTree{RootUserID: rootID, FocusUserID: userID}
+	for treeRows.Next() {
+		var node service.AffiliateInviteTreeNode
+		var invitedAt sql.NullTime
+		if err := treeRows.Scan(&node.UserID, &node.InviterID, &node.Email, &node.Username, &node.AffCode, &node.Deleted, &invitedAt); err != nil {
+			return nil, err
+		}
+		if invitedAt.Valid {
+			bound := invitedAt.Time
+			node.InvitedAt = &bound
+		}
+		tree.Nodes = append(tree.Nodes, node)
+	}
+	if err := treeRows.Err(); err != nil {
+		return nil, err
+	}
+	if len(tree.Nodes) > inviteTreeMaxNodes {
+		tree.Nodes = tree.Nodes[:inviteTreeMaxNodes]
+		tree.Truncated = true
+	}
+	return tree, nil
+}
+
 // GetActiveBindingByInvitee 返回被邀请人当前生效的邀请关系；未绑定返回 nil。
 func (r *affiliateRepository) GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*service.AffiliateInviteBinding, error) {
 	client := clientFromContext(ctx, r.client)
