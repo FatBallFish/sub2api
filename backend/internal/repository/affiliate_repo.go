@@ -974,10 +974,17 @@ LEFT JOIN users invitee ON invitee.id = b.invitee_user_id
 LEFT JOIN users inviter ON inviter.id = b.inviter_user_id
 LEFT JOIN user_affiliates inviter_aff ON inviter_aff.user_id = b.inviter_user_id
 `
+	var statusClause string
+	switch filter.Status {
+	case "active":
+		statusClause = "b.unbound_at IS NULL"
+	case "unbound":
+		statusClause = "b.unbound_at IS NOT NULL"
+	}
 	where, args := buildAffiliateRecordWhere(filter, "b.invited_at", []string{
 		"inviter.email", "inviter.username", "invitee.email", "invitee.username",
 		"b.inviter_user_id::text", "b.invitee_user_id::text", "inviter_aff.aff_code",
-	})
+	}, statusClause)
 
 	total, err := queryAffiliateRecordCount(ctx, client, "SELECT COUNT(*) "+baseJoin+where, args...)
 	if err != nil {
@@ -1263,8 +1270,13 @@ func (r *affiliateRepository) GetAffiliateUserOverview(ctx context.Context, user
 	return &overview, rows.Err()
 }
 
-func buildAffiliateRecordWhere(filter service.AffiliateRecordFilter, timeColumn string, searchColumns []string) (string, []any) {
+func buildAffiliateRecordWhere(filter service.AffiliateRecordFilter, timeColumn string, searchColumns []string, extraClauses ...string) (string, []any) {
 	clauses := make([]string, 0, 3)
+	for _, extra := range extraClauses {
+		if extra != "" {
+			clauses = append(clauses, extra)
+		}
+	}
 	args := make([]any, 0, 3)
 	if filter.StartAt != nil {
 		args = append(args, *filter.StartAt)

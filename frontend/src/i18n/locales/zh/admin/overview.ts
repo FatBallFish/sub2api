@@ -476,6 +476,7 @@ export default {
         user: '用户',
         affCode: '邀请码',
         status: '状态',
+        statusAll: '全部状态',
         statusActive: '生效中',
         statusUnbound: '已解除',
         chainAction: '链路',

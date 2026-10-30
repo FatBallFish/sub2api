@@ -154,6 +154,9 @@ type AffiliateRecordFilter struct {
 	EndAt    *time.Time
 	SortBy   string
 	SortDesc bool
+	// Status 仅作用于邀请记录列表：active=生效中（unbound_at 为空），
+	// unbound=已解除；空值返回全部。
+	Status string
 }
 
 type AffiliateInviteRecord struct {
