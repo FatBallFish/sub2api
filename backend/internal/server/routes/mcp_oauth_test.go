@@ -261,7 +261,7 @@ func newMCPOAuthHTTPFixture(t *testing.T, role string) *mcpOAuthHTTPFixture {
 	users.user.TotpEnabled = true
 	totp := service.NewTotpService(users, nil, mcpOAuthRouteStepUpCache{}, settings, nil, nil)
 	h := mcpRouteHandlers()
-	h.MCPOAuth = handler.NewMCPOAuthHandler(oauth, totp, service.NewUserService(users, nil, nil, nil), settings, cfg)
+	h.MCPOAuth = handler.NewMCPOAuthHandler(oauth, totp, service.NewUserService(users, nil, nil, nil, nil), settings, cfg)
 	h.APIKey = handler.NewAPIKeyHandler(service.NewAPIKeyService(&mcpRouteAPIKeyRepo{}, nil, nil, nil, nil, nil, nil))
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})

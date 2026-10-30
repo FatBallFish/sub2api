@@ -44,7 +44,7 @@ func TestScopedAdminKeyAuthDefaultDenyAndCreatorStatus(t *testing.T) {
 			status = "disabled"
 		}
 		return &service.User{ID: 9, Role: service.RoleAdmin, Status: status}, nil
-	}}, nil, nil, nil)
+	}}, nil, nil, nil, nil)
 	r := gin.New()
 	r.Use(gin.HandlerFunc(NewAdminAuthMiddleware(nil, users, settings, nil)))
 	for _, path := range []string{"/api/v1/admin/users", "/api/v1/admin/unknown", "/api/v1/admin/settings/admin-api-keys"} {
