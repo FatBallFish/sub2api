@@ -129,6 +129,9 @@ type OrderListParams struct {
 	OrderType   string
 	PaymentType string
 	Keyword     string
+	// StartTime/EndTime 按订单 created_at 过滤（闭开区间，EndTime 为排他上界）；nil 表示不启用。
+	StartTime *time.Time
+	EndTime   *time.Time
 }
 
 type RefundPlan struct {

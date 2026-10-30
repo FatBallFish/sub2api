@@ -103,6 +103,20 @@ export const adminPaymentAPI = {
     return apiClient.get<BasePaginationResponse<PaymentOrder>>('/admin/payment/orders', { params })
   },
 
+  /** Export the orders matching the current list filters to CSV */
+  async exportOrders(params?: {
+    status?: string
+    payment_type?: string
+    user_id?: number
+    keyword?: string
+    start_date?: string
+    end_date?: string
+    order_type?: string
+  }): Promise<Blob> {
+    const response = await apiClient.get('/admin/payment/orders/export', { params, responseType: 'blob' })
+    return response.data
+  },
+
   /** Get a specific order by ID */
   getOrder(id: number) {
     return apiClient.get<PaymentOrder>(`/admin/payment/orders/${id}`)

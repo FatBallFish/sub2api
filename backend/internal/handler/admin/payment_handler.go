@@ -1,8 +1,14 @@
 package admin
 
 import (
+	"bytes"
+	"encoding/csv"
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -48,6 +54,30 @@ func (h *PaymentHandler) GetDashboard(c *gin.Context) {
 
 // ListOrders returns a paginated list of all payment orders.
 // GET /api/v1/admin/payment/orders
+// applyOrderDateRange 解析 start_date/end_date（YYYY-MM-DD，可选 timezone 参数），
+// 转换为 created_at 的闭开区间；end_date 当天结束（+1 天，排他上界）。
+func applyOrderDateRange(c *gin.Context, params *service.OrderListParams) error {
+	userTZ := c.Query("timezone")
+	startDateStr := strings.TrimSpace(c.Query("start_date"))
+	endDateStr := strings.TrimSpace(c.Query("end_date"))
+	if startDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", startDateStr, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid start_date format, use YYYY-MM-DD")
+		}
+		params.StartTime = &t
+	}
+	if endDateStr != "" {
+		t, err := timezone.ParseInUserLocation("2006-01-02", endDateStr, userTZ)
+		if err != nil {
+			return fmt.Errorf("invalid end_date format, use YYYY-MM-DD")
+		}
+		t = t.AddDate(0, 0, 1)
+		params.EndTime = &t
+	}
+	return nil
+}
+
 func (h *PaymentHandler) ListOrders(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	var userID int64
@@ -56,19 +86,110 @@ func (h *PaymentHandler) ListOrders(c *gin.Context) {
 			userID = v
 		}
 	}
-	orders, total, err := h.paymentService.AdminListOrders(c.Request.Context(), userID, service.OrderListParams{
+	params := service.OrderListParams{
 		Page:        page,
 		PageSize:    pageSize,
 		Status:      c.Query("status"),
 		OrderType:   c.Query("order_type"),
 		PaymentType: c.Query("payment_type"),
 		Keyword:     c.Query("keyword"),
-	})
+	}
+	if err := applyOrderDateRange(c, &params); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	orders, total, err := h.paymentService.AdminListOrders(c.Request.Context(), userID, params)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Paginated(c, sanitizeAdminPaymentOrdersForResponse(orders), int64(total), page, pageSize)
+}
+
+// ExportOrders exports the orders matching the current list filters to CSV.
+// GET /api/v1/admin/payment/orders/export
+func (h *PaymentHandler) ExportOrders(c *gin.Context) {
+	var userID int64
+	if uid := c.Query("user_id"); uid != "" {
+		if v, err := strconv.ParseInt(uid, 10, 64); err == nil {
+			userID = v
+		}
+	}
+	params := service.OrderListParams{
+		Page:        1,
+		PageSize:    10000,
+		Status:      c.Query("status"),
+		OrderType:   c.Query("order_type"),
+		PaymentType: c.Query("payment_type"),
+		Keyword:     c.Query("keyword"),
+	}
+	if err := applyOrderDateRange(c, &params); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+	if err := writer.Write([]string{
+		"id", "user_id", "user_email", "user_name", "out_trade_no", "payment_trade_no",
+		"order_type", "payment_type", "amount", "pay_amount", "bonus_amount", "status",
+		"created_at", "paid_at", "completed_at",
+	}); err != nil {
+		response.InternalError(c, "Failed to export orders: "+err.Error())
+		return
+	}
+
+	for {
+		orders, _, err := h.paymentService.AdminListOrders(c.Request.Context(), userID, params)
+		if err != nil {
+			response.InternalError(c, "Failed to export orders: "+err.Error())
+			return
+		}
+		for _, o := range orders {
+			if err := writer.Write([]string{
+				fmt.Sprintf("%d", o.ID),
+				fmt.Sprintf("%d", o.UserID),
+				o.UserEmail,
+				o.UserName,
+				o.OutTradeNo,
+				o.PaymentTradeNo,
+				o.OrderType,
+				o.PaymentType,
+				fmt.Sprintf("%.2f", o.Amount),
+				fmt.Sprintf("%.2f", o.PayAmount),
+				fmt.Sprintf("%.2f", o.BonusAmount),
+				o.Status,
+				o.CreatedAt.Format("2006-01-02 15:04:05"),
+				formatOptionalTime(o.PaidAt),
+				formatOptionalTime(o.CompletedAt),
+			}); err != nil {
+				response.InternalError(c, "Failed to export orders: "+err.Error())
+				return
+			}
+		}
+		if len(orders) < params.PageSize {
+			break
+		}
+		params.Page++
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		response.InternalError(c, "Failed to export orders: "+err.Error())
+		return
+	}
+
+	filename := fmt.Sprintf("orders_%s.csv", time.Now().Format("20060102_150405"))
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(200, "text/csv", buf.Bytes())
+}
+
+func formatOptionalTime(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format("2006-01-02 15:04:05")
 }
 
 // GetOrderDetail returns detailed information about a single order.

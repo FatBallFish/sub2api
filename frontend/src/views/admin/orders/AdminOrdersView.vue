@@ -10,7 +10,16 @@
           <Select v-model="orderFilters.status" :options="statusFilterOptions" class="w-36" @change="loadOrders" />
           <Select v-model="orderFilters.payment_type" :options="paymentTypeFilterOptions" class="w-40" @change="loadOrders" />
           <Select v-model="orderFilters.order_type" :options="orderTypeFilterOptions" class="w-36" @change="loadOrders" />
+          <DateRangePicker
+            v-model:start-date="orderFilters.start_date"
+            v-model:end-date="orderFilters.end_date"
+            @change="handleDateRangeChange"
+          />
           <div class="flex flex-1 flex-wrap items-center justify-end gap-2">
+            <button @click="handleExportOrders" :disabled="exportingOrders" class="btn btn-secondary" :title="t('payment.admin.exportCsv')">
+              <Icon name="download" size="md" :class="exportingOrders ? 'animate-pulse' : ''" />
+              {{ t('payment.admin.exportCsv') }}
+            </button>
             <button @click="loadOrders" :disabled="ordersLoading" class="btn btn-secondary" :title="t('common.refresh')">
               <Icon name="refresh" size="md" :class="ordersLoading ? 'animate-spin' : ''" />
             </button>
@@ -127,6 +136,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AdminRefundDialog from '@/components/admin/payment/AdminRefundDialog.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
@@ -147,7 +157,8 @@ const appStore = useAppStore()
 const ordersLoading = ref(false)
 const orders = ref<PaymentOrder[]>([])
 const orderSearch = ref('')
-const orderFilters = reactive({ status: '', payment_type: '', order_type: '' })
+const orderFilters = reactive({ status: '', payment_type: '', order_type: '', start_date: '', end_date: '' })
+const exportingOrders = ref(false)
 const orderPagination = reactive({ page: 1, page_size: 20, total: 0 })
 const selectedOrder = ref<PaymentOrder | null>(null)
 const showDetailDialog = ref(false)
@@ -176,12 +187,42 @@ async function loadOrders() {
       page: orderPagination.page, page_size: orderPagination.page_size,
       keyword: orderSearch.value || undefined, status: orderFilters.status || undefined,
       payment_type: orderFilters.payment_type || undefined, order_type: orderFilters.order_type || undefined,
+      start_date: orderFilters.start_date || undefined, end_date: orderFilters.end_date || undefined,
     })
     orders.value = res.data.items || []
     orderPagination.total = res.data.total || 0
   } catch (err: unknown) {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally { ordersLoading.value = false }
+}
+
+function handleDateRangeChange() { orderPagination.page = 1; loadOrders() }
+
+async function handleExportOrders() {
+  exportingOrders.value = true
+  try {
+    const blob = await adminPaymentAPI.exportOrders({
+      status: orderFilters.status || undefined,
+      payment_type: orderFilters.payment_type || undefined,
+      order_type: orderFilters.order_type || undefined,
+      keyword: orderSearch.value || undefined,
+      start_date: orderFilters.start_date || undefined,
+      end_date: orderFilters.end_date || undefined,
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `orders-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    appStore.showSuccess(t('payment.admin.exportDone'))
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('payment.admin.exportFailed')))
+  } finally {
+    exportingOrders.value = false
+  }
 }
 
 function handleOrderPageChange(page: number) { orderPagination.page = page; loadOrders() }
