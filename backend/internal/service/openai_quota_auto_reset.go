@@ -60,6 +60,7 @@ type OpenAIAutoResetCreditState struct {
 
 type openAIAutoResetQuota interface {
 	QueryUsage(ctx context.Context, accountID int64) (*OpenAIQuotaUsage, error)
+	CacheCreditsSnapshot(ctx context.Context, accountID int64, usage *OpenAIQuotaUsage) error
 	CacheResetCreditsSnapshot(ctx context.Context, accountID int64, credits *OpenAIRateLimitResetCredits) error
 	CachePostResetSnapshot(ctx context.Context, accountID int64, usage *OpenAIQuotaUsage) error
 	ResetCreditTargeted(ctx context.Context, accountID int64, creditID, redeemRequestID string) (*OpenAIQuotaResetResult, error)
@@ -234,7 +235,7 @@ func (s *OpenAIQuotaAutoResetService) scanEnabledAccounts(ctx context.Context) {
 		}
 		for i := range accounts {
 			account := &accounts[i]
-			if account.Schedulable && ResolveOpenAIAutoResetCreditConfig(account).Enabled {
+			if account.Schedulable && s.shouldNotifyScan(ctx, account) {
 				s.Notify(account.ID)
 			}
 		}
@@ -242,6 +243,27 @@ func (s *OpenAIQuotaAutoResetService) scanEnabledAccounts(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// shouldNotifyScan extends the scan to accounts that only need a credits-aware
+// usage refresh: 满额度自动使用积分开启（自动用卡未启用）的账号在没有实时流量时
+// 也要周期性刷新 codex 用量与积分快照，否则打满窗口后的豁免判定会因快照过期而
+// 失效，或反过来一直沿用已耗尽的旧快照。
+func (s *OpenAIQuotaAutoResetService) shouldNotifyScan(ctx context.Context, account *Account) bool {
+	if ResolveOpenAIAutoResetCreditConfig(account).Enabled {
+		return true
+	}
+	if !openAIAutoUseCreditsEnabled(account) {
+		return false
+	}
+	if s.settings != nil {
+		ctx = withOpenAIQuotaAutoPauseSettings(ctx, s.settings.GetOpenAIQuotaAutoPauseSettings(ctx))
+	}
+	if openAIHasSpendableCredits(account.Extra, time.Now()) {
+		return true
+	}
+	paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, account)
+	return paused
 }
 
 // Redis 锁异常时允许重复扫描，避免协调设施故障导致所有实例同时停止补偿；
@@ -288,8 +310,11 @@ func (s *OpenAIQuotaAutoResetService) evaluateAccount(ctx context.Context, accou
 		return nil
 	}
 	config := ResolveOpenAIAutoResetCreditConfig(account)
-	if !config.Enabled || !account.IsActive() || !account.Schedulable {
+	if !account.IsActive() || !account.Schedulable {
 		return nil
+	}
+	if !config.Enabled {
+		return s.refreshCreditsSnapshot(ctx, account)
 	}
 
 	now := time.Now()
@@ -601,7 +626,47 @@ func (s *OpenAIQuotaAutoResetService) persistFreshUsage(ctx context.Context, acc
 			return err
 		}
 	}
+	// Cache the spendable-credits snapshot first: reset-credit expiration
+	// details may legitimately be unavailable while the usage read succeeded,
+	// and scheduling (openAIHasSpendableCredits) relies on the credits half.
+	if err := s.quota.CacheCreditsSnapshot(ctx, accountID, usage); err != nil {
+		return err
+	}
 	return s.quota.CacheResetCreditsSnapshot(ctx, accountID, usage.RateLimitResetCredits)
+}
+
+// refreshCreditsSnapshot serves OpenAI OAuth accounts that are not auto-reset
+// enabled but still need a periodic /wham/usage read: while a quota-pause
+// candidate or credits-exempt account receives no live traffic, its codex_*
+// usage and credits snapshots would never refresh. It performs no reset-credit
+// logic and writes no auto-reset state; a failed query just retries on the
+// next scan because the usage snapshot stays stale.
+func (s *OpenAIQuotaAutoResetService) refreshCreditsSnapshot(ctx context.Context, account *Account) error {
+	if !openAIAutoUseCreditsEnabled(account) {
+		return nil
+	}
+	now := time.Now()
+	if !openAIAutoResetSnapshotStale(account.Extra, now) {
+		return nil
+	}
+	usage, err := s.quota.QueryUsage(ctx, account.ID)
+	if err != nil {
+		slog.Warn("openai_credits_refresh_query_failed", "account_id", account.ID, "error_code", infraerrors.Reason(err))
+		return nil
+	}
+	if usage == nil {
+		slog.Warn("openai_credits_refresh_query_failed", "account_id", account.ID, "error_code", "EMPTY_USAGE")
+		return nil
+	}
+	if err := s.persistFreshUsage(ctx, account.ID, usage, now); err != nil {
+		slog.Warn("openai_credits_refresh_persist_failed", "account_id", account.ID, "error", err.Error())
+		return nil
+	}
+	slog.Info("openai_credits_snapshot_refreshed",
+		"account_id", account.ID,
+		"has_credits", usage.Credits != nil && usage.Credits.HasCredits,
+		"unlimited", usage.Credits != nil && usage.Credits.Unlimited)
+	return nil
 }
 
 func selectOpenAIAutoResetCandidate(candidates []openAIAutoResetCreditCandidate, available int, previous *OpenAIAutoResetCreditState, cycleHash string) (openAIAutoResetCreditCandidate, error) {
