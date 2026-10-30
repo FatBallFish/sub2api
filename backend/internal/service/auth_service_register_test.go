@@ -104,6 +104,18 @@ func (s *authRegisterAffiliateRepoStub) GetAffiliateByCode(ctx context.Context, 
 	return nil, ErrAffiliateProfileNotFound
 }
 
+func (s *authRegisterAffiliateRepoStub) AdminSetInviteBinding(ctx context.Context, inviteeID, inviterID int64, invitedAt time.Time, force bool) (*AffiliateInviteBinding, error) {
+	panic("unexpected AdminSetInviteBinding call")
+}
+
+func (s *authRegisterAffiliateRepoStub) AdminUnbindInvites(ctx context.Context, inviteeIDs []int64) (int, error) {
+	panic("unexpected AdminUnbindInvites call")
+}
+
+func (s *authRegisterAffiliateRepoStub) GetActiveBindingByInvitee(ctx context.Context, inviteeID int64) (*AffiliateInviteBinding, error) {
+	return nil, nil
+}
+
 func (s *authRegisterAffiliateRepoStub) BindInviter(ctx context.Context, userID, inviterID int64) (bool, error) {
 	return true, nil
 }

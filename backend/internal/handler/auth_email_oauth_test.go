@@ -386,6 +386,18 @@ func (r *oauthEmailAffiliateRepoStub) GetAffiliateByCode(_ context.Context, code
 	return &service.AffiliateSummary{UserID: userID, AffCode: strings.ToUpper(strings.TrimSpace(code))}, nil
 }
 
+func (r *oauthEmailAffiliateRepoStub) AdminSetInviteBinding(context.Context, int64, int64, time.Time, bool) (*service.AffiliateInviteBinding, error) {
+	panic("unexpected AdminSetInviteBinding call")
+}
+
+func (r *oauthEmailAffiliateRepoStub) AdminUnbindInvites(context.Context, []int64) (int, error) {
+	panic("unexpected AdminUnbindInvites call")
+}
+
+func (r *oauthEmailAffiliateRepoStub) GetActiveBindingByInvitee(context.Context, int64) (*service.AffiliateInviteBinding, error) {
+	return nil, nil
+}
+
 func (r *oauthEmailAffiliateRepoStub) BindInviter(_ context.Context, userID, inviterID int64) (bool, error) {
 	r.bindCalls = append(r.bindCalls, oauthEmailAffiliateBindCall{userID: userID, inviterID: inviterID})
 	return true, nil
