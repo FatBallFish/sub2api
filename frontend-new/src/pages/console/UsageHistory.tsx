@@ -577,7 +577,7 @@ export default function UsageHistory() {
                         <span className="text-xs font-mono text-amber-600">
                           {formatNumber(item.cache_creation_tokens, locale)}
                           {(item.cache_creation_1h_tokens ?? 0) > 0 && (
-                            <span className="ml-1 rounded bg-amber-100 px-1 text-[9px] font-bold text-amber-700">1h</span>
+                            <span className="ml-1 rounded bg-amber-100 px-1 text-[9px] font-bold text-amber-700">{t("usageHistory.cacheWindowBadge1h")}</span>
                           )}
                         </span>
                       </div>
@@ -633,7 +633,7 @@ export default function UsageHistory() {
                       <span>{formatDuration(item.duration_ms, locale)}</span>
                       <span className="text-[10px] font-mono text-zinc-400">
                         {outputRateDisplay(item) != null
-                          ? `${t("usageHistory.outputTps")}: ${outputRateDisplay(item)} tok/s`
+                          ? t("usageHistory.outputTpsLine", { value: outputRateDisplay(item) ?? "" })
                           : ""}
                       </span>
                     </div>
